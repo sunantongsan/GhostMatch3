@@ -28,6 +28,7 @@ class GhostGameView extends View {
     private int animationPhase=0,animationSerial=0,cascadeDepth=0;
     private long phaseStart=0;
     private int specialR=-1,specialC=-1;
+    private int swapR1=-1,swapC1=-1,swapR2=-1,swapC2=-1;
     private final Random rng=new Random();
     private final Paint p=new Paint(3);
     private final Paint stroke=new Paint(3);
@@ -269,7 +270,18 @@ class GhostGameView extends View {
         }
         if(board[r][col]<0)return;
         int value=board[r][col],kind=value/TYPES,type=value%TYPES;
-        float cy=y+cell*.51f+bob;
+        float cx=x+cell/2,cy=y+cell*.51f+bob;
+        if(animationPhase==3){
+            float t=Math.min(1f,(System.currentTimeMillis()-phaseStart)/150f);
+            float ease=1f-(1f-t)*(1f-t);
+            if(r==swapR1&&col==swapC1){
+                cx+=(swapC2-swapC1)*cell*(1f-ease);
+                cy+=(swapR2-swapR1)*cell*(1f-ease);
+            }else if(r==swapR2&&col==swapC2){
+                cx+=(swapC1-swapC2)*cell*(1f-ease);
+                cy+=(swapR1-swapR2)*cell*(1f-ease);
+            }
+        }
         if(animationPhase==2){
             float t=Math.min(1f,(System.currentTimeMillis()-phaseStart)/340f);
             float eased=1f-(float)Math.pow(1f-t,3);
@@ -277,11 +289,11 @@ class GhostGameView extends View {
         }
         if(animationPhase==1&&exploding.contains(r*N+col)){
             float t=Math.min(1f,(System.currentTimeMillis()-phaseStart)/240f);
-            int save=c.save();c.scale(1f+.45f*t,1f+.45f*t,x+cell/2,cy);
+            int save=c.save();c.scale(1f+.45f*t,1f+.45f*t,cx,cy);
             spritePaint.setAlpha(Math.max(0,(int)(255*(1f-t))));
-            drawGhost(c,x+cell/2,cy,cell*.34f,colors[type],type,sel);
+            drawGhost(c,cx,cy,cell*.34f,colors[type],type,sel);
             c.restoreToCount(save);spritePaint.setAlpha(255);
-        }else drawGhost(c,x+cell/2,cy,cell*.34f,colors[type],type,sel);
+        }else drawGhost(c,cx,cy,cell*.34f,colors[type],type,sel);
         if(ice[r][col]>0){
             p.setColor(ice[r][col]>1?Color.argb(155,160,223,255):Color.argb(100,176,235,255));
             c.drawRoundRect(x+pad,y+pad,x+cell-pad,y+cell-pad,cell*.18f,cell*.18f,p);
@@ -292,7 +304,7 @@ class GhostGameView extends View {
             p.setShadowLayer(9,0,0,Color.rgb(255,213,93));
             p.setColor(Color.WHITE);p.setTextAlign(Paint.Align.CENTER);
             p.setTypeface(Typeface.create("sans",Typeface.BOLD));p.setTextSize(cell*.43f);
-            c.drawText(kind==1?"↔":kind==2?"↕":kind==3?"★":"✦",x+cell*.53f,cy+cell*.14f,p);
+            c.drawText(kind==1?"↔":kind==2?"↕":kind==3?"★":"✦",cx,cy+cell*.14f,p);
             p.clearShadowLayer();
         }
     }
@@ -487,19 +499,27 @@ class GhostGameView extends View {
     private void attemptSwipe(int r1,int c1,int r2,int c2){
         int a=board[r1][c1],b=board[r2][c2];
         swap(r1,c1,r2,c2);
-        if(a>=TYPES||b>=TYPES){
-            moves--;cascadeDepth=0;
-            Set<Integer> hits=new HashSet<>();
-            if(a>=TYPES)expandPower(r2,c2,a,hits);
-            if(b>=TYPES)expandPower(r1,c1,b,hits);
-            beginExplosion(hits,false,-1,-1);
-        }else if(hasAnyMatch()){
-            moves--;cascadeDepth=0;
-            beginExplosion(findMatches(),true,r2,c2);
-        } else {
+        if(a<TYPES&&b<TYPES&&!hasAnyMatch()){
             swap(r1,c1,r2,c2);
-            message("That move makes no match — try another!");
+            message("Try another pair!");
+            return;
         }
+        moves--;cascadeDepth=0;
+        swapR1=r1;swapC1=c1;swapR2=r2;swapC2=c2;
+        animationPhase=3;phaseStart=System.currentTimeMillis();
+        final int serial=animationSerial;
+        postDelayed(()->{
+            if(serial!=animationSerial)return;
+            animationPhase=0;
+            if(a>=TYPES||b>=TYPES){
+                Set<Integer> hits=new HashSet<>();
+                if(a>=TYPES)expandPower(r2,c2,a,hits);
+                if(b>=TYPES)expandPower(r1,c1,b,hits);
+                beginExplosion(hits,false,-1,-1);
+            }else beginExplosion(findMatches(),true,r2,c2);
+            invalidate();
+        },150);
+        invalidate();
     }
 
     private void cellTap(int r,int c){
