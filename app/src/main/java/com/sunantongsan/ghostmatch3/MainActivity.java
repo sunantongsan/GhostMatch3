@@ -23,6 +23,8 @@ class GhostGameView extends View {
     private final Random rng=new Random();
     private final Paint p=new Paint(3);
     private final Paint stroke=new Paint(3);
+    private final Paint spritePaint=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);
+    private Bitmap ghostSheet,boosterSheet;
     private final int[] colors={Color.rgb(245,245,255),Color.rgb(188,236,172),Color.rgb(161,77,227)};
     private final String[] boosterNames={"SWAP","HAMMER","ROW","COLUMN","HELPER","WAND","+5"};
     private final int[] boosterCount={8,8,6,6,6,8,8};
@@ -55,6 +57,8 @@ class GhostGameView extends View {
         super(c);
         setLayerType(View.LAYER_TYPE_SOFTWARE,null);
         stroke.setStyle(Paint.Style.STROKE);
+        ghostSheet=BitmapFactory.decodeResource(getResources(),R.drawable.ghost_sprites);
+        boosterSheet=BitmapFactory.decodeResource(getResources(),R.drawable.booster_sprites);
         newLevel();
     }
 
@@ -225,6 +229,20 @@ class GhostGameView extends View {
     }
 
     private void drawGhost(Canvas c,float cx,float cy,float rad,int color,int face,boolean selected){
+        if(ghostSheet!=null&&!ghostSheet.isRecycled()){
+            int type=Math.max(0,Math.min(2,face));
+            float sheetCell=ghostSheet.getWidth()/3f;
+            Rect source=new Rect((int)(type*sheetCell),0,(int)((type+1)*sheetCell),ghostSheet.getHeight());
+            RectF dest=new RectF(cx-rad*1.24f,cy-rad*1.22f,cx+rad*1.24f,cy+rad*1.22f);
+            c.drawBitmap(ghostSheet,source,dest,spritePaint);
+            if(selected){
+                stroke.setColor(Color.rgb(255,221,78));stroke.setStrokeWidth(rad*.10f);
+                stroke.setShadowLayer(15,0,0,Color.rgb(255,232,122));
+                c.drawRoundRect(dest,rad*.38f,rad*.38f,stroke);stroke.clearShadowLayer();
+            }
+            return;
+        }
+        // Fallback only if a device cannot decode the embedded graphic asset.
         // Layered glossy character: glow, shadow, soft 3D body, arms and expressive face.
         p.setShadowLayer(selected?22:12,0,rad*.12f,selected?Color.WHITE:color);
         p.setColor(Color.argb(90,0,0,0));
@@ -309,10 +327,15 @@ class GhostGameView extends View {
         boolean active=mode==i;
         panel(c,x,y,x+w,y+h*.76f,active?Color.rgb(243,191,76):Color.rgb(243,187,102));
         p.setTextAlign(Paint.Align.CENTER);
-        p.setColor(new int[]{0xffff5297,0xffac4130,0xff743ce3,0xff46bde0,0xff84caff,0xffffd53d,0xff963ee0}[i]);
-        p.setShadowLayer(5,0,3,Color.rgb(28,13,49));p.setTextSize(screenW*.065f);
-        String icon=new String[]{"✋","🔨","✦","◈","♧","★","↻"}[i];
-        c.drawText(icon,x+w/2,y+h*.54f,p);p.clearShadowLayer();
+        if(boosterSheet!=null&&!boosterSheet.isRecycled()){
+            float sheetCell=boosterSheet.getWidth()/7f;
+            Rect source=new Rect((int)(i*sheetCell),0,(int)((i+1)*sheetCell),boosterSheet.getHeight());
+            RectF dest=new RectF(x+w*.04f,y+h*.02f,x+w*.96f,y+h*.75f);
+            c.drawBitmap(boosterSheet,source,dest,spritePaint);
+        }else{
+            p.setColor(Color.rgb(119,57,193));p.setTextSize(screenW*.060f);
+            c.drawText(new String[]{"✋","H","★","◈","♧","★","+5"}[i],x+w/2,y+h*.54f,p);
+        }
         p.setColor(Color.WHITE);p.setTextSize(screenW*.017f);
         c.drawText(boosterNames[i],x+w/2,y+h*.96f,p);
         p.setColor(Color.rgb(190,30,45));c.drawCircle(x+w*.86f,y+h*.08f,w*.22f,p);
