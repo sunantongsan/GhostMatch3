@@ -20,6 +20,11 @@ public class MainActivity extends Activity {
 class GhostGameView extends View {
     private static final int N=7, TYPES=3;
     private final int[][] board=new int[N][N];
+    private final float[][] fallFrom=new float[N][N];
+    private final Set<Integer> exploding=new HashSet<>();
+    private int animationPhase=0,animationSerial=0,cascadeDepth=0;
+    private long phaseStart=0;
+    private int specialR=-1,specialC=-1;
     private final Random rng=new Random();
     private final Paint p=new Paint(3);
     private final Paint stroke=new Paint(3);
@@ -64,6 +69,8 @@ class GhostGameView extends View {
     }
 
     private void newLevel(){
+        animationSerial++;animationPhase=0;exploding.clear();
+        for(float[] row:fallFrom)Arrays.fill(row,0);
         moves=26+(level/8)*2;
         target=1500+level*200;
         for(int i=0;i<TYPES;i++){goals[i]=8+level/3;collected[i]=0;}
@@ -231,7 +238,28 @@ class GhostGameView extends View {
             stroke.setColor(Color.rgb(255,219,62));stroke.setStrokeWidth(cell*.055f);
             c.drawRoundRect(x+pad,y+pad,x+cell-pad,y+cell-pad,cell*.22f,cell*.22f,stroke);
         }
-        drawGhost(c,x+cell/2,y+cell*.51f+bob,cell*.34f,colors[board[r][col]],board[r][col],sel);
+        if(board[r][col]<0)return;
+        int value=board[r][col],kind=value/TYPES,type=value%TYPES;
+        float cy=y+cell*.51f+bob;
+        if(animationPhase==2){
+            float t=Math.min(1f,(System.currentTimeMillis()-phaseStart)/340f);
+            float eased=1f-(float)Math.pow(1f-t,3);
+            cy+=fallFrom[r][col]*cell*(1f-eased);
+        }
+        if(animationPhase==1&&exploding.contains(r*N+col)){
+            float t=Math.min(1f,(System.currentTimeMillis()-phaseStart)/240f);
+            int save=c.save();c.scale(1f+.45f*t,1f+.45f*t,x+cell/2,cy);
+            spritePaint.setAlpha(Math.max(0,(int)(255*(1f-t))));
+            drawGhost(c,x+cell/2,cy,cell*.34f,colors[type],type,sel);
+            c.restoreToCount(save);spritePaint.setAlpha(255);
+        }else drawGhost(c,x+cell/2,cy,cell*.34f,colors[type],type,sel);
+        if(kind>0){
+            p.setShadowLayer(9,0,0,Color.rgb(255,213,93));
+            p.setColor(Color.WHITE);p.setTextAlign(Paint.Align.CENTER);
+            p.setTypeface(Typeface.create("sans",Typeface.BOLD));p.setTextSize(cell*.43f);
+            c.drawText(kind==1?"↔":kind==2?"↕":"★",x+cell*.53f,cy+cell*.14f,p);
+            p.clearShadowLayer();
+        }
     }
 
     private void drawGhost(Canvas c,float cx,float cy,float rad,int color,int face,boolean selected){
@@ -375,6 +403,7 @@ class GhostGameView extends View {
             return true;
         }
         if(e.getAction()!=MotionEvent.ACTION_UP)return true;
+        if(animationPhase!=0)return true;
         if(won||lost||paused){
             if(y>getHeight()*.57f&&y<getHeight()*.68f){
                 if(paused)paused=false;
@@ -421,9 +450,17 @@ class GhostGameView extends View {
     }
 
     private void attemptSwipe(int r1,int c1,int r2,int c2){
+        int a=board[r1][c1],b=board[r2][c2];
         swap(r1,c1,r2,c2);
-        if(hasAnyMatch()){
-            moves--;resolveCascades();checkEnd();
+        if(a>=TYPES||b>=TYPES){
+            moves--;cascadeDepth=0;
+            Set<Integer> hits=new HashSet<>();
+            if(a>=TYPES)expandPower(r2,c2,a,hits);
+            if(b>=TYPES)expandPower(r1,c1,b,hits);
+            beginExplosion(hits,false,-1,-1);
+        }else if(hasAnyMatch()){
+            moves--;cascadeDepth=0;
+            beginExplosion(findMatches(),true,r2,c2);
         } else {
             swap(r1,c1,r2,c2);
             message("That move makes no match — try another!");
@@ -484,40 +521,139 @@ class GhostGameView extends View {
         for(int r=0;r<N;r++){
             int run=1;
             for(int c=1;c<=N;c++){
-                if(c<N&&board[r][c]>=0&&board[r][c]==board[r][c-1]) run++;
+                if(c<N&&board[r][c]>=0&&base(board[r][c])==base(board[r][c-1])) run++;
                 else {if(run>=3)for(int k=c-run;k<c;k++)out.add(r*N+k);run=1;}
             }
         }
         for(int c=0;c<N;c++){
             int run=1;
             for(int r=1;r<=N;r++){
-                if(r<N&&board[r][c]>=0&&board[r][c]==board[r-1][c]) run++;
+                if(r<N&&board[r][c]>=0&&base(board[r][c])==base(board[r-1][c])) run++;
                 else {if(run>=3)for(int k=r-run;k<r;k++)out.add(k*N+c);run=1;}
             }
         }
         return out;
     }
 
-    private void resolveCascades(){
-        combo=0;Set<Integer> m=findMatches();
-        while(!m.isEmpty()&&combo<12){
-            combo++;
-            score+=m.size()*90*combo;
-            for(int pos:m){
-                int rr=pos/N,cc=pos%N;
-                collected[board[rr][cc]]++;
-                burstAt(rr,cc,colors[board[rr][cc]]);
-                board[rr][cc]=-1;
+    private int base(int value){return value<0?-1:value%TYPES;}
+
+    private void expandPower(int row,int col,int value,Set<Integer> hits){
+        if(value<0)return;
+        int kind=value/TYPES;
+        if(kind==1)for(int j=0;j<N;j++)hits.add(row*N+j);
+        else if(kind==2)for(int i=0;i<N;i++)hits.add(i*N+col);
+        else if(kind==3){
+            int type=value%TYPES;
+            for(int i=0;i<N;i++)for(int j=0;j<N;j++)
+                if(base(board[i][j])==type)hits.add(i*N+j);
+        }
+        hits.add(row*N+col);
+    }
+
+    private int[] powerReward(int preferredR,int preferredC){
+        int best=0,kind=0,rr=-1,cc=-1;
+        for(int r=0;r<N;r++){
+            int run=1;
+            for(int col=1;col<=N;col++){
+                if(col<N&&base(board[r][col])>=0&&base(board[r][col])==base(board[r][col-1]))run++;
+                else{
+                    if(run>=4&&run>best){
+                        cc=(r==preferredR&&preferredC>=col-run&&preferredC<col)?preferredC:col-run;
+                        rr=r;kind=run>=5?3:1;best=run;
+                    }
+                    run=1;
+                }
             }
-            collapse();m=findMatches();
+        }
+        for(int col=0;col<N;col++){
+            int run=1;
+            for(int r=1;r<=N;r++){
+                if(r<N&&base(board[r][col])>=0&&base(board[r][col])==base(board[r-1][col]))run++;
+                else{
+                    if(run>=4&&run>best){
+                        rr=(col==preferredC&&preferredR>=r-run&&preferredR<r)?preferredR:r-run;
+                        cc=col;kind=run>=5?3:2;best=run;
+                    }
+                    run=1;
+                }
+            }
+        }
+        return kind==0?null:new int[]{rr,cc,kind};
+    }
+
+    private void resolveCascades(){
+        if(animationPhase!=0)return;
+        Set<Integer> matches=findMatches();
+        if(!matches.isEmpty())beginExplosion(matches,false,-1,-1);
+        else {ensureMove();checkEnd();}
+    }
+
+    private void beginExplosion(Set<Integer> hits,boolean player,int preferredR,int preferredC){
+        if(hits.isEmpty()){ensureMove();checkEnd();return;}
+        if(cascadeDepth++>=12){cascadeDepth=0;ensureMove();checkEnd();return;}
+        int[] reward=player?powerReward(preferredR,preferredC):null;
+        Set<Integer> expanded=new HashSet<>(hits),processed=new HashSet<>();
+        boolean changed;
+        do{
+            changed=false;
+            for(int pos:new HashSet<>(expanded)){
+                if(!processed.add(pos))continue;
+                int r=pos/N,c=pos%N;
+                if(board[r][c]>=TYPES){
+                    int size=expanded.size();
+                    expandPower(r,c,board[r][c],expanded);
+                    if(expanded.size()>size)changed=true;
+                }
+            }
+        }while(changed);
+        if(reward!=null){
+            int pos=reward[0]*N+reward[1];
+            if(expanded.remove(pos)){
+                board[reward[0]][reward[1]]=base(board[reward[0]][reward[1]])+TYPES*reward[2];
+                message(reward[2]==3?"Rainbow ghost unlocked!":reward[2]==1?"Row blast unlocked!":"Column blast unlocked!");
+            }
+        }
+        if(expanded.isEmpty()){ensureMove();checkEnd();return;}
+        exploding.clear();exploding.addAll(expanded);animationPhase=1;phaseStart=System.currentTimeMillis();
+        combo=Math.min(12,cascadeDepth);score+=expanded.size()*90*combo;
+        for(int pos:expanded){
+            int r=pos/N,c=pos%N,v=board[r][c];
+            if(v>=0){collected[base(v)]++;burstAt(r,c,colors[base(v)]);}
         }
         if(combo>=2){
-            comboText="COMBO x"+combo+"!";
-            comboUntil=System.currentTimeMillis()+1200;
+            comboText="COMBO x"+combo+"!";comboUntil=System.currentTimeMillis()+1200;
             performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
-            message("Amazing combo x"+combo+"!");
         }
-        ensureMove();
+        final int serial=animationSerial;
+        postDelayed(()->{
+            if(serial!=animationSerial)return;
+            for(int pos:exploding)board[pos/N][pos%N]=-1;
+            exploding.clear();
+            collapseAnimated();
+            animationPhase=2;phaseStart=System.currentTimeMillis();invalidate();
+            postDelayed(()->{
+                if(serial!=animationSerial)return;
+                animationPhase=0;invalidate();
+                Set<Integer> next=findMatches();
+                if(!next.isEmpty())beginExplosion(next,false,-1,-1);
+                else{cascadeDepth=0;ensureMove();checkEnd();}
+            },360);
+        },240);
+        invalidate();
+    }
+
+    private void collapseAnimated(){
+        for(int c=0;c<N;c++){
+            int write=N-1,spawn=-1;
+            for(int r=N-1;r>=0;r--)if(board[r][c]>=0){
+                board[write][c]=board[r][c];fallFrom[write][c]=r-write;write--;
+            }
+            while(write>=0){
+                board[write][c]=rng.nextInt(TYPES);
+                fallFrom[write][c]=spawn-write;
+                write--;spawn--;
+            }
+        }
     }
 
     private void collapse(){
