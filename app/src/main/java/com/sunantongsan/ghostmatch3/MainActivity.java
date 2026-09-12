@@ -135,7 +135,10 @@ class GhostGameView extends View {
 
         boardX=margin; boardY=h*.222f; cell=(w-2*margin)/N;
         panel(c,boardX-w*.017f,boardY-w*.017f,w-boardX+w*.017f,boardY+cell*N+w*.017f,Color.rgb(37,39,83));
-        for(int r=0;r<N;r++) for(int col=0;col<N;col++) drawCell(c,r,col);
+        int boardClip=c.save();
+        c.clipRect(boardX,boardY,boardX+N*cell,boardY+N*cell);
+        for(int r=0;r<N;r++)for(int col=0;col<N;col++)drawCell(c,r,col);
+        c.restoreToCount(boardClip);
         drawEffects(c,w,h);
 
         boosterY=boardY+cell*N+h*.025f;
@@ -469,10 +472,12 @@ class GhostGameView extends View {
 
     private void cellTap(int r,int c){
         if(mode>=1&&mode<=3){
-            if(mode==1){collected[board[r][c]]++;burstAt(r,c,colors[board[r][c]]);board[r][c]=-1;}
-            else if(mode==2){for(int j=0;j<N;j++){collected[board[r][j]]++;burstAt(r,j,colors[board[r][j]]);board[r][j]=-1;}}
-            else {for(int i=0;i<N;i++){collected[board[i][c]]++;burstAt(i,c,colors[board[i][c]]);board[i][c]=-1;}}
-            useBooster(mode,"Magic power!");score+=350;collapse();resolveCascades();checkEnd();invalidate();return;
+            Set<Integer> hit=new HashSet<>();
+            if(mode==1)hit.add(r*N+c);
+            else if(mode==2)for(int j=0;j<N;j++)hit.add(r*N+j);
+            else for(int i=0;i<N;i++)hit.add(i*N+c);
+            useBooster(mode,"Magic power!");score+=350;cascadeDepth=0;
+            beginExplosion(hit,false,-1,-1);invalidate();return;
         }
         if(mode==5){
             int type=board[r][c],chosen=(type+1)%TYPES;
@@ -480,7 +485,8 @@ class GhostGameView extends View {
             else if(c<=N-3&&board[r][c+1]==board[r][c+2])chosen=board[r][c+1];
             else if(r>=2&&board[r-1][c]==board[r-2][c])chosen=board[r-1][c];
             else if(r<=N-3&&board[r+1][c]==board[r+2][c])chosen=board[r+1][c];
-            board[r][c]=chosen;useBooster(5,"Magic wand!");resolveCascades();checkEnd();invalidate();return;
+            board[r][c]=chosen;useBooster(5,"Magic wand!");
+            cascadeDepth=0;resolveCascades();invalidate();return;
         }
         if(selectedR<0){selectedR=r;selectedC=c;invalidate();return;}
         if(selectedR==r&&selectedC==c){selectedR=-1;selectedC=-1;invalidate();return;}
@@ -496,7 +502,8 @@ class GhostGameView extends View {
         if(boosterCount[i]<=0){message("Earn more boosters by passing levels!");return;}
         if(i==4){
             int[] move=findPossibleMove();
-            if(move!=null){boosterCount[i]--;attemptSwipe(move[0],move[1],move[2],move[3]);message("Helpful ghost found a match!");}
+            if(move!=null){boosterCount[i]++;attemptSwipe(move[0],move[1],move[2],move[3]);
+                boosterCount[i]-=2;message("Helpful ghost found a match!");}
         }else if(i==6){boosterCount[i]--;moves+=5;message("+5 moves added!");}
         else{mode=mode==i?-1:i;selectedR=-1;selectedC=-1;
             message(mode<0?"Booster cancelled":i==0?"Swipe any two neighbors":"Tap a ghost for "+boosterNames[i]);}
