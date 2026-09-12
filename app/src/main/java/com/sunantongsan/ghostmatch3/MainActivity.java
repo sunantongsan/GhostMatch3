@@ -20,6 +20,9 @@ public class MainActivity extends Activity {
 class GhostGameView extends View {
     private static final int N=7, TYPES=3;
     private final int[][] board=new int[N][N];
+    private final int[][] ice=new int[N][N];
+    private int iceLeft=0,iceInitial=0,highestLevel=1;
+    private final android.content.SharedPreferences progress;
     private final float[][] fallFrom=new float[N][N];
     private final Set<Integer> exploding=new HashSet<>();
     private int animationPhase=0,animationSerial=0,cascadeDepth=0;
@@ -65,6 +68,9 @@ class GhostGameView extends View {
         ghostSheet=BitmapFactory.decodeResource(getResources(),R.drawable.ghost_sprites);
         boosterSheet=BitmapFactory.decodeResource(getResources(),R.drawable.booster_sprites);
         hauntedBackground=BitmapFactory.decodeResource(getResources(),R.drawable.haunted_background);
+        progress=c.getSharedPreferences("ghostmatch_progress",Context.MODE_PRIVATE);
+        highestLevel=Math.max(1,progress.getInt("highest_level",1));
+        level=highestLevel;
         newLevel();
     }
 
@@ -73,7 +79,23 @@ class GhostGameView extends View {
         for(float[] row:fallFrom)Arrays.fill(row,0);
         moves=26+(level/8)*2;
         target=1500+level*200;
-        for(int i=0;i<TYPES;i++){goals[i]=8+level/3;collected[i]=0;}
+        for(int i=0;i<TYPES;i++){
+            goals[i]=7+level/5;
+            if(level>3&&i==(level-1)%TYPES)goals[i]+=5;
+            collected[i]=0;
+        }
+        for(int[] row:ice)Arrays.fill(row,0);
+        iceLeft=0;
+        if(level>=6){
+            int iceCount=Math.min(15,4+(level-6)/2);
+            int strength=level>=16?2:1;
+            for(int k=0;k<iceCount;k++){
+                int rr,cc;
+                do{rr=rng.nextInt(N);cc=rng.nextInt(N);}while(ice[rr][cc]>0);
+                ice[rr][cc]=strength;iceLeft+=strength;
+            }
+        }
+        iceInitial=iceLeft;
         score=0; combo=0; won=false; lost=false; paused=false; mode=-1;helperFirstR=-1;
         for(int r=0;r<N;r++) for(int c=0;c<N;c++){
             int t;
@@ -131,6 +153,10 @@ class GhostGameView extends View {
         for(int i=1;i<=3;i++){
             p.setColor(ratio>=i/3f?Color.rgb(255,214,72):Color.rgb(103,90,139));
             p.setTextSize(w*.037f);c.drawText("★",progL+(progR-progL)*i/3f,progY+w*.03f,p);
+        }
+        if(iceInitial>0){
+            p.setTextAlign(Paint.Align.CENTER);p.setColor(Color.rgb(178,234,255));p.setTextSize(w*.029f);
+            c.drawText("❄ น้ำแข็ง "+iceLeft+"/"+iceInitial,w*.46f,h*.214f,p);
         }
 
         boardX=margin; boardY=h*.222f; cell=(w-2*margin)/N;
@@ -256,11 +282,17 @@ class GhostGameView extends View {
             drawGhost(c,x+cell/2,cy,cell*.34f,colors[type],type,sel);
             c.restoreToCount(save);spritePaint.setAlpha(255);
         }else drawGhost(c,x+cell/2,cy,cell*.34f,colors[type],type,sel);
+        if(ice[r][col]>0){
+            p.setColor(ice[r][col]>1?Color.argb(155,160,223,255):Color.argb(100,176,235,255));
+            c.drawRoundRect(x+pad,y+pad,x+cell-pad,y+cell-pad,cell*.18f,cell*.18f,p);
+            stroke.setColor(Color.argb(210,231,249,255));stroke.setStrokeWidth(cell*.028f);
+            c.drawRoundRect(x+pad,y+pad,x+cell-pad,y+cell-pad,cell*.18f,cell*.18f,stroke);
+        }
         if(kind>0){
             p.setShadowLayer(9,0,0,Color.rgb(255,213,93));
             p.setColor(Color.WHITE);p.setTextAlign(Paint.Align.CENTER);
             p.setTypeface(Typeface.create("sans",Typeface.BOLD));p.setTextSize(cell*.43f);
-            c.drawText(kind==1?"↔":kind==2?"↕":"★",x+cell*.53f,cy+cell*.14f,p);
+            c.drawText(kind==1?"↔":kind==2?"↕":kind==3?"★":"✦",x+cell*.53f,cy+cell*.14f,p);
             p.clearShadowLayer();
         }
     }
@@ -553,6 +585,9 @@ class GhostGameView extends View {
             int type=value%TYPES;
             for(int i=0;i<N;i++)for(int j=0;j<N;j++)
                 if(base(board[i][j])==type)hits.add(i*N+j);
+        }else if(kind==4){
+            for(int i=Math.max(0,row-1);i<=Math.min(N-1,row+1);i++)
+                for(int j=Math.max(0,col-1);j<=Math.min(N-1,col+1);j++)hits.add(i*N+j);
         }
         hits.add(row*N+col);
     }
@@ -584,6 +619,16 @@ class GhostGameView extends View {
                     run=1;
                 }
             }
+        }
+        // An L/T crossing creates a 3×3 burst, distinct from a straight four.
+        for(int r=0;r<N;r++)for(int c=0;c<N;c++){
+            int type=base(board[r][c]);if(type<0)continue;
+            int horiz=1,vert=1;
+            for(int j=c-1;j>=0&&base(board[r][j])==type;j--)horiz++;
+            for(int j=c+1;j<N&&base(board[r][j])==type;j++)horiz++;
+            for(int i=r-1;i>=0&&base(board[i][c])==type;i--)vert++;
+            for(int i=r+1;i<N&&base(board[i][c])==type;i++)vert++;
+            if(horiz>=3&&vert>=3&&best<5)return new int[]{r,c,4};
         }
         return kind==0?null:new int[]{rr,cc,kind};
     }
@@ -617,7 +662,7 @@ class GhostGameView extends View {
             int pos=reward[0]*N+reward[1];
             if(expanded.remove(pos)){
                 board[reward[0]][reward[1]]=base(board[reward[0]][reward[1]])+TYPES*reward[2];
-                message(reward[2]==3?"Rainbow ghost unlocked!":reward[2]==1?"Row blast unlocked!":"Column blast unlocked!");
+                message(reward[2]==4?"Ghost burst unlocked!":reward[2]==3?"Rainbow ghost unlocked!":reward[2]==1?"Row blast unlocked!":"Column blast unlocked!");
             }
         }
         if(expanded.isEmpty()){ensureMove();checkEnd();return;}
@@ -625,7 +670,11 @@ class GhostGameView extends View {
         combo=Math.min(12,cascadeDepth);score+=expanded.size()*90*combo;
         for(int pos:expanded){
             int r=pos/N,c=pos%N,v=board[r][c];
-            if(v>=0){collected[base(v)]++;burstAt(r,c,colors[base(v)]);}
+            if(v>=0){
+                collected[base(v)]++;
+                if(ice[r][c]>0){ice[r][c]--;iceLeft--;score+=100;}
+                burstAt(r,c,colors[base(v)]);
+            }
         }
         if(combo>=2){
             comboText="COMBO x"+combo+"!";comboUntil=System.currentTimeMillis()+1200;
@@ -696,8 +745,10 @@ class GhostGameView extends View {
     }
 
     private void checkEnd(){
-        if(!won&&collected[0]>=goals[0]&&collected[1]>=goals[1]&&collected[2]>=goals[2]){
+        if(!won&&iceLeft==0&&collected[0]>=goals[0]&&collected[1]>=goals[1]&&collected[2]>=goals[2]){
             won=true;boosterCount[rng.nextInt(7)]++;
+            highestLevel=Math.max(highestLevel,level+1);
+            progress.edit().putInt("highest_level",highestLevel).apply();
             for(int i=0;i<100;i++)sparks.add(new Spark(rng.nextFloat()*getWidth(),getHeight()*.25f,
                 (rng.nextFloat()-.5f)*5f,rng.nextFloat()*-5f,.7f+rng.nextFloat(),4+rng.nextFloat()*7f,colors[i%TYPES]));
             performHapticFeedback(HapticFeedbackConstants.CONFIRM);
