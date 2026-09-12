@@ -1,0 +1,10 @@
+<resources>
+    <style name="Theme.GhostMatch3" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:colorAccent">#FFD45A</item>
+        <item name="android:navigationBarColor">#120A2E</item>
+        <item name="android:statusBarColor">#120A2E</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>
