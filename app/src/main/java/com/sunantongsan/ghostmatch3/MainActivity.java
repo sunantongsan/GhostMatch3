@@ -502,8 +502,8 @@ class GhostGameView extends View {
         if(boosterCount[i]<=0){message("Earn more boosters by passing levels!");return;}
         if(i==4){
             int[] move=findPossibleMove();
-            if(move!=null){boosterCount[i]++;attemptSwipe(move[0],move[1],move[2],move[3]);
-                boosterCount[i]-=2;message("Helpful ghost found a match!");}
+            if(move!=null){boosterCount[i]--;attemptSwipe(move[0],move[1],move[2],move[3]);
+                message("Helpful ghost found a match!");}
         }else if(i==6){boosterCount[i]--;moves+=5;message("+5 moves added!");}
         else{mode=mode==i?-1:i;selectedR=-1;selectedC=-1;
             message(mode<0?"Booster cancelled":i==0?"Swipe any two neighbors":"Tap a ghost for "+boosterNames[i]);}
