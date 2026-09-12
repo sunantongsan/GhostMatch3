@@ -35,6 +35,17 @@ class GhostGameView extends View {
     private float touchDownX, touchDownY;
     private int touchDownR=-1, touchDownC=-1;
     private boolean won=false,lost=false;
+    private long gameStart=System.currentTimeMillis();
+    private final ArrayList<Spark> sparks=new ArrayList<>();
+    private String comboText="";
+    private long comboUntil=0;
+    private float swipeFX=-1, swipeFY=-1;
+    private static class Spark {
+        float x,y,vx,vy,life,size; int color;
+        Spark(float x,float y,float vx,float vy,float life,float size,int color){
+            this.x=x;this.y=y;this.vx=vx;this.vy=vy;this.life=life;this.size=size;this.color=color;
+        }
+    }
     private String toast="Match 3 ghosts to begin!";
     private long toastUntil=0;
     private final android.os.Handler handler=new android.os.Handler();
@@ -67,6 +78,7 @@ class GhostGameView extends View {
         bg.setShader(new LinearGradient(0,0,w,h,Color.rgb(22,10,54),Color.rgb(49,19,84),Shader.TileMode.CLAMP));
         c.drawRect(0,0,w,h,bg);
         drawStars(c,w,h);
+        drawHauntedScene(c,w,h);
         p.setTypeface(Typeface.create("sans",Typeface.BOLD));
         p.setTextAlign(Paint.Align.CENTER);
         p.setColor(Color.WHITE); p.setTextSize(w*.071f);
@@ -91,6 +103,7 @@ class GhostGameView extends View {
         boardX=margin; boardY=h*.218f; cell=(w-2*margin)/N;
         drawRound(c,boardX-w*.012f,boardY-w*.012f,w-boardX+w*.012f,boardY+cell*N+w*.012f,Color.argb(185,20,12,52),w*.035f);
         for(int r=0;r<N;r++) for(int col=0;col<N;col++) drawCell(c,r,col);
+        drawEffects(c,w,h);
 
         boosterY=boardY+cell*N+h*.028f;
         p.setTextAlign(Paint.Align.LEFT); p.setTextSize(w*.038f); p.setColor(Color.WHITE);
@@ -105,7 +118,15 @@ class GhostGameView extends View {
             c.drawText(toast,w/2,ty,p);
             postInvalidateDelayed(100);
         }
+        if(comboUntil>System.currentTimeMillis()){
+            float lift=(comboUntil-System.currentTimeMillis())/1200f;
+            p.setTextAlign(Paint.Align.CENTER);p.setTypeface(Typeface.create("sans",Typeface.BOLD));
+            p.setTextSize(w*.078f);p.setColor(Color.WHITE);
+            p.setShadowLayer(18,0,0,Color.rgb(255,87,203));
+            c.drawText(comboText,w/2,boardY+cell*N*.48f-lift*w*.08f,p);p.clearShadowLayer();
+        }
         if(won||lost) drawOverlay(c,w,h);
+        postInvalidateOnAnimation();
     }
 
     private void drawStars(Canvas c,float w,float h){
@@ -120,6 +141,48 @@ class GhostGameView extends View {
         c.drawCircle(w*.9f,h*.72f,w*.25f,p);
     }
 
+    private void drawHauntedScene(Canvas c,float w,float h){
+        // Moon, distant castle and mist give the board a storybook Halloween atmosphere.
+        p.setColor(Color.argb(35,170,105,255));
+        c.drawCircle(w*.82f,h*.15f,w*.13f,p);
+        p.setColor(Color.argb(95,255,241,176));
+        c.drawCircle(w*.82f,h*.15f,w*.082f,p);
+        p.setColor(Color.argb(120,8,8,31));
+        Path castle=new Path();
+        castle.moveTo(0,h*.21f);castle.lineTo(w*.08f,h*.15f);castle.lineTo(w*.12f,h*.21f);
+        castle.lineTo(w*.18f,h*.12f);castle.lineTo(w*.24f,h*.21f);castle.lineTo(w*.31f,h*.17f);
+        castle.lineTo(w*.38f,h*.21f);castle.close();c.drawPath(castle,p);
+        p.setColor(Color.argb(18,170,225,255));
+        for(int i=0;i<5;i++)c.drawOval(-w*.15f+i*w*.27f,h*(.72f+i*.025f),w*.35f+i*w*.27f,h*(.83f+i*.025f),p);
+    }
+
+    private void drawEffects(Canvas c,float w,float h){
+        long now=System.currentTimeMillis();
+        for(int i=sparks.size()-1;i>=0;i--){
+            Spark s=sparks.get(i);s.life-=.035f;
+            if(s.life<=0){sparks.remove(i);continue;}
+            s.x+=s.vx;s.y+=s.vy;s.vy+=.12f;
+            p.setColor((Math.max(0,Math.min(255,(int)(s.life*255)))<<24)|(s.color&0x00ffffff));
+            p.setShadowLayer(10,0,0,s.color);
+            c.drawCircle(s.x,s.y,s.size*(.55f+s.life),p);p.clearShadowLayer();
+        }
+        if(swipeFX>=0){
+            p.setColor(Color.argb(90,255,255,255));
+            c.drawCircle(swipeFX,swipeFY,cell*.18f,p);
+            swipeFX=-1;
+        }
+    }
+
+    private void burstAt(int r,int col,int color){
+        float x=boardX+(col+.5f)*cell,y=boardY+(r+.5f)*cell;
+        for(int i=0;i<14;i++){
+            double a=Math.PI*2*i/14.0+rng.nextDouble()*.35;
+            float speed=2.5f+rng.nextFloat()*6f;
+            sparks.add(new Spark(x,y,(float)Math.cos(a)*speed,(float)Math.sin(a)*speed,
+                .65f+rng.nextFloat()*.35f,3+rng.nextFloat()*6,color));
+        }
+    }
+
     private void stat(Canvas c,String title,String value,float x,float y,float w){
         p.setTextAlign(Paint.Align.CENTER);p.setTextSize(w*.025f);p.setColor(Color.rgb(188,167,235));
         c.drawText(title,x,y,p);
@@ -129,6 +192,7 @@ class GhostGameView extends View {
 
     private void drawCell(Canvas c,int r,int col){
         float x=boardX+col*cell, y=boardY+r*cell, pad=cell*.075f;
+        float bob=(float)Math.sin((System.currentTimeMillis()-gameStart)/420.0+r*.8+col*.65)*cell*.025f;
         int back=((r+col)&1)==0?Color.argb(75,118,79,173):Color.argb(55,78,52,132);
         drawRound(c,x+pad,y+pad,x+cell-pad,y+cell-pad,back,cell*.22f);
         boolean sel=r==selectedR&&col==selectedC;
@@ -136,7 +200,7 @@ class GhostGameView extends View {
             stroke.setColor(Color.WHITE);stroke.setStrokeWidth(cell*.055f);
             c.drawRoundRect(x+pad,y+pad,x+cell-pad,y+cell-pad,cell*.22f,cell*.22f,stroke);
         }
-        drawGhost(c,x+cell/2,y+cell*.51f,cell*.34f,colors[board[r][col]],board[r][col],sel);
+        drawGhost(c,x+cell/2,y+cell*.51f+bob,cell*.34f,colors[board[r][col]],board[r][col],sel);
     }
 
     private void drawGhost(Canvas c,float cx,float cy,float rad,int color,int face,boolean selected){
@@ -266,7 +330,11 @@ class GhostGameView extends View {
                 if(Math.abs(dx)>Math.abs(dy))tc+=dx>0?1:-1;
                 else tr+=dy>0?1:-1;
                 selectedR=-1;selectedC=-1;
-                if(tr>=0&&tr<N&&tc>=0&&tc<N) attemptSwipe(touchDownR,touchDownC,tr,tc);
+                if(tr>=0&&tr<N&&tc>=0&&tc<N){
+                    swipeFX=boardX+(tc+.5f)*cell;swipeFY=boardY+(tr+.5f)*cell;
+                    performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                    attemptSwipe(touchDownR,touchDownC,tr,tc);
+                }
                 touchDownR=-1;touchDownC=-1;invalidate();return true;
             }
             int rr=touchDownR,cc=touchDownC;touchDownR=-1;touchDownC=-1;
@@ -351,10 +419,19 @@ class GhostGameView extends View {
         while(!m.isEmpty()&&combo<12){
             combo++;
             score+=m.size()*90*combo;
-            for(int pos:m)board[pos/N][pos%N]=-1;
+            for(int pos:m){
+                int rr=pos/N,cc=pos%N;
+                burstAt(rr,cc,colors[board[rr][cc]]);
+                board[rr][cc]=-1;
+            }
             collapse();m=findMatches();
         }
-        if(combo>=2)message("Amazing combo x"+combo+"!");
+        if(combo>=2){
+            comboText="COMBO x"+combo+"!";
+            comboUntil=System.currentTimeMillis()+1200;
+            performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
+            message("Amazing combo x"+combo+"!");
+        }
         ensureMove();
     }
 
@@ -391,7 +468,13 @@ class GhostGameView extends View {
     }
 
     private void checkEnd(){
-        if(score>=target){won=true;boosterCount[rng.nextInt(6)]++;message("Level complete! Free booster earned.");}
+        if(score>=target){
+            won=true;boosterCount[rng.nextInt(6)]++;
+            for(int i=0;i<100;i++)sparks.add(new Spark(rng.nextFloat()*getWidth(),getHeight()*.25f,
+                (rng.nextFloat()-.5f)*5f,rng.nextFloat()*-5f,.7f+rng.nextFloat(),4+rng.nextFloat()*7f,colors[i%TYPES]));
+            performHapticFeedback(HapticFeedbackConstants.CONFIRM);
+            message("Level complete! Free booster earned.");
+        }
         else if(moves<=0)lost=true;
     }
 
