@@ -34,22 +34,22 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs app/build/outputs/apk/debug/app-debug.apk
 
       - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk GhostMatch3-v0.1.1.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk GhostMatch3-v0.2.0.apk
 
       - name: Upload test APK
         uses: actions/upload-artifact@v4
         with:
           name: GhostMatch3-Android-APK
-          path: GhostMatch3-v0.1.1.apk
+          path: GhostMatch3-v0.2.0.apk
 
       - name: Publish test release
         uses: ncipollo/release-action@v1
         with:
-          tag: v0.1.1
-          name: Ghost Match 3 - Test Version 0.1.1
-          artifacts: GhostMatch3-v0.1.1.apk
+          tag: v0.2.0
+          name: Ghost Match 3 - Test Version 0.2.0
+          artifacts: GhostMatch3-v0.2.0.apk
           allowUpdates: true
           replacesArtifacts: true
           body: |
             First Android test build.
-            Download GhostMatch3-v0.1.1.apk and install it on an Android phone.
+            Download GhostMatch3-v0.2.0.apk and install it on an Android phone.
