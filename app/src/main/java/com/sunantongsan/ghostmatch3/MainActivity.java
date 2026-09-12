@@ -18,17 +18,18 @@ public class MainActivity extends Activity {
 }
 
 class GhostGameView extends View {
-    private static final int N=7, TYPES=6;
+    private static final int N=7, TYPES=3;
     private final int[][] board=new int[N][N];
     private final Random rng=new Random();
     private final Paint p=new Paint(3);
     private final Paint stroke=new Paint(3);
-    private final int[] colors={
-        Color.rgb(255,103,178), Color.rgb(93,225,255), Color.rgb(167,116,255),
-        Color.rgb(111,242,154), Color.rgb(255,205,77), Color.rgb(255,122,103)
-    };
-    private final String[] boosterNames={"HAMMER","ROW","COLUMN","COLOR","SHUFFLE","+5","HINT"};
-    private final int[] boosterCount={5,4,4,3,5,3,99};
+    private final int[] colors={Color.rgb(245,245,255),Color.rgb(188,236,172),Color.rgb(161,77,227)};
+    private final String[] boosterNames={"SWAP","HAMMER","ROW","COLUMN","HELPER","WAND","+5"};
+    private final int[] boosterCount={8,8,6,6,6,8,8};
+    private final int[] collected=new int[TYPES];
+    private final int[] goals={10,10,10};
+    private int helperFirstR=-1,helperFirstC=-1;
+    private boolean paused=false;
     private int level=1, moves=28, score=0, target=1800, selectedR=-1, selectedC=-1;
     private int mode=-1, combo=0;
     private float boardX,boardY,cell,boosterY;
@@ -58,9 +59,10 @@ class GhostGameView extends View {
     }
 
     private void newLevel(){
-        moves=28+(level/5)*2;
-        target=1400+level*380;
-        score=0; combo=0; won=false; lost=false; mode=-1;
+        moves=26+(level/8)*2;
+        target=1500+level*200;
+        for(int i=0;i<TYPES;i++){goals[i]=8+level/3;collected[i]=0;}
+        score=0; combo=0; won=false; lost=false; paused=false; mode=-1;helperFirstR=-1;
         for(int r=0;r<N;r++) for(int c=0;c<N;c++){
             int t;
             do { t=rng.nextInt(TYPES); } while((c>=2&&board[r][c-1]==t&&board[r][c-2]==t)||(r>=2&&board[r-1][c]==t&&board[r-2][c]==t));
@@ -81,35 +83,54 @@ class GhostGameView extends View {
         drawHauntedScene(c,w,h);
         p.setTypeface(Typeface.create("sans",Typeface.BOLD));
         p.setTextAlign(Paint.Align.CENTER);
-        p.setColor(Color.WHITE); p.setTextSize(w*.071f);
-        c.drawText("GHOST MATCH 3",w/2,h*.065f,p);
-        p.setTextSize(w*.033f); p.setColor(Color.rgb(214,197,255));
-        c.drawText("A magical puzzle adventure",w/2,h*.094f,p);
-
         float margin=w*.055f;
-        float cardTop=h*.112f, cardH=h*.087f;
-        drawRound(c,margin,cardTop,w-margin,cardTop+cardH,Color.argb(180,45,24,91),w*.035f);
-        stat(c,"LEVEL",String.valueOf(level),w*.18f,cardTop+cardH*.36f,w);
-        stat(c,"MOVES",String.valueOf(moves),w*.50f,cardTop+cardH*.36f,w);
-        stat(c,"SCORE",score+"/"+target,w*.82f,cardTop+cardH*.36f,w);
+        float top=h*.018f;
+        panel(c,margin,top,w*.20f,h*.13f,Color.rgb(65,34,113));
+        p.setTextSize(w*.035f);p.setColor(Color.WHITE);
+        c.drawText("ด่านที่",w*.135f,h*.057f,p);
+        p.setTextSize(w*.072f);c.drawText(""+level,w*.135f,h*.113f,p);
+        panel(c,w*.235f,top,w*.675f,h*.147f,Color.rgb(51,32,107));
+        p.setTextSize(w*.037f);p.setColor(Color.WHITE);c.drawText("เป้าหมาย",w*.455f,h*.052f,p);
+        for(int i=0;i<3;i++){
+            float gx=w*(.316f+.148f*i);
+            drawGhost(c,gx,h*.098f,w*.038f,colors[i],i,false);
+            p.setColor(collected[i]>=goals[i]?Color.rgb(107,236,94):Color.WHITE);
+            p.setTextSize(w*.024f);p.setTextAlign(Paint.Align.CENTER);
+            c.drawText(collected[i]+"/"+goals[i],gx,h*.145f,p);
+        }
+        panel(c,w*.695f,top,w*.96f,h*.084f,Color.rgb(56,35,105));
+        p.setColor(Color.WHITE);p.setTextSize(w*.034f);c.drawText("คะแนน",w*.827f,h*.045f,p);
+        p.setColor(Color.rgb(255,214,91));p.setTextSize(w*.046f);c.drawText(""+score,w*.827f,h*.075f,p);
+        panel(c,w*.695f,h*.095f,w*.96f,h*.174f,Color.rgb(45,42,116));
+        p.setColor(Color.WHITE);p.setTextSize(w*.030f);c.drawText("เหลือการย้าย",w*.827f,h*.125f,p);
+        p.setColor(Color.rgb(255,206,88));p.setTextSize(w*.061f);c.drawText(""+moves,w*.827f,h*.162f,p);
+        drawRound(c,w*.91f,top,w*.985f,top+w*.075f,Color.rgb(130,63,198),w*.04f);
+        p.setColor(Color.WHITE);p.setTextSize(w*.043f);c.drawText(paused?"▶":"Ⅱ",w*.947f,top+w*.053f,p);
+        float progL=w*.24f,progR=w*.66f,progY=h*.177f;
+        drawRound(c,progL,progY,progR,progY+w*.03f,Color.rgb(24,28,62),w*.02f);
+        float ratio=0;for(int i=0;i<3;i++)ratio+=Math.min(1f,collected[i]/(float)goals[i])/3f;
+        p.setShader(new LinearGradient(progL,0,progR,0,Color.rgb(75,193,66),Color.rgb(161,250,84),Shader.TileMode.CLAMP));
+        c.drawRoundRect(progL,progY,progL+(progR-progL)*ratio,progY+w*.03f,w*.02f,w*.02f,p);p.setShader(null);
+        for(int i=1;i<=3;i++){
+            p.setColor(ratio>=i/3f?Color.rgb(255,214,72):Color.rgb(103,90,139));
+            p.setTextSize(w*.037f);c.drawText("★",progL+(progR-progL)*i/3f,progY+w*.03f,p);
+        }
 
-        float progL=margin+w*.04f, progR=w-margin-w*.04f, progY=cardTop+cardH*.76f;
-        drawRound(c,progL,progY,progR,progY+w*.018f,Color.rgb(35,22,67),20);
-        float ratio=Math.min(1f,score/(float)target);
-        Paint gp=new Paint();
-        gp.setShader(new LinearGradient(progL,0,progR,0,Color.rgb(255,89,174),Color.rgb(116,218,255),Shader.TileMode.CLAMP));
-        c.drawRoundRect(progL,progY,progL+(progR-progL)*ratio,progY+w*.018f,20,20,gp);
-
-        boardX=margin; boardY=h*.218f; cell=(w-2*margin)/N;
-        drawRound(c,boardX-w*.012f,boardY-w*.012f,w-boardX+w*.012f,boardY+cell*N+w*.012f,Color.argb(185,20,12,52),w*.035f);
+        boardX=margin; boardY=h*.222f; cell=(w-2*margin)/N;
+        panel(c,boardX-w*.017f,boardY-w*.017f,w-boardX+w*.017f,boardY+cell*N+w*.017f,Color.rgb(37,39,83));
         for(int r=0;r<N;r++) for(int col=0;col<N;col++) drawCell(c,r,col);
         drawEffects(c,w,h);
 
-        boosterY=boardY+cell*N+h*.028f;
-        p.setTextAlign(Paint.Align.LEFT); p.setTextSize(w*.038f); p.setColor(Color.WHITE);
-        c.drawText("MAGIC BOOSTERS",margin,boosterY,p);
-        float gap=w*.012f, bw=(w-2*margin-gap*6)/7f, by=boosterY+h*.018f;
-        for(int i=0;i<7;i++) drawBooster(c,i,margin+i*(bw+gap),by,bw,h*.09f,w);
+        boosterY=boardY+cell*N+h*.025f;
+        panel(c,margin,boosterY-h*.019f,w-margin,boosterY+h*.115f,Color.rgb(61,36,116));
+        p.setTextAlign(Paint.Align.LEFT);p.setTextSize(w*.033f);p.setColor(Color.WHITE);
+        c.drawText("ไอเท็มช่วยเหลือ",margin+w*.024f,boosterY+h*.004f,p);
+        float gap=w*.008f, bw=(w-2*margin-w*.035f-gap*6)/7f, by=boosterY+h*.014f;
+        for(int i=0;i<7;i++)drawBooster(c,i,margin+w*.018f+i*(bw+gap),by,bw,h*.087f,w);
+        drawRound(c,margin+w*.11f,h*.881f,w-margin-w*.02f,h*.963f,Color.rgb(67,156,35),w*.09f);
+        p.setColor(Color.WHITE);p.setTextAlign(Paint.Align.CENTER);p.setTextSize(w*.052f);
+        c.drawText("ผ่านง่าย! สนุกได้ทุกคน ♥",w*.52f,h*.934f,p);
+        drawGhost(c,w*.16f,h*.91f,w*.07f,colors[0],0,false);
 
         if(System.currentTimeMillis()<toastUntil){
             float ty=h*.925f;
@@ -125,7 +146,7 @@ class GhostGameView extends View {
             p.setShadowLayer(18,0,0,Color.rgb(255,87,203));
             c.drawText(comboText,w/2,boardY+cell*N*.48f-lift*w*.08f,p);p.clearShadowLayer();
         }
-        if(won||lost) drawOverlay(c,w,h);
+        if(won||lost||paused) drawOverlay(c,w,h);
         postInvalidateOnAnimation();
     }
 
@@ -197,7 +218,7 @@ class GhostGameView extends View {
         drawRound(c,x+pad,y+pad,x+cell-pad,y+cell-pad,back,cell*.22f);
         boolean sel=r==selectedR&&col==selectedC;
         if(sel){
-            stroke.setColor(Color.WHITE);stroke.setStrokeWidth(cell*.055f);
+            stroke.setColor(Color.rgb(255,219,62));stroke.setStrokeWidth(cell*.055f);
             c.drawRoundRect(x+pad,y+pad,x+cell-pad,y+cell-pad,cell*.22f,cell*.22f,stroke);
         }
         drawGhost(c,x+cell/2,y+cell*.51f+bob,cell*.34f,colors[board[r][col]],board[r][col],sel);
@@ -277,17 +298,26 @@ class GhostGameView extends View {
         return Color.rgb(Math.max(0,Color.red(color)-amount),Math.max(0,Color.green(color)-amount),Math.max(0,Color.blue(color)-amount));
     }
 
+    private void panel(Canvas c,float l,float t,float r,float b,int fill){
+        p.setShadowLayer(13,0,7,Color.rgb(3,2,25));p.setColor(Color.rgb(128,75,184));
+        c.drawRoundRect(l-3,t-3,r+3,b+3,18,18,p);p.clearShadowLayer();
+        p.setShader(new LinearGradient(l,t,r,b,lighten(fill,12),darken(fill,25),Shader.TileMode.CLAMP));
+        c.drawRoundRect(l,t,r,b,16,16,p);p.setShader(null);
+    }
+
     private void drawBooster(Canvas c,int i,float x,float y,float w,float h,float screenW){
         boolean active=mode==i;
-        drawRound(c,x,y,x+w,y+h,active?Color.rgb(255,183,72):Color.argb(210,63,36,107),w*.28f);
-        p.setTextAlign(Paint.Align.CENTER);p.setColor(active?Color.rgb(55,25,70):Color.WHITE);
-        p.setTextSize(screenW*.045f);
-        String icon=i==0?"H":i==1?"—":i==2?"|":i==3?"★":i==4?"↻":i==5?"+5":"?";
-        c.drawText(icon,x+w/2,y+h*.43f,p);
-        p.setTextSize(screenW*.018f);
-        c.drawText(boosterNames[i],x+w/2,y+h*.68f,p);
-        p.setTextSize(screenW*.022f);
-        c.drawText(i==6?"FREE":"x"+boosterCount[i],x+w/2,y+h*.89f,p);
+        panel(c,x,y,x+w,y+h*.76f,active?Color.rgb(243,191,76):Color.rgb(243,187,102));
+        p.setTextAlign(Paint.Align.CENTER);
+        p.setColor(new int[]{0xffff5297,0xffac4130,0xff743ce3,0xff46bde0,0xff84caff,0xffffd53d,0xff963ee0}[i]);
+        p.setShadowLayer(5,0,3,Color.rgb(28,13,49));p.setTextSize(screenW*.065f);
+        String icon=new String[]{"✋","🔨","✦","◈","♧","★","↻"}[i];
+        c.drawText(icon,x+w/2,y+h*.54f,p);p.clearShadowLayer();
+        p.setColor(Color.WHITE);p.setTextSize(screenW*.017f);
+        c.drawText(boosterNames[i],x+w/2,y+h*.96f,p);
+        p.setColor(Color.rgb(190,30,45));c.drawCircle(x+w*.86f,y+h*.08f,w*.22f,p);
+        p.setColor(Color.WHITE);p.setTextSize(screenW*.025f);
+        c.drawText(""+boosterCount[i],x+w*.86f,y+h*.13f,p);
     }
 
     private void drawOverlay(Canvas c,float w,float h){
@@ -295,20 +325,20 @@ class GhostGameView extends View {
         float l=w*.10f,r=w*.90f,t=h*.30f,b=h*.68f;
         drawRound(c,l,t,r,b,Color.rgb(68,35,112),w*.06f);
         p.setTextAlign(Paint.Align.CENTER);p.setColor(Color.WHITE);p.setTextSize(w*.078f);
-        c.drawText(won?"LEVEL COMPLETE!":"SO CLOSE!",w/2,t+h*.09f,p);
+        c.drawText(paused?"PAUSED":won?"LEVEL COMPLETE!":"SO CLOSE!",w/2,t+h*.09f,p);
         p.setTextSize(w*.12f);c.drawText(won?"★ ★ ★":"♥",w/2,t+h*.17f,p);
         p.setTextSize(w*.044f);p.setColor(Color.rgb(233,220,255));
-        c.drawText(won?"Great ghost magic!":"Use +5 moves and try again.",w/2,t+h*.23f,p);
+        c.drawText(paused?"Tap continue to play":won?"Great ghost magic!":"Try this level again.",w/2,t+h*.23f,p);
         drawRound(c,w*.22f,t+h*.27f,w*.78f,t+h*.35f,Color.rgb(255,188,64),50);
         p.setColor(Color.rgb(55,25,70));p.setTextSize(w*.045f);
-        c.drawText(won?"NEXT LEVEL":"RETRY",w/2,t+h*.325f,p);
+        c.drawText(paused?"CONTINUE":won?"NEXT LEVEL":"RETRY",w/2,t+h*.325f,p);
     }
 
     @Override public boolean onTouchEvent(android.view.MotionEvent e){
         float x=e.getX(),y=e.getY();
         if(e.getAction()==MotionEvent.ACTION_DOWN){
             touchDownX=x; touchDownY=y;
-            if(!won&&!lost&&y>=boardY&&y<boardY+N*cell&&x>=boardX&&x<boardX+N*cell){
+            if(!won&&!lost&&!paused&&y>=boardY&&y<boardY+N*cell&&x>=boardX&&x<boardX+N*cell){
                 touchDownC=Math.min(N-1,(int)((x-boardX)/cell));
                 touchDownR=Math.min(N-1,(int)((y-boardY)/cell));
                 selectedR=touchDownR; selectedC=touchDownC; invalidate();
@@ -316,10 +346,15 @@ class GhostGameView extends View {
             return true;
         }
         if(e.getAction()!=MotionEvent.ACTION_UP)return true;
-        if(won||lost){
-            if(y>getHeight()*.57f&&y<getHeight()*.68f){if(won)level++;newLevel();}
+        if(won||lost||paused){
+            if(y>getHeight()*.57f&&y<getHeight()*.68f){
+                if(paused)paused=false;
+                else {if(won)level++;newLevel();}
+                invalidate();
+            }
             return true;
         }
+        if(x>getWidth()*.89f&&y<getHeight()*.09f){paused=true;invalidate();return true;}
 
         // Standard match-3 swipe: drag one ghost toward an adjacent cell.
         if(touchDownR>=0){
@@ -333,7 +368,13 @@ class GhostGameView extends View {
                 if(tr>=0&&tr<N&&tc>=0&&tc<N){
                     swipeFX=boardX+(tc+.5f)*cell;swipeFY=boardY+(tr+.5f)*cell;
                     performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
-                    attemptSwipe(touchDownR,touchDownC,tr,tc);
+                    if(mode==0){
+                        if(boosterCount[0]>0){
+                            swap(touchDownR,touchDownC,tr,tc);boosterCount[0]--;mode=-1;
+                            resolveCascades();checkEnd();
+                        }
+                    }else if(mode>=1&&mode<=3||mode==5){cellTap(touchDownR,touchDownC);}
+                    else attemptSwipe(touchDownR,touchDownC,tr,tc);
                 }
                 touchDownR=-1;touchDownC=-1;invalidate();return true;
             }
@@ -341,8 +382,8 @@ class GhostGameView extends View {
             cellTap(rr,cc);return true;
         }
 
-        float margin=getWidth()*.055f,gap=getWidth()*.012f,bw=(getWidth()-2*margin-gap*6)/7f;
-        float by=boosterY+getHeight()*.018f;
+        float margin=getWidth()*.055f,gap=getWidth()*.008f,bw=(getWidth()-2*margin-getWidth()*.035f-gap*6)/7f;
+        float by=boosterY+getHeight()*.014f;
         if(y>=by&&y<=by+getHeight()*.10f){
             int i=(int)((x-margin)/(bw+gap));
             if(i>=0&&i<7)boosterTap(i);
@@ -361,32 +402,46 @@ class GhostGameView extends View {
     }
 
     private void cellTap(int r,int c){
-        if(mode>=0&&mode<=3){
-            if(mode==0){ clearAt(r,c); useBooster(mode,"Hammer smash!"); }
-            else if(mode==1){ for(int j=0;j<N;j++) board[r][j]=-1; useBooster(mode,"Row cleared!"); }
-            else if(mode==2){ for(int i=0;i<N;i++) board[i][c]=-1; useBooster(mode,"Column cleared!"); }
-            else { int type=board[r][c];for(int i=0;i<N;i++)for(int j=0;j<N;j++)if(board[i][j]==type)board[i][j]=-1;useBooster(mode,"Color magic!"); }
-            score+=350; collapse();resolveCascades();checkEnd();invalidate();return;
+        if(mode>=1&&mode<=3){
+            if(mode==1){collected[board[r][c]]++;burstAt(r,c,colors[board[r][c]]);board[r][c]=-1;}
+            else if(mode==2){for(int j=0;j<N;j++){collected[board[r][j]]++;burstAt(r,j,colors[board[r][j]]);board[r][j]=-1;}}
+            else {for(int i=0;i<N;i++){collected[board[i][c]]++;burstAt(i,c,colors[board[i][c]]);board[i][c]=-1;}}
+            useBooster(mode,"Magic power!");score+=350;collapse();resolveCascades();checkEnd();invalidate();return;
+        }
+        if(mode==5){
+            int type=board[r][c],chosen=(type+1)%TYPES;
+            if(c>=2&&board[r][c-1]==board[r][c-2])chosen=board[r][c-1];
+            else if(c<=N-3&&board[r][c+1]==board[r][c+2])chosen=board[r][c+1];
+            else if(r>=2&&board[r-1][c]==board[r-2][c])chosen=board[r-1][c];
+            else if(r<=N-3&&board[r+1][c]==board[r+2][c])chosen=board[r+1][c];
+            board[r][c]=chosen;useBooster(5,"Magic wand!");resolveCascades();checkEnd();invalidate();return;
         }
         if(selectedR<0){selectedR=r;selectedC=c;invalidate();return;}
         if(selectedR==r&&selectedC==c){selectedR=-1;selectedC=-1;invalidate();return;}
         if(Math.abs(selectedR-r)+Math.abs(selectedC-c)==1){
-            int sr=selectedR,sc=selectedC; swap(sr,sc,r,c);
-            selectedR=-1;selectedC=-1;
-            if(hasAnyMatch()){
-                moves--;resolveCascades();checkEnd();
-            } else {swap(sr,sc,r,c);message("Try another pair");}
-        } else {selectedR=r;selectedC=c;}
+            int sr=selectedR,sc=selectedC;selectedR=-1;selectedC=-1;
+            if(mode==0){swap(sr,sc,r,c);useBooster(0,"Free swap!");resolveCascades();checkEnd();}
+            else attemptSwipe(sr,sc,r,c);
+        }else{selectedR=r;selectedC=c;}
         invalidate();
     }
 
     private void boosterTap(int i){
-        if(i==6){showHint();return;}
         if(boosterCount[i]<=0){message("Earn more boosters by passing levels!");return;}
-        if(i<=3){mode=(mode==i?-1:i);message(mode<0?"Booster cancelled":"Tap a ghost to use "+boosterNames[i]);}
-        else if(i==4){boosterCount[i]--;shuffle();message("Board shuffled!");}
-        else if(i==5){boosterCount[i]--;moves+=5;message("+5 moves added!");}
+        if(i==4){
+            int[] move=findPossibleMove();
+            if(move!=null){boosterCount[i]--;attemptSwipe(move[0],move[1],move[2],move[3]);message("Helpful ghost found a match!");}
+        }else if(i==6){boosterCount[i]--;moves+=5;message("+5 moves added!");}
+        else{mode=mode==i?-1:i;selectedR=-1;selectedC=-1;
+            message(mode<0?"Booster cancelled":i==0?"Swipe any two neighbors":"Tap a ghost for "+boosterNames[i]);}
         invalidate();
+    }
+
+    private int[] findPossibleMove(){
+        for(int r=0;r<N;r++)for(int c=0;c<N;c++){
+            if(c+1<N){swap(r,c,r,c+1);boolean ok=hasAnyMatch();swap(r,c,r,c+1);if(ok)return new int[]{r,c,r,c+1};}
+            if(r+1<N){swap(r,c,r+1,c);boolean ok=hasAnyMatch();swap(r,c,r+1,c);if(ok)return new int[]{r,c,r+1,c};}
+        }return null;
     }
 
     private void useBooster(int i,String msg){boosterCount[i]--;mode=-1;message(msg);}
@@ -421,6 +476,7 @@ class GhostGameView extends View {
             score+=m.size()*90*combo;
             for(int pos:m){
                 int rr=pos/N,cc=pos%N;
+                collected[board[rr][cc]]++;
                 burstAt(rr,cc,colors[board[rr][cc]]);
                 board[rr][cc]=-1;
             }
@@ -468,8 +524,8 @@ class GhostGameView extends View {
     }
 
     private void checkEnd(){
-        if(score>=target){
-            won=true;boosterCount[rng.nextInt(6)]++;
+        if(!won&&collected[0]>=goals[0]&&collected[1]>=goals[1]&&collected[2]>=goals[2]){
+            won=true;boosterCount[rng.nextInt(7)]++;
             for(int i=0;i<100;i++)sparks.add(new Spark(rng.nextFloat()*getWidth(),getHeight()*.25f,
                 (rng.nextFloat()-.5f)*5f,rng.nextFloat()*-5f,.7f+rng.nextFloat(),4+rng.nextFloat()*7f,colors[i%TYPES]));
             performHapticFeedback(HapticFeedbackConstants.CONFIRM);
