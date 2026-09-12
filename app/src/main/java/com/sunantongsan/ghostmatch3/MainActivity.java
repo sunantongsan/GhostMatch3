@@ -24,7 +24,7 @@ class GhostGameView extends View {
     private final Paint p=new Paint(3);
     private final Paint stroke=new Paint(3);
     private final Paint spritePaint=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);
-    private Bitmap ghostSheet,boosterSheet;
+    private Bitmap ghostSheet,boosterSheet,hauntedBackground;
     private final int[] colors={Color.rgb(245,245,255),Color.rgb(188,236,172),Color.rgb(161,77,227)};
     private final String[] boosterNames={"SWAP","HAMMER","ROW","COLUMN","HELPER","WAND","+5"};
     private final int[] boosterCount={8,8,6,6,6,8,8};
@@ -59,6 +59,7 @@ class GhostGameView extends View {
         stroke.setStyle(Paint.Style.STROKE);
         ghostSheet=BitmapFactory.decodeResource(getResources(),R.drawable.ghost_sprites);
         boosterSheet=BitmapFactory.decodeResource(getResources(),R.drawable.booster_sprites);
+        hauntedBackground=BitmapFactory.decodeResource(getResources(),R.drawable.haunted_background);
         newLevel();
     }
 
@@ -83,8 +84,13 @@ class GhostGameView extends View {
         Paint bg=new Paint();
         bg.setShader(new LinearGradient(0,0,w,h,Color.rgb(22,10,54),Color.rgb(49,19,84),Shader.TileMode.CLAMP));
         c.drawRect(0,0,w,h,bg);
-        drawStars(c,w,h);
-        drawHauntedScene(c,w,h);
+        if(hauntedBackground!=null&&!hauntedBackground.isRecycled()){
+            c.drawBitmap(hauntedBackground,null,new RectF(0,0,w,h),spritePaint);
+            p.setColor(Color.argb(28,12,4,36));c.drawRect(0,0,w,h,p);
+        } else {
+            drawStars(c,w,h);
+            drawHauntedScene(c,w,h);
+        }
         p.setTypeface(Typeface.create("sans",Typeface.BOLD));
         p.setTextAlign(Paint.Align.CENTER);
         float margin=w*.055f;
