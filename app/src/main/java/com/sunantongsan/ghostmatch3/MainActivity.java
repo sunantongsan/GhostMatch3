@@ -32,6 +32,8 @@ class GhostGameView extends View {
     private int level=1, moves=28, score=0, target=1800, selectedR=-1, selectedC=-1;
     private int mode=-1, combo=0;
     private float boardX,boardY,cell,boosterY;
+    private float touchDownX, touchDownY;
+    private int touchDownR=-1, touchDownC=-1;
     private boolean won=false,lost=false;
     private String toast="Match 3 ghosts to begin!";
     private long toastUntil=0;
@@ -138,27 +140,77 @@ class GhostGameView extends View {
     }
 
     private void drawGhost(Canvas c,float cx,float cy,float rad,int color,int face,boolean selected){
-        p.setShadowLayer(selected?18:9,0,0,color);
-        p.setColor(color);
+        // Layered glossy character: glow, shadow, soft 3D body, arms and expressive face.
+        p.setShadowLayer(selected?22:12,0,rad*.12f,selected?Color.WHITE:color);
+        p.setColor(Color.argb(90,0,0,0));
+        c.drawOval(cx-rad*.78f,cy+rad*.65f,cx+rad*.78f,cy+rad*.94f,p);
+        p.clearShadowLayer();
+
+        Paint body=new Paint(Paint.ANTI_ALIAS_FLAG);
+        body.setShader(new RadialGradient(cx-rad*.35f,cy-rad*.55f,rad*1.65f,
+            new int[]{lighten(color,70),color,darken(color,45)},
+            new float[]{0f,.58f,1f},Shader.TileMode.CLAMP));
+        body.setShadowLayer(selected?24:10,0,0,selected?Color.rgb(255,225,90):color);
+
         Path g=new Path();
-        g.moveTo(cx-rad,cy+rad*.72f);
-        g.lineTo(cx-rad,cy-rad*.08f);
-        g.cubicTo(cx-rad,cy-rad*.9f,cx+rad,cy-rad*.9f,cx+rad,cy-rad*.08f);
-        g.lineTo(cx+rad,cy+rad*.72f);
-        g.quadTo(cx+rad*.72f,cy+rad*.45f,cx+rad*.46f,cy+rad*.72f);
-        g.quadTo(cx+rad*.20f,cy+rad*.45f,cx,cy+rad*.72f);
-        g.quadTo(cx-rad*.22f,cy+rad*.45f,cx-rad*.48f,cy+rad*.72f);
-        g.quadTo(cx-rad*.72f,cy+rad*.45f,cx-rad,cy+rad*.72f);
-        g.close(); c.drawPath(g,p); p.clearShadowLayer();
-        p.setColor(Color.rgb(40,25,65));
-        c.drawCircle(cx-rad*.34f,cy-rad*.18f,rad*.10f,p);
-        c.drawCircle(cx+rad*.34f,cy-rad*.18f,rad*.10f,p);
-        stroke.setColor(Color.rgb(40,25,65));stroke.setStrokeWidth(rad*.08f);
-        if(face%3==0) c.drawArc(cx-rad*.24f,cy, cx+rad*.24f,cy+rad*.3f,8,164,false,stroke);
-        else if(face%3==1) c.drawCircle(cx,cy+rad*.17f,rad*.1f,stroke);
-        else c.drawLine(cx-rad*.18f,cy+rad*.14f,cx+rad*.18f,cy+rad*.14f,stroke);
-        p.setColor(Color.argb(110,255,255,255));
-        c.drawCircle(cx-rad*.42f,cy-rad*.47f,rad*.13f,p);
+        g.moveTo(cx-rad*.82f,cy+rad*.63f);
+        g.lineTo(cx-rad*.82f,cy-rad*.05f);
+        g.cubicTo(cx-rad*.82f,cy-rad*.86f,cx-rad*.38f,cy-rad*1.05f,cx,cy-rad*1.05f);
+        g.cubicTo(cx+rad*.50f,cy-rad*1.05f,cx+rad*.82f,cy-rad*.68f,cx+rad*.82f,cy-rad*.05f);
+        g.lineTo(cx+rad*.82f,cy+rad*.63f);
+        g.quadTo(cx+rad*.60f,cy+rad*.43f,cx+rad*.38f,cy+rad*.70f);
+        g.quadTo(cx+rad*.15f,cy+rad*.43f,cx,cy+rad*.70f);
+        g.quadTo(cx-rad*.18f,cy+rad*.43f,cx-rad*.40f,cy+rad*.70f);
+        g.quadTo(cx-rad*.62f,cy+rad*.43f,cx-rad*.82f,cy+rad*.63f);
+        g.close();
+        c.drawPath(g,body); body.clearShadowLayer();
+
+        // Raised little arms.
+        p.setColor(lighten(color,20));
+        c.drawOval(cx-rad*1.03f,cy-rad*.15f,cx-rad*.66f,cy+rad*.35f,p);
+        c.drawOval(cx+rad*.66f,cy-rad*.15f,cx+rad*1.03f,cy+rad*.35f,p);
+
+        // Gloss highlight.
+        p.setColor(Color.argb(125,255,255,255));
+        c.drawOval(cx-rad*.50f,cy-rad*.79f,cx-rad*.12f,cy-rad*.55f,p);
+
+        // Eyes and personality.
+        p.setColor(Color.rgb(28,15,38));
+        if(face==2){
+            stroke.setColor(Color.rgb(28,15,38));stroke.setStrokeWidth(rad*.11f);
+            c.drawLine(cx-rad*.46f,cy-rad*.28f,cx-rad*.18f,cy-rad*.17f,stroke);
+            c.drawLine(cx+rad*.46f,cy-rad*.28f,cx+rad*.18f,cy-rad*.17f,stroke);
+        }
+        c.drawOval(cx-rad*.45f,cy-rad*.28f,cx-rad*.17f,cy+rad*.10f,p);
+        c.drawOval(cx+rad*.17f,cy-rad*.28f,cx+rad*.45f,cy+rad*.10f,p);
+        p.setColor(Color.WHITE);
+        c.drawCircle(cx-rad*.34f,cy-rad*.18f,rad*.055f,p);
+        c.drawCircle(cx+rad*.28f,cy-rad*.18f,rad*.055f,p);
+
+        p.setColor(Color.rgb(55,18,48));
+        if(face==1){
+            stroke.setColor(Color.rgb(55,18,48));stroke.setStrokeWidth(rad*.08f);
+            c.drawArc(cx-rad*.20f,cy+rad*.12f,cx+rad*.20f,cy+rad*.38f,15,150,false,stroke);
+        } else {
+            c.drawOval(cx-rad*.23f,cy+rad*.10f,cx+rad*.23f,cy+rad*.43f,p);
+            p.setColor(face==0?Color.rgb(255,92,137):Color.rgb(255,135,160));
+            c.drawOval(cx-rad*.15f,cy+rad*.28f,cx+rad*.15f,cy+rad*.48f,p);
+        }
+        p.setColor(Color.argb(115,255,125,170));
+        c.drawCircle(cx-rad*.57f,cy+rad*.12f,rad*.12f,p);
+        c.drawCircle(cx+rad*.57f,cy+rad*.12f,rad*.12f,p);
+
+        if(selected){
+            stroke.setColor(Color.rgb(255,225,80));stroke.setStrokeWidth(rad*.08f);
+            c.drawCircle(cx,cy-rad*.05f,rad*1.12f,stroke);
+        }
+    }
+
+    private int lighten(int color,int amount){
+        return Color.rgb(Math.min(255,Color.red(color)+amount),Math.min(255,Color.green(color)+amount),Math.min(255,Color.blue(color)+amount));
+    }
+    private int darken(int color,int amount){
+        return Color.rgb(Math.max(0,Color.red(color)-amount),Math.max(0,Color.green(color)-amount),Math.max(0,Color.blue(color)-amount));
     }
 
     private void drawBooster(Canvas c,int i,float x,float y,float w,float h,float screenW){
@@ -189,26 +241,55 @@ class GhostGameView extends View {
     }
 
     @Override public boolean onTouchEvent(android.view.MotionEvent e){
-        if(e.getAction()!=MotionEvent.ACTION_UP)return true;
         float x=e.getX(),y=e.getY();
-        if(won||lost){
-            if(y>getHeight()*.57f&&y<getHeight()*.68f){
-                if(won) level++; newLevel();
-            }
+        if(e.getAction()==MotionEvent.ACTION_DOWN){
+            touchDownX=x; touchDownY=y;
+            if(!won&&!lost&&y>=boardY&&y<boardY+N*cell&&x>=boardX&&x<boardX+N*cell){
+                touchDownC=Math.min(N-1,(int)((x-boardX)/cell));
+                touchDownR=Math.min(N-1,(int)((y-boardY)/cell));
+                selectedR=touchDownR; selectedC=touchDownC; invalidate();
+            } else {touchDownR=-1;touchDownC=-1;}
             return true;
         }
-        if(y>=boardY&&y<boardY+N*cell&&x>=boardX&&x<boardX+N*cell){
-            int col=Math.min(N-1,(int)((x-boardX)/cell));
-            int r=Math.min(N-1,(int)((y-boardY)/cell));
-            cellTap(r,col);return true;
+        if(e.getAction()!=MotionEvent.ACTION_UP)return true;
+        if(won||lost){
+            if(y>getHeight()*.57f&&y<getHeight()*.68f){if(won)level++;newLevel();}
+            return true;
         }
+
+        // Standard match-3 swipe: drag one ghost toward an adjacent cell.
+        if(touchDownR>=0){
+            float dx=x-touchDownX,dy=y-touchDownY;
+            float threshold=cell*.24f;
+            int tr=touchDownR,tc=touchDownC;
+            if(Math.max(Math.abs(dx),Math.abs(dy))>=threshold){
+                if(Math.abs(dx)>Math.abs(dy))tc+=dx>0?1:-1;
+                else tr+=dy>0?1:-1;
+                selectedR=-1;selectedC=-1;
+                if(tr>=0&&tr<N&&tc>=0&&tc<N) attemptSwipe(touchDownR,touchDownC,tr,tc);
+                touchDownR=-1;touchDownC=-1;invalidate();return true;
+            }
+            int rr=touchDownR,cc=touchDownC;touchDownR=-1;touchDownC=-1;
+            cellTap(rr,cc);return true;
+        }
+
         float margin=getWidth()*.055f,gap=getWidth()*.012f,bw=(getWidth()-2*margin-gap*6)/7f;
         float by=boosterY+getHeight()*.018f;
         if(y>=by&&y<=by+getHeight()*.10f){
             int i=(int)((x-margin)/(bw+gap));
-            if(i>=0&&i<7) boosterTap(i);
+            if(i>=0&&i<7)boosterTap(i);
         }
         return true;
+    }
+
+    private void attemptSwipe(int r1,int c1,int r2,int c2){
+        swap(r1,c1,r2,c2);
+        if(hasAnyMatch()){
+            moves--;resolveCascades();checkEnd();
+        } else {
+            swap(r1,c1,r2,c2);
+            message("That move makes no match — try another!");
+        }
     }
 
     private void cellTap(int r,int c){
