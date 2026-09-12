@@ -1,22 +1,21 @@
 # Ghost Match 3
 
-Android match-3 test game inspired by the supplied reference mockup.
+Original ghost-themed Android match-3 prototype with illustrated sprite assets, touch/swipe controls and staged effects. Inspired by common match-3 mechanics; no third-party game's artwork, music, names or level layouts are included.
 
-## v0.3.0 test build
+## Test build v0.6.0
 
-- Swipe adjacent ghosts on a 7×7 board.
-- Collect white, green, and purple ghosts to fill the three goals.
-- Separate level, score, moves, and three-star goal progress panels.
-- Seven usable boosters: free swap, hammer, row clear, column clear, automatic helper, color-changing wand, and five extra moves.
-- Animated ghosts, sparkles, combo feedback, a haunted backdrop, pause button, and level-complete overlay.
-- Offline play. No login, ads, network permission, or server.
+Download the APK from [Releases](https://github.com/sunantongsan/GhostMatch3/releases/tag/v0.6.0).
 
-The artwork is still drawn at runtime, not a production sprite-asset recreation of the supplied mockup. The original mockup is a visual reference, not an exported sprite pack. A later art pass should replace the code-drawn characters and booster icons with dedicated transparent PNG/WebP assets and add movement/cascade animations. The test APK is not ready for Play Store distribution.
+- Swap tween, ghost pop/burst, particles, cascading matches and visible falling pieces.
+- Match four horizontally for a row power, vertically for a column power.
+- Match five for a same-color clearing rainbow ghost.
+- Match an L/T shape for an area burst. Powered ghosts can chain-react.
+- Varied ghost collection goals; from level 6, clear frosted ghosts as an additional objective.
+- Level progress saved locally on the device; boosters, pause and completion rewards.
+- Original illustrated ghost sprites, booster icons and haunted-valley background.
 
-## Install
-
-Download `GhostMatch3-v0.3.0.apk` from [Releases](https://github.com/sunantongsan/GhostMatch3/releases/tag/v0.3.0). Android may warn about a new, sideloaded developer. If an older debug build is installed with a different test signature, uninstall the old version first.
+This is a debug test APK, not a Play Store build. Visual and gameplay tuning remains ongoing; Android compilation and APK signature checks do not substitute for hands-on phone testing. If Android cannot install over an older test APK because the signing key differs, uninstall the older test app first. That deletes its locally saved progress.
 
 ## Build
 
-GitHub Actions runs a debug APK build and signature verification on each push to main, then attaches the APK to a versioned Release. This is a testing build, not a signed Play Store AAB.
+GitHub Actions builds and signature-verifies each push to main and publishes its test APK to a versioned release.
