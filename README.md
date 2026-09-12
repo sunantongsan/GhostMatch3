@@ -1,29 +1,22 @@
-# 👻 Ghost Match 3
+# Ghost Match 3
 
-A colorful, easy-to-play Android match-3 game created for mobile testing.
+Android match-3 test game inspired by the supplied reference mockup.
 
-## First test version
+## v0.3.0 test build
 
-- 7×7 ghost board
-- 6 cute hand-drawn ghost characters
-- 30 easy levels
-- Cascading matches and combo scoring
-- Hammer, row blast, column blast, color clear, shuffle, +5 moves, and free hints
-- Offline play — no login, ads, or server required
-- Portrait phone layout
+- Swipe adjacent ghosts on a 7×7 board.
+- Collect white, green, and purple ghosts to fill the three goals.
+- Separate level, score, moves, and three-star goal progress panels.
+- Seven usable boosters: free swap, hammer, row clear, column clear, automatic helper, color-changing wand, and five extra moves.
+- Animated ghosts, sparkles, combo feedback, a haunted backdrop, pause button, and level-complete overlay.
+- Offline play. No login, ads, network permission, or server.
 
-## Download the APK
+The artwork is still drawn at runtime, not a production sprite-asset recreation of the supplied mockup. The original mockup is a visual reference, not an exported sprite pack. A later art pass should replace the code-drawn characters and booster icons with dedicated transparent PNG/WebP assets and add movement/cascade animations. The test APK is not ready for Play Store distribution.
 
-Open **Releases** on the right side of this repository and download:
+## Install
 
-`GhostMatch3-v0.1.0.apk`
+Download `GhostMatch3-v0.3.0.apk` from [Releases](https://github.com/sunantongsan/GhostMatch3/releases/tag/v0.3.0). Android may warn about a new, sideloaded developer. If an older debug build is installed with a different test signature, uninstall the old version first.
 
-Android may ask you to allow installation from your browser or Files app. This APK is a debug test build and is not yet the Play Store release.
+## Build
 
-## Build status
-
-Every push to `main` runs GitHub Actions and publishes a fresh test APK automatically.
-
-## Next planned improvements
-
-Custom illustrated PNG characters, sound/music controls, map screen, daily gifts, more level goals, obstacles, rewarded ads, and Play Store AAB signing.
+GitHub Actions runs a debug APK build and signature verification on each push to main, then attaches the APK to a versioned Release. This is a testing build, not a signed Play Store AAB.
