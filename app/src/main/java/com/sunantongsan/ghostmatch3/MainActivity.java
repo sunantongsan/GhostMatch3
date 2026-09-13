@@ -237,10 +237,54 @@ class GhostGameView extends View {
             p.setShadowLayer(10,0,0,s.color);
             c.drawCircle(s.x,s.y,s.size*(.55f+s.life),p);p.clearShadowLayer();
         }
+        if(animationPhase==1&&!castPoints.isEmpty())drawSpellEffects(c);
         if(swipeFX>=0){
             p.setColor(Color.argb(90,255,255,255));
             c.drawCircle(swipeFX,swipeFY,cell*.18f,p);
             swipeFX=-1;
+        }
+    }
+
+    private void drawSpellEffects(Canvas c){
+        float progress=Math.min(1f,(System.currentTimeMillis()-phaseStart)/420f);
+        float pulse=(float)Math.sin(progress*Math.PI);
+        int saved=c.save();
+        c.clipRect(boardX,boardY,boardX+N*cell,boardY+N*cell);
+        Paint fx=new Paint(Paint.ANTI_ALIAS_FLAG);
+        fx.setStyle(Paint.Style.STROKE);fx.setStrokeCap(Paint.Cap.ROUND);
+        for(int[] power:castPoints){
+            int row=power[0],col=power[1],kind=power[2],boost=power[3];
+            float x=boardX+(col+.5f)*cell,y=boardY+(row+.5f)*cell;
+            int color=kind==1?Color.rgb(65,201,255):kind==2?Color.rgb(250,103,255):
+                      kind==3?Color.rgb(255,213,96):Color.rgb(208,128,255);
+            fx.setColor((Math.max(0,(int)(185*pulse))<<24)|(color&0xffffff));
+            fx.setStrokeWidth(cell*(boost>1?.28f:.17f)*pulse);
+            fx.setShadowLayer(24,0,0,color);
+            if(kind==1)c.drawLine(boardX,y,boardX+N*cell,y,fx);
+            else if(kind==2)c.drawLine(x,boardY,x,boardY+N*cell,fx);
+            else if(kind==3){
+                for(int i=0;i<10;i++){
+                    double angle=(Math.PI*2*i/10)+progress*4;
+                    c.drawLine(x,y,x+(float)Math.cos(angle)*cell*4,
+                              y+(float)Math.sin(angle)*cell*4,fx);
+                }
+            }else{
+                fx.setStrokeWidth(cell*.11f);
+                c.drawCircle(x,y,cell*(.35f+progress*(boost>1?3.6f:1.9f)),fx);
+            }
+            fx.setShadowLayer(28,0,0,color);
+            fx.setStrokeWidth(cell*.08f);
+            c.drawCircle(x,y,cell*(.40f+progress*(boost>1?2.2f:1.25f)),fx);
+            fx.clearShadowLayer();
+        }
+        c.restoreToCount(saved);
+        if(activeMultiplier>1){
+            p.setColor(Color.argb((int)(52*pulse),255,250,217));
+            c.drawRect(boardX,boardY,boardX+N*cell,boardY+N*cell,p);
+            p.setShadowLayer(20,0,0,Color.rgb(255,210,70));
+            p.setColor(Color.WHITE);p.setTextSize(cell*.72f);p.setTextAlign(Paint.Align.CENTER);
+            p.setTypeface(Typeface.create("sans",Typeface.BOLD));
+            c.drawText("MAGIC ×2!",getWidth()/2f,boardY+N*cell*.49f,p);p.clearShadowLayer();
         }
     }
 
@@ -286,12 +330,12 @@ class GhostGameView extends View {
             }
         }
         if(animationPhase==2){
-            float t=Math.min(1f,(System.currentTimeMillis()-phaseStart)/340f);
+            float t=Math.min(1f,(System.currentTimeMillis()-phaseStart)/420f);
             float eased=1f-(float)Math.pow(1f-t,3);
             cy+=fallFrom[r][col]*cell*(1f-eased);
         }
         if(animationPhase==1&&exploding.contains(r*N+col)){
-            float t=Math.min(1f,(System.currentTimeMillis()-phaseStart)/240f);
+            float t=Math.min(1f,(System.currentTimeMillis()-phaseStart)/420f);
             int save=c.save();c.scale(1f+.45f*t,1f+.45f*t,cx,cy);
             spritePaint.setAlpha(Math.max(0,(int)(255*(1f-t))));
             drawPiece(c,cx,cy,kind,type,sel);
@@ -721,7 +765,7 @@ class GhostGameView extends View {
         if(expanded.isEmpty()){ensureMove();checkEnd();return;}
         exploding.clear();exploding.addAll(expanded);animationPhase=1;phaseStart=System.currentTimeMillis();
         activeMultiplier=powerMultiplier;powerMultiplier=1;
-        combo=Math.min(12,cascadeDepth);score+=expanded.size()*90*combo;
+        combo=Math.min(12,cascadeDepth);score+=expanded.size()*90*combo*activeMultiplier;
         for(int pos:expanded){
             int r=pos/N,c=pos%N,v=board[r][c];
             if(v>=0){
@@ -748,8 +792,8 @@ class GhostGameView extends View {
                 castPoints.clear();
                 if(!next.isEmpty())beginExplosion(next,false,-1,-1);
                 else{cascadeDepth=0;ensureMove();checkEnd();}
-            },360);
-        },240);
+            },420);
+        },420);
         invalidate();
     }
 
