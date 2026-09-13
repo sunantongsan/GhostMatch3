@@ -25,6 +25,8 @@ class GhostGameView extends View {
     private final android.content.SharedPreferences progress;
     private final float[][] fallFrom=new float[N][N];
     private final Set<Integer> exploding=new HashSet<>();
+    private final ArrayList<int[]> castPoints=new ArrayList<>();
+    private int powerMultiplier=1, rainbowTarget=-1, activeMultiplier=1;
     private int animationPhase=0,animationSerial=0,cascadeDepth=0;
     private long phaseStart=0;
     private int specialR=-1,specialC=-1;
@@ -77,7 +79,7 @@ class GhostGameView extends View {
     }
 
     private void newLevel(){
-        animationSerial++;animationPhase=0;exploding.clear();
+        animationSerial++;animationPhase=0;exploding.clear();castPoints.clear();powerMultiplier=1;
         for(float[] row:fallFrom)Arrays.fill(row,0);
         moves=26+(level/8)*2;
         target=1500+level*200;
@@ -527,9 +529,11 @@ class GhostGameView extends View {
             if(serial!=animationSerial)return;
             animationPhase=0;
             if(a>=TYPES||b>=TYPES){
+                // Two magic items amplify each other: both casts gain a wider radius.
+                powerMultiplier=(a>=TYPES&&b>=TYPES)?2:1;
                 Set<Integer> hits=new HashSet<>();
-                if(a>=TYPES)expandPower(r2,c2,a,hits);
-                if(b>=TYPES)expandPower(r1,c1,b,hits);
+                if(a>=TYPES)expandPower(r2,c2,a,hits,powerMultiplier,b<TYPES?b:-1);
+                if(b>=TYPES)expandPower(r1,c1,b,hits,powerMultiplier,a<TYPES?a:-1);
                 beginExplosion(hits,false,-1,-1);
             }else beginExplosion(findMatches(),true,r2,c2);
             invalidate();
@@ -613,17 +617,30 @@ class GhostGameView extends View {
     private int colorOf(int value){return value<0?-1:value%TYPES;}
 
     private void expandPower(int row,int col,int value,Set<Integer> hits){
-        if(value<0)return;
+        expandPower(row,col,value,hits,1,-1);
+    }
+
+    private void expandPower(int row,int col,int value,Set<Integer> hits,int multiplier,int targetType){
+        if(value<TYPES)return;
         int kind=value/TYPES;
-        if(kind==1)for(int j=0;j<N;j++)hits.add(row*N+j);
-        else if(kind==2)for(int i=0;i<N;i++)hits.add(i*N+col);
-        else if(kind==3){
-            int type=value%TYPES;
-            for(int i=0;i<N;i++)for(int j=0;j<N;j++)
-                if(base(board[i][j])==type)hits.add(i*N+j);
+        castPoints.add(new int[]{row,col,kind,multiplier});
+        if(kind==1){
+            for(int r=Math.max(0,row-multiplier+1);r<=Math.min(N-1,row+multiplier-1);r++)
+                for(int j=0;j<N;j++)hits.add(r*N+j);
+        }else if(kind==2){
+            for(int c=Math.max(0,col-multiplier+1);c<=Math.min(N-1,col+multiplier-1);c++)
+                for(int i=0;i<N;i++)hits.add(i*N+c);
+        }else if(kind==3){
+            if(multiplier>1){
+                for(int i=0;i<N;i++)for(int j=0;j<N;j++)hits.add(i*N+j);
+            }else{
+                int type=targetType>=0?targetType:colorOf(value);
+                for(int i=0;i<N;i++)for(int j=0;j<N;j++)
+                    if(base(board[i][j])==type)hits.add(i*N+j);
+            }
         }else if(kind==4){
-            for(int i=Math.max(0,row-1);i<=Math.min(N-1,row+1);i++)
-                for(int j=Math.max(0,col-1);j<=Math.min(N-1,col+1);j++)hits.add(i*N+j);
+            for(int i=Math.max(0,row-multiplier);i<=Math.min(N-1,row+multiplier);i++)
+                for(int j=Math.max(0,col-multiplier);j<=Math.min(N-1,col+multiplier);j++)hits.add(i*N+j);
         }
         hits.add(row*N+col);
     }
@@ -703,6 +720,7 @@ class GhostGameView extends View {
         }
         if(expanded.isEmpty()){ensureMove();checkEnd();return;}
         exploding.clear();exploding.addAll(expanded);animationPhase=1;phaseStart=System.currentTimeMillis();
+        activeMultiplier=powerMultiplier;powerMultiplier=1;
         combo=Math.min(12,cascadeDepth);score+=expanded.size()*90*combo;
         for(int pos:expanded){
             int r=pos/N,c=pos%N,v=board[r][c];
@@ -727,6 +745,7 @@ class GhostGameView extends View {
                 if(serial!=animationSerial)return;
                 animationPhase=0;invalidate();
                 Set<Integer> next=findMatches();
+                castPoints.clear();
                 if(!next.isEmpty())beginExplosion(next,false,-1,-1);
                 else{cascadeDepth=0;ensureMove();checkEnd();}
             },360);
