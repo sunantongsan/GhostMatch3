@@ -513,16 +513,39 @@ class GhostGameView extends View {
             }
         }
         if(animationPhase==2){
-            float t=Math.min(1f,(System.currentTimeMillis()-phaseStart)/360f);
+            float t=Math.min(1f,(System.currentTimeMillis()-phaseStart)/320f);
             float eased=1f-(float)Math.pow(1f-t,3);
-            cy+=fallFrom[r][col]*cell*(1f-eased);
+            // A quick overshoot gives each falling piece a soft landing.
+            float landing=t>.72f?(float)Math.sin((t-.72f)/.28f*Math.PI)*.065f:0f;
+            cy+=fallFrom[r][col]*cell*(1f-eased)-landing*cell;
         }
         if(animationPhase==1&&exploding.contains(r*N+col)){
             float t=Math.min(1f,(System.currentTimeMillis()-phaseStart)/1100f);
-            int save=c.save();c.scale(1f+.45f*t,1f+.45f*t,cx,cy);
-            spritePaint.setAlpha(Math.max(0,(int)(255*(1f-t))));
+            float charge=Math.min(1f,t/.65f),blast=Math.max(0f,(t-.65f)/.35f);
+            float pulse=(float)Math.sin(charge*13f+col*.65f+r*.42f);
+            float radius=cell*(.31f+.28f*blast);
+            int aura=colors[type];
+            p.setColor((Math.max(0,(int)((1f-blast)*125))<<24)|(aura&0x00ffffff));
+            p.setShadowLayer(cell*.17f,0,0,aura);
+            c.drawCircle(cx,cy,radius,p);p.clearShadowLayer();
+            stroke.setStrokeWidth(cell*(.025f+.045f*blast));
+            stroke.setColor(Color.argb(Math.max(0,(int)((1f-blast)*225)),255,247,211));
+            c.drawCircle(cx,cy,radius+cell*.12f*blast,stroke);
+            int save=c.save();
+            float scale=1f+.075f*pulse*charge+.78f*blast;
+            c.scale(scale,scale,cx,cy);
+            spritePaint.setAlpha(Math.max(0,(int)(255*(1f-blast))));
             drawPiece(c,cx,cy,kind,type,sel);
             c.restoreToCount(save);spritePaint.setAlpha(255);
+            if(blast>0f){
+                for(int k=0;k<6;k++){
+                    float angle=(float)(k*Math.PI/3+r*.7f+col*.4f);
+                    float dist=cell*(.2f+.57f*blast);
+                    p.setColor(Color.argb(Math.max(0,(int)(230*(1f-blast))),255,235,164));
+                    c.drawCircle(cx+(float)Math.cos(angle)*dist,cy+(float)Math.sin(angle)*dist,
+                        cell*.043f*(1f-blast)+1f,p);
+                }
+            }
         }else drawPiece(c,cx,cy,kind,type,sel);
         if(ice[r][col]>0){
             p.setColor(ice[r][col]>1?Color.argb(155,160,223,255):Color.argb(100,176,235,255));
@@ -1046,7 +1069,7 @@ class GhostGameView extends View {
                 castPoints.clear();
                 if(!next.isEmpty())beginExplosion(next,true,-1,-1);
                 else{cascadeDepth=0;ensureMove();checkEnd();}
-            },360);
+            },320);
         },1100);
         invalidate();
     }
