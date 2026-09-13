@@ -276,6 +276,35 @@ class GhostGameView extends View {
             fx.setStrokeWidth(cell*.08f);
             c.drawCircle(x,y,cell*(.40f+progress*(boost>1?2.2f:1.25f)),fx);
             fx.clearShadowLayer();
+            // Each spell has its own sigil and moving glints, not just a tinted blast.
+            Paint rune=new Paint(Paint.ANTI_ALIAS_FLAG);
+            rune.setStyle(Paint.Style.STROKE);
+            rune.setStrokeWidth(cell*.035f);
+            rune.setColor(Color.argb((int)(220*pulse),255,255,245));
+            float radius=cell*(.40f+progress*(boost>1?2.2f:1.25f));
+            int glyphs=kind==3?12:kind==4?8:6;
+            for(int g=0;g<glyphs;g++){
+                double angle=2*Math.PI*g/glyphs+progress*(kind==2?-2.8:2.8);
+                float gx=x+(float)Math.cos(angle)*radius,gy=y+(float)Math.sin(angle)*radius;
+                float tip=cell*(kind==3?.16f:.11f)*(1f-progress*.5f);
+                c.drawLine(gx-tip,gy,gx+tip,gy,rune);
+                c.drawLine(gx,gy-tip,gx,gy+tip,rune);
+            }
+            if(kind==1||kind==2){
+                // Racing light along the full beam distinguishes row and column spells.
+                rune.setStyle(Paint.Style.FILL);
+                for(int trail=0;trail<5;trail++){
+                    float along=(progress*1.7f+trail*.22f)%1f;
+                    float lx=kind==1?boardX+along*N*cell:x;
+                    float ly=kind==2?boardY+along*N*cell:y;
+                    rune.setColor(Color.argb((int)(210*pulse),255,255,255));
+                    c.drawCircle(lx,ly,cell*(trail==0?.16f:.075f),rune);
+                }
+            }else if(kind==4){
+                rune.setStyle(Paint.Style.STROKE);
+                rune.setStrokeWidth(cell*.06f);
+                c.drawCircle(x,y,radius*.65f,rune);
+            }
         }
         c.restoreToCount(saved);
         if(activeMultiplier>1){
