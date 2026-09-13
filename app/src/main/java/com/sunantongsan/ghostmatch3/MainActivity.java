@@ -33,7 +33,7 @@ class GhostGameView extends View {
     private final Paint p=new Paint(3);
     private final Paint stroke=new Paint(3);
     private final Paint spritePaint=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);
-    private Bitmap ghostSheet,boosterSheet,hauntedBackground;
+    private Bitmap ghostSheet,boosterSheet,hauntedBackground,magicItems;
     private final int[] colors={Color.rgb(245,245,255),Color.rgb(188,236,172),Color.rgb(161,77,227)};
     private final String[] boosterNames={"SWAP","HAMMER","ROW","COLUMN","HELPER","WAND","+5"};
     private final int[] boosterCount={8,8,6,6,6,8,8};
@@ -68,6 +68,7 @@ class GhostGameView extends View {
         stroke.setStyle(Paint.Style.STROKE);
         ghostSheet=BitmapFactory.decodeResource(getResources(),R.drawable.ghost_sprites);
         boosterSheet=BitmapFactory.decodeResource(getResources(),R.drawable.booster_sprites);
+        magicItems=BitmapFactory.decodeResource(getResources(),R.drawable.magic_items);
         hauntedBackground=BitmapFactory.decodeResource(getResources(),R.drawable.haunted_background);
         progress=c.getSharedPreferences("ghostmatch_progress",Context.MODE_PRIVATE);
         highestLevel=Math.max(1,progress.getInt("highest_level",1));
@@ -291,21 +292,35 @@ class GhostGameView extends View {
             float t=Math.min(1f,(System.currentTimeMillis()-phaseStart)/240f);
             int save=c.save();c.scale(1f+.45f*t,1f+.45f*t,cx,cy);
             spritePaint.setAlpha(Math.max(0,(int)(255*(1f-t))));
-            drawGhost(c,cx,cy,cell*.34f,colors[type],type,sel);
+            drawPiece(c,cx,cy,kind,type,sel);
             c.restoreToCount(save);spritePaint.setAlpha(255);
-        }else drawGhost(c,cx,cy,cell*.34f,colors[type],type,sel);
+        }else drawPiece(c,cx,cy,kind,type,sel);
         if(ice[r][col]>0){
             p.setColor(ice[r][col]>1?Color.argb(155,160,223,255):Color.argb(100,176,235,255));
             c.drawRoundRect(x+pad,y+pad,x+cell-pad,y+cell-pad,cell*.18f,cell*.18f,p);
             stroke.setColor(Color.argb(210,231,249,255));stroke.setStrokeWidth(cell*.028f);
             c.drawRoundRect(x+pad,y+pad,x+cell-pad,y+cell-pad,cell*.18f,cell*.18f,stroke);
         }
-        if(kind>0){
-            p.setShadowLayer(9,0,0,Color.rgb(255,213,93));
-            p.setColor(Color.WHITE);p.setTextAlign(Paint.Align.CENTER);
-            p.setTypeface(Typeface.create("sans",Typeface.BOLD));p.setTextSize(cell*.43f);
+    }
+
+    private void drawPiece(Canvas c,float cx,float cy,int kind,int type,boolean selected){
+        if(kind==0){drawGhost(c,cx,cy,cell*.34f,colors[type],type,selected);return;}
+        float t=(System.currentTimeMillis()-gameStart)/280f;
+        float radius=cell*(.43f+.055f*(float)Math.sin(t));
+        p.setColor(kind==3?Color.argb(105,255,118,227):Color.argb(105,255,204,87));
+        p.setShadowLayer(20,0,0,kind==3?Color.rgb(228,107,255):Color.rgb(255,213,91));
+        c.drawCircle(cx,cy,radius,p);p.clearShadowLayer();
+        stroke.setColor(Color.argb(170,255,246,204));stroke.setStrokeWidth(cell*.033f);
+        c.drawCircle(cx,cy,cell*(.43f+.055f*(float)Math.sin(t)),stroke);
+        if(magicItems!=null&&!magicItems.isRecycled()){
+            int index=kind==4?2:kind==3?3:kind-1;
+            float slice=magicItems.getWidth()/4f;
+            Rect source=new Rect((int)(index*slice),0,(int)((index+1)*slice),magicItems.getHeight());
+            float size=cell*.91f;
+            c.drawBitmap(magicItems,source,new RectF(cx-size/2,cy-size/2,cx+size/2,cy+size/2),spritePaint);
+        }else{
+            p.setColor(Color.WHITE);p.setTextAlign(Paint.Align.CENTER);p.setTextSize(cell*.45f);
             c.drawText(kind==1?"↔":kind==2?"↕":kind==3?"★":"✦",cx,cy+cell*.14f,p);
-            p.clearShadowLayer();
         }
     }
 
@@ -594,7 +609,8 @@ class GhostGameView extends View {
         return out;
     }
 
-    private int base(int value){return value<0?-1:value%TYPES;}
+    private int base(int value){return value<0||value>=TYPES?-1:value;}
+    private int colorOf(int value){return value<0?-1:value%TYPES;}
 
     private void expandPower(int row,int col,int value,Set<Integer> hits){
         if(value<0)return;
@@ -681,7 +697,7 @@ class GhostGameView extends View {
         if(reward!=null){
             int pos=reward[0]*N+reward[1];
             if(expanded.remove(pos)){
-                board[reward[0]][reward[1]]=base(board[reward[0]][reward[1]])+TYPES*reward[2];
+                board[reward[0]][reward[1]]=colorOf(board[reward[0]][reward[1]])+TYPES*reward[2];
                 message(reward[2]==4?"Ghost burst unlocked!":reward[2]==3?"Rainbow ghost unlocked!":reward[2]==1?"Row blast unlocked!":"Column blast unlocked!");
             }
         }
@@ -691,9 +707,9 @@ class GhostGameView extends View {
         for(int pos:expanded){
             int r=pos/N,c=pos%N,v=board[r][c];
             if(v>=0){
-                collected[base(v)]++;
+                if(v<TYPES)collected[v]++;
                 if(ice[r][c]>0){ice[r][c]--;iceLeft--;score+=100;}
-                burstAt(r,c,colors[base(v)]);
+                burstAt(r,c,colors[colorOf(v)]);
             }
         }
         if(combo>=2){
@@ -747,7 +763,10 @@ class GhostGameView extends View {
         }return false;
     }
 
-    private void ensureMove(){if(!possibleMove())shuffle();}
+    private void ensureMove(){
+        for(int[] row:board)for(int v:row)if(v>=TYPES)return;
+        if(!possibleMove())shuffle();
+    }
     private void shuffle(){
         ArrayList<Integer> list=new ArrayList<>();
         for(int[] row:board)for(int v:row)list.add(v<0?rng.nextInt(TYPES):v);
