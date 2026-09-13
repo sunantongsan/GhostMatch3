@@ -37,7 +37,7 @@ class GhostGameView extends View {
     private final Paint spritePaint=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);
     private Bitmap ghostSheet,boosterSheet,hauntedBackground,magicItems;
     private final int[] colors={Color.rgb(245,245,255),Color.rgb(188,236,172),Color.rgb(161,77,227)};
-    private final String[] boosterNames={"SWAP","HAMMER","ROW","COLUMN","HELPER","WAND","+5"};
+    private final String[] boosterNames={"SWAP","HAMMER","ROW","COLUMN","BURST","RAINBOW","+5"};
     private final int[] boosterCount={8,8,6,6,6,8,8};
     private final int[] collected=new int[TYPES];
     private final int[] goals={10,10,10};
@@ -163,7 +163,7 @@ class GhostGameView extends View {
             c.drawText("❄ น้ำแข็ง "+iceLeft+"/"+iceInitial,w*.46f,h*.214f,p);
         }
 
-        boardX=margin; boardY=h*.222f; cell=(w-2*margin)/N;
+        boardX=w*.025f; boardY=h*.208f; cell=(w-2*boardX)/N;
         panel(c,boardX-w*.017f,boardY-w*.017f,w-boardX+w*.017f,boardY+cell*N+w*.017f,Color.rgb(37,39,83));
         int boardClip=c.save();
         c.clipRect(boardX,boardY,boardX+N*cell,boardY+N*cell);
@@ -171,7 +171,7 @@ class GhostGameView extends View {
         c.restoreToCount(boardClip);
         drawEffects(c,w,h);
 
-        boosterY=boardY+cell*N+h*.025f;
+        boosterY=boardY+cell*N+h*.019f;
         panel(c,margin,boosterY-h*.019f,w-margin,boosterY+h*.115f,Color.rgb(61,36,116));
         p.setTextAlign(Paint.Align.LEFT);p.setTextSize(w*.033f);p.setColor(Color.WHITE);
         c.drawText("ไอเท็มช่วยเหลือ",margin+w*.024f,boosterY+h*.004f,p);
@@ -246,7 +246,7 @@ class GhostGameView extends View {
     }
 
     private void drawSpellEffects(Canvas c){
-        float progress=Math.min(1f,(System.currentTimeMillis()-phaseStart)/420f);
+        float progress=Math.min(1f,(System.currentTimeMillis()-phaseStart)/850f);
         float pulse=(float)Math.sin(progress*Math.PI);
         int saved=c.save();
         c.clipRect(boardX,boardY,boardX+N*cell,boardY+N*cell);
@@ -498,14 +498,18 @@ class GhostGameView extends View {
         boolean active=mode==i;
         panel(c,x,y,x+w,y+h*.76f,active?Color.rgb(243,191,76):Color.rgb(243,187,102));
         p.setTextAlign(Paint.Align.CENTER);
-        if(boosterSheet!=null&&!boosterSheet.isRecycled()){
+        if(i>=2&&i<=5&&magicItems!=null&&!magicItems.isRecycled()){
+            int icon=i==2?0:i==3?1:i==4?2:3;
+            float slice=magicItems.getWidth()/4f;
+            Rect source=new Rect((int)(icon*slice),0,(int)((icon+1)*slice),magicItems.getHeight());
+            c.drawBitmap(magicItems,source,new RectF(x+w*.035f,y+h*.005f,x+w*.965f,y+h*.76f),spritePaint);
+        }else if(boosterSheet!=null&&!boosterSheet.isRecycled()){
             float sheetCell=boosterSheet.getWidth()/7f;
             Rect source=new Rect((int)(i*sheetCell),0,(int)((i+1)*sheetCell),boosterSheet.getHeight());
-            RectF dest=new RectF(x+w*.04f,y+h*.02f,x+w*.96f,y+h*.75f);
-            c.drawBitmap(boosterSheet,source,dest,spritePaint);
+            c.drawBitmap(boosterSheet,source,new RectF(x+w*.04f,y+h*.02f,x+w*.96f,y+h*.75f),spritePaint);
         }else{
             p.setColor(Color.rgb(119,57,193));p.setTextSize(screenW*.060f);
-            c.drawText(new String[]{"✋","H","★","◈","♧","★","+5"}[i],x+w/2,y+h*.54f,p);
+            c.drawText(new String[]{"✋","H","↔","↕","✦","★","+5"}[i],x+w/2,y+h*.54f,p);
         }
         p.setColor(Color.WHITE);p.setTextSize(screenW*.017f);
         c.drawText(boosterNames[i],x+w/2,y+h*.96f,p);
@@ -629,23 +633,22 @@ class GhostGameView extends View {
         invalidate();
     }
 
+    private int targetTypeForPower(int r,int c){return Math.max(0,colorOf(board[r][c]));}
+
     private void cellTap(int r,int c){
-        if(mode>=1&&mode<=3){
+        if(mode>=1&&mode<=5){
+            int power=mode;
             Set<Integer> hit=new HashSet<>();
-            if(mode==1)hit.add(r*N+c);
-            else if(mode==2)for(int j=0;j<N;j++)hit.add(r*N+j);
-            else for(int i=0;i<N;i++)hit.add(i*N+c);
-            useBooster(mode,"Magic power!");score+=350;cascadeDepth=0;
+            if(power==1)hit.add(r*N+c);
+            else if(power==2||power==3||power==4||power==5){
+                // Inventory powers share the same in-board artwork and spell rules.
+                int kind=power==2?1:power==3?2:power==4?4:3;
+                int targetType=power==5?colorOf(board[r][c]):-1;
+                expandPower(r,c,kind*TYPES+targetTypeForPower(r,c),hit,1,targetType);
+            }
+            useBooster(power,"Magic power!");
+            score+=350;cascadeDepth=0;
             beginExplosion(hit,false,-1,-1);invalidate();return;
-        }
-        if(mode==5){
-            int type=board[r][c],chosen=(type+1)%TYPES;
-            if(c>=2&&board[r][c-1]==board[r][c-2])chosen=board[r][c-1];
-            else if(c<=N-3&&board[r][c+1]==board[r][c+2])chosen=board[r][c+1];
-            else if(r>=2&&board[r-1][c]==board[r-2][c])chosen=board[r-1][c];
-            else if(r<=N-3&&board[r+1][c]==board[r+2][c])chosen=board[r+1][c];
-            board[r][c]=chosen;useBooster(5,"Magic wand!");
-            cascadeDepth=0;resolveCascades();invalidate();return;
         }
         if(selectedR<0){selectedR=r;selectedC=c;invalidate();return;}
         if(selectedR==r&&selectedC==c){selectedR=-1;selectedC=-1;invalidate();return;}
@@ -659,11 +662,7 @@ class GhostGameView extends View {
 
     private void boosterTap(int i){
         if(boosterCount[i]<=0){message("Earn more boosters by passing levels!");return;}
-        if(i==4){
-            int[] move=findPossibleMove();
-            if(move!=null){boosterCount[i]--;attemptSwipe(move[0],move[1],move[2],move[3]);
-                message("Helpful ghost found a match!");}
-        }else if(i==6){boosterCount[i]--;moves+=5;message("+5 moves added!");}
+        if(i==6){boosterCount[i]--;moves+=5;message("+5 moves added!");}
         else{mode=mode==i?-1:i;selectedR=-1;selectedC=-1;
             message(mode<0?"Booster cancelled":i==0?"Swipe any two neighbors":"Tap a ghost for "+boosterNames[i]);}
         invalidate();
@@ -777,7 +776,7 @@ class GhostGameView extends View {
     private void resolveCascades(){
         if(animationPhase!=0)return;
         Set<Integer> matches=findMatches();
-        if(!matches.isEmpty())beginExplosion(matches,false,-1,-1);
+        if(!matches.isEmpty())beginExplosion(matches,true,-1,-1);
         else {ensureMove();checkEnd();}
     }
 
@@ -834,10 +833,10 @@ class GhostGameView extends View {
                 animationPhase=0;invalidate();
                 Set<Integer> next=findMatches();
                 castPoints.clear();
-                if(!next.isEmpty())beginExplosion(next,false,-1,-1);
+                if(!next.isEmpty())beginExplosion(next,true,-1,-1);
                 else{cascadeDepth=0;ensureMove();checkEnd();}
-            },420);
-        },420);
+            },550);
+        },850);
         invalidate();
     }
 
