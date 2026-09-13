@@ -45,6 +45,8 @@ class GhostGameView extends View {
     private boolean paused=false;
     private int level=1, moves=28, score=0, target=1800, selectedR=-1, selectedC=-1;
     private int mode=-1, combo=0;
+    private int tutorialStage=-1;
+    private int[] tutorialMove;
     private float boardX,boardY,cell,boosterY;
     private float touchDownX, touchDownY;
     private int touchDownR=-1, touchDownC=-1;
@@ -76,24 +78,25 @@ class GhostGameView extends View {
         progress=c.getSharedPreferences("ghostmatch_progress",Context.MODE_PRIVATE);
         highestLevel=Math.max(1,progress.getInt("highest_level",1));
         level=highestLevel;
+        tutorialStage=level==1&&!progress.getBoolean("tutorial_complete",false)?0:-1;
         newLevel();
     }
 
     private void newLevel(){
         animationSerial++;animationPhase=0;exploding.clear();castPoints.clear();powerMultiplier=1;
         for(float[] row:fallFrom)Arrays.fill(row,0);
-        moves=26+(level/8)*2;
+        moves=level<=3?14:level<=5?16:Math.min(32,17+level/4);
         target=1500+level*200;
         for(int i=0;i<TYPES;i++){
-            goals[i]=7+level/5;
-            if(level>3&&i==(level-1)%TYPES)goals[i]+=5;
+            goals[i]=level<=3?level+1:Math.min(21,4+level/3);
+            if(level>=9&&i==(level-1)%TYPES)goals[i]+=Math.min(5,1+level/10);
             collected[i]=0;
         }
         for(int[] row:ice)Arrays.fill(row,0);
         iceLeft=0;
         if(level>=6){
-            int iceCount=Math.min(15,4+(level-6)/2);
-            int strength=level>=16?2:1;
+            int iceCount=Math.min(18,2+(level-6)/2);
+            int strength=level>=20?2:1;
             for(int k=0;k<iceCount;k++){
                 int rr,cc;
                 do{rr=rng.nextInt(N);cc=rng.nextInt(N);}while(ice[rr][cc]>0);
@@ -108,7 +111,8 @@ class GhostGameView extends View {
             board[r][c]=t;
         }
         ensureMove();
-        message("Level "+level+" — easy goal!");
+        if(tutorialStage==1)tutorialMove=findPossibleMove();
+        message(level<=3?"A few matches to win!":"Level "+level+" — match the goals!");
         invalidate();
     }
 
@@ -171,6 +175,7 @@ class GhostGameView extends View {
         for(int r=0;r<N;r++)for(int col=0;col<N;col++)drawCell(c,r,col);
         c.restoreToCount(boardClip);
         drawEffects(c,w,h);
+        if(tutorialStage==1&&tutorialMove!=null)drawTutorialCue(c,w,h);
 
         boosterY=boardY+cell*N+h*.019f;
         panel(c,margin,boosterY-h*.019f,w-margin,boosterY+h*.115f,Color.rgb(61,36,116));
@@ -198,7 +203,60 @@ class GhostGameView extends View {
             c.drawText(comboText,w/2,boardY+cell*N*.48f-lift*w*.08f,p);p.clearShadowLayer();
         }
         if(won||lost||paused) drawOverlay(c,w,h);
+        if(tutorialStage==0||tutorialStage==2&&animationPhase==0)drawTutorialPage(c,w,h);
         postInvalidateOnAnimation();
+    }
+
+    private void finishTutorial(){
+        tutorialStage=-1;tutorialMove=null;selectedR=-1;selectedC=-1;
+        progress.edit().putBoolean("tutorial_complete",true).apply();
+        message("You're ready! Match ghosts and use magic items.");
+    }
+
+    private void drawTutorialCue(Canvas c,float w,float h){
+        int r1=tutorialMove[0],c1=tutorialMove[1],r2=tutorialMove[2],c2=tutorialMove[3];
+        float x1=boardX+(c1+.5f)*cell,y1=boardY+(r1+.5f)*cell;
+        float x2=boardX+(c2+.5f)*cell,y2=boardY+(r2+.5f)*cell;
+        float wave=(float)Math.sin((System.currentTimeMillis()-gameStart)/180f);
+        stroke.setColor(Color.rgb(255,222,81));stroke.setStrokeWidth(cell*.07f);
+        stroke.setShadowLayer(18,0,0,Color.rgb(255,210,64));
+        c.drawCircle(x1,y1,cell*(.43f+.04f*wave),stroke);
+        c.drawCircle(x2,y2,cell*(.43f+.04f*wave),stroke);
+        c.drawLine(x1,y1,x2,y2,stroke);stroke.clearShadowLayer();
+        float top=h*.795f;
+        drawRound(c,w*.045f,top,w*.955f,top+h*.065f,Color.argb(240,60,33,110),w*.03f);
+        p.setColor(Color.WHITE);p.setTypeface(Typeface.create("sans",Typeface.BOLD));
+        p.setTextAlign(Paint.Align.LEFT);p.setTextSize(w*.039f);
+        c.drawText("ลองเลื่อนผีคู่ที่เรืองแสง",w*.075f,top+h*.042f,p);
+        p.setTextAlign(Paint.Align.RIGHT);p.setTextSize(w*.031f);
+        c.drawText("ข้าม",w*.91f,top+h*.041f,p);
+    }
+
+    private void drawTutorialPage(Canvas c,float w,float h){
+        p.setColor(Color.argb(225,12,7,39));c.drawRect(0,0,w,h,p);
+        float t=h*.285f;
+        panel(c,w*.075f,t,w*.925f,h*.71f,Color.rgb(72,39,125));
+        drawGhost(c,w/2,t+h*.095f,w*.11f,colors[0],0,false);
+        p.setTextAlign(Paint.Align.CENTER);p.setColor(Color.WHITE);
+        p.setTypeface(Typeface.create("sans",Typeface.BOLD));p.setTextSize(w*.061f);
+        c.drawText(tutorialStage==0?"ยินดีต้อนรับ!":"เก่งมาก!",w/2,t+h*.19f,p);
+        p.setTextSize(w*.035f);p.setColor(Color.rgb(240,230,255));
+        if(tutorialStage==0){
+            c.drawText("เลื่อนผีให้เรียงกัน 3 ตัวขึ้นไป",w/2,t+h*.245f,p);
+            c.drawText("เก็บผีตามเป้าหมายเพื่อผ่านด่าน",w/2,t+h*.282f,p);
+            c.drawText("เริ่มด้วยผีคู่ที่เรืองแสงบนกระดาน",w/2,t+h*.319f,p);
+        }else{
+            c.drawText("ผีที่จับคู่จะหาย แล้วตัวใหม่ตกลงมา",w/2,t+h*.245f,p);
+            c.drawText("จับ 4 หรือ 5 ตัว จะได้ไอเท็มเวทมนตร์",w/2,t+h*.282f,p);
+            c.drawText("แตะตัวช่วยด้านล่างเมื่ออยากให้ช่วย",w/2,t+h*.319f,p);
+        }
+        drawRound(c,w*.20f,h*.555f,w*.80f,h*.615f,Color.rgb(255,191,78),w*.035f);
+        p.setColor(Color.rgb(65,29,72));p.setTextSize(w*.043f);
+        c.drawText(tutorialStage==0?"เริ่มเรียนรู้":"เข้าใจแล้ว",w/2,h*.596f,p);
+        if(tutorialStage==0){
+            p.setColor(Color.rgb(215,200,237));p.setTextSize(w*.032f);
+            c.drawText("ข้ามคำแนะนำ",w/2,h*.675f,p);
+        }
     }
 
     private void drawStars(Canvas c,float w,float h){
@@ -561,6 +619,7 @@ class GhostGameView extends View {
     @Override public boolean onTouchEvent(android.view.MotionEvent e){
         float x=e.getX(),y=e.getY();
         if(e.getAction()==MotionEvent.ACTION_DOWN){
+            if(tutorialStage==0||tutorialStage==2&&animationPhase==0)return true;
             touchDownX=x; touchDownY=y;
             if(!won&&!lost&&!paused&&y>=boardY&&y<boardY+N*cell&&x>=boardX&&x<boardX+N*cell){
                 touchDownC=Math.min(N-1,(int)((x-boardX)/cell));
@@ -570,7 +629,22 @@ class GhostGameView extends View {
             return true;
         }
         if(e.getAction()!=MotionEvent.ACTION_UP)return true;
+        if(tutorialStage==0){
+            if(y>getHeight()*.53f&&y<getHeight()*.65f){
+                tutorialStage=1;tutorialMove=findPossibleMove();
+                message("Swipe the two glowing ghosts!");
+            }else if(y>getHeight()*.65f&&y<getHeight()*.76f)finishTutorial();
+            invalidate();return true;
+        }
+        if(tutorialStage==2&&animationPhase==0){
+            if(y>getHeight()*.55f&&y<getHeight()*.72f)finishTutorial();
+            invalidate();return true;
+        }
         if(animationPhase!=0)return true;
+        if(tutorialStage==1&&touchDownR<0){
+            if(y>getHeight()*.78f&&y<getHeight()*.87f&&x>getWidth()*.72f)finishTutorial();
+            invalidate();return true;
+        }
         if(won||lost||paused){
             if(y>(won?getHeight()*.69f:getHeight()*.57f)&&y<(won?getHeight()*.76f:getHeight()*.68f)){
                 if(paused)paused=false;
@@ -616,6 +690,12 @@ class GhostGameView extends View {
     }
 
     private void attemptSwipe(int r1,int c1,int r2,int c2){
+        if(tutorialStage==1&&tutorialMove!=null){
+            boolean forward=r1==tutorialMove[0]&&c1==tutorialMove[1]&&r2==tutorialMove[2]&&c2==tutorialMove[3];
+            boolean reverse=r2==tutorialMove[0]&&c2==tutorialMove[1]&&r1==tutorialMove[2]&&c1==tutorialMove[3];
+            if(!forward&&!reverse){message("Swipe the two glowing ghosts!");return;}
+            tutorialStage=2;tutorialMove=null;
+        }
         int a=board[r1][c1],b=board[r2][c2];
         swap(r1,c1,r2,c2);
         if(a<TYPES&&b<TYPES&&!hasAnyMatch()){
