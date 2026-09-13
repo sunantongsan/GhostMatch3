@@ -35,7 +35,7 @@ class GhostGameView extends View {
     private final Paint p=new Paint(3);
     private final Paint stroke=new Paint(3);
     private final Paint spritePaint=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);
-    private Bitmap ghostSheet,boosterSheet,hauntedBackground,magicItems;
+    private Bitmap ghostSheet,boosterSheet,hauntedBackground,magicItems,dancingSkeleton;
     private final int[] colors={Color.rgb(245,245,255),Color.rgb(188,236,172),Color.rgb(161,77,227)};
     private final String[] boosterNames={"SWAP","HAMMER","ROW","COLUMN","BURST","RAINBOW","+5"};
     private final int[] boosterCount={8,8,6,6,6,8,8};
@@ -49,7 +49,7 @@ class GhostGameView extends View {
     private float touchDownX, touchDownY;
     private int touchDownR=-1, touchDownC=-1;
     private boolean won=false,lost=false;
-    private long gameStart=System.currentTimeMillis();
+    private long gameStart=System.currentTimeMillis(),victoryStart=0;
     private final ArrayList<Spark> sparks=new ArrayList<>();
     private String comboText="";
     private long comboUntil=0;
@@ -71,6 +71,7 @@ class GhostGameView extends View {
         ghostSheet=BitmapFactory.decodeResource(getResources(),R.drawable.ghost_sprites);
         boosterSheet=BitmapFactory.decodeResource(getResources(),R.drawable.booster_sprites);
         magicItems=BitmapFactory.decodeResource(getResources(),R.drawable.magic_items);
+        dancingSkeleton=BitmapFactory.decodeResource(getResources(),R.drawable.dancing_skeleton);
         hauntedBackground=BitmapFactory.decodeResource(getResources(),R.drawable.haunted_background);
         progress=c.getSharedPreferences("ghostmatch_progress",Context.MODE_PRIVATE);
         highestLevel=Math.max(1,progress.getInt("highest_level",1));
@@ -359,7 +360,7 @@ class GhostGameView extends View {
             }
         }
         if(animationPhase==2){
-            float t=Math.min(1f,(System.currentTimeMillis()-phaseStart)/550f);
+            float t=Math.min(1f,(System.currentTimeMillis()-phaseStart)/360f);
             float eased=1f-(float)Math.pow(1f-t,3);
             cy+=fallFrom[r][col]*cell*(1f-eased);
         }
@@ -519,17 +520,40 @@ class GhostGameView extends View {
     }
 
     private void drawOverlay(Canvas c,float w,float h){
-        p.setColor(Color.argb(205,10,5,30));c.drawRect(0,0,w,h,p);
-        float l=w*.10f,r=w*.90f,t=h*.30f,b=h*.68f;
-        drawRound(c,l,t,r,b,Color.rgb(68,35,112),w*.06f);
-        p.setTextAlign(Paint.Align.CENTER);p.setColor(Color.WHITE);p.setTextSize(w*.078f);
-        c.drawText(paused?"PAUSED":won?"LEVEL COMPLETE!":"SO CLOSE!",w/2,t+h*.09f,p);
-        p.setTextSize(w*.12f);c.drawText(won?"★ ★ ★":"♥",w/2,t+h*.17f,p);
-        p.setTextSize(w*.044f);p.setColor(Color.rgb(233,220,255));
-        c.drawText(paused?"Tap continue to play":won?"Great ghost magic!":"Try this level again.",w/2,t+h*.23f,p);
-        drawRound(c,w*.22f,t+h*.27f,w*.78f,t+h*.35f,Color.rgb(255,188,64),50);
-        p.setColor(Color.rgb(55,25,70));p.setTextSize(w*.045f);
-        c.drawText(paused?"CONTINUE":won?"NEXT LEVEL":"RETRY",w/2,t+h*.325f,p);
+        p.setColor(Color.argb(218,10,5,30));c.drawRect(0,0,w,h,p);
+        float l=w*.08f,r=w*.92f,t=won?h*.19f:h*.30f,b=won?h*.76f:h*.68f;
+        panel(c,l,t,r,b,Color.rgb(68,35,112));
+        p.setTextAlign(Paint.Align.CENTER);p.setColor(Color.WHITE);p.setTextSize(w*.075f);
+        c.drawText(paused?"PAUSED":won?"LEVEL COMPLETE!":"SO CLOSE!",w/2,t+h*.068f,p);
+        if(won){
+            p.setColor(Color.rgb(255,216,91));p.setTextSize(w*.083f);
+            c.drawText("★ ★ ★",w/2,t+h*.118f,p);
+            long elapsed=System.currentTimeMillis()-victoryStart;
+            float bob=(float)Math.sin(elapsed/170f)*h*.005f;
+            int frame=(int)((elapsed/285)%4);
+            if(dancingSkeleton!=null&&!dancingSkeleton.isRecycled()){
+                float sw=dancingSkeleton.getWidth()/4f;
+                Rect source=new Rect((int)(frame*sw),0,(int)((frame+1)*sw),dancingSkeleton.getHeight());
+                float size=Math.min(w*.52f,h*.32f);
+                int saved=c.save();
+                c.rotate((float)Math.sin(elapsed/360f)*3f,w/2,t+h*.305f);
+                c.drawBitmap(dancingSkeleton,source,
+                    new RectF(w/2-size*.50f,t+h*.137f+bob,w/2+size*.50f,t+h*.472f+bob),spritePaint);
+                c.restoreToCount(saved);
+            }else drawGhost(c,w/2,t+h*.29f,w*.12f,colors[0],0,false);
+            p.setColor(Color.rgb(233,220,255));p.setTextSize(w*.04f);
+            c.drawText("Your spooky dancer celebrates the win!",w/2,t+h*.494f,p);
+            drawRound(c,w*.20f,t+h*.515f,w*.80f,t+h*.565f,Color.rgb(255,188,64),50);
+            p.setColor(Color.rgb(55,25,70));p.setTextSize(w*.045f);
+            c.drawText("NEXT LEVEL",w/2,t+h*.549f,p);
+        }else{
+            p.setTextSize(w*.12f);c.drawText("♥",w/2,t+h*.17f,p);
+            p.setTextSize(w*.044f);p.setColor(Color.rgb(233,220,255));
+            c.drawText(paused?"Tap continue to play":"Try this level again.",w/2,t+h*.23f,p);
+            drawRound(c,w*.22f,t+h*.27f,w*.78f,t+h*.35f,Color.rgb(255,188,64),50);
+            p.setColor(Color.rgb(55,25,70));p.setTextSize(w*.045f);
+            c.drawText(paused?"CONTINUE":"RETRY",w/2,t+h*.325f,p);
+        }
     }
 
     @Override public boolean onTouchEvent(android.view.MotionEvent e){
@@ -546,7 +570,7 @@ class GhostGameView extends View {
         if(e.getAction()!=MotionEvent.ACTION_UP)return true;
         if(animationPhase!=0)return true;
         if(won||lost||paused){
-            if(y>getHeight()*.57f&&y<getHeight()*.68f){
+            if(y>(won?getHeight()*.69f:getHeight()*.57f)&&y<(won?getHeight()*.76f:getHeight()*.68f)){
                 if(paused)paused=false;
                 else {if(won)level++;newLevel();}
                 invalidate();
@@ -835,7 +859,7 @@ class GhostGameView extends View {
                 castPoints.clear();
                 if(!next.isEmpty())beginExplosion(next,true,-1,-1);
                 else{cascadeDepth=0;ensureMove();checkEnd();}
-            },550);
+            },360);
         },1100);
         invalidate();
     }
@@ -891,7 +915,7 @@ class GhostGameView extends View {
 
     private void checkEnd(){
         if(!won&&iceLeft==0&&collected[0]>=goals[0]&&collected[1]>=goals[1]&&collected[2]>=goals[2]){
-            won=true;boosterCount[rng.nextInt(7)]++;
+            won=true;victoryStart=System.currentTimeMillis();boosterCount[rng.nextInt(7)]++;
             highestLevel=Math.max(highestLevel,level+1);
             progress.edit().putInt("highest_level",highestLevel).apply();
             for(int i=0;i<100;i++)sparks.add(new Spark(rng.nextFloat()*getWidth(),getHeight()*.25f,
