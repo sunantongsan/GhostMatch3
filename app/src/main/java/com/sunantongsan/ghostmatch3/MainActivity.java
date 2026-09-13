@@ -7,13 +7,108 @@ import android.graphics.drawable.ColorDrawable;
 import android.view.*;
 import android.content.*;
 import java.util.*;
+import com.google.android.gms.ads.AdError;
+import com.google.android.gms.ads.AdRequest;
+import com.google.android.gms.ads.FullScreenContentCallback;
+import com.google.android.gms.ads.LoadAdError;
+import com.google.android.gms.ads.MobileAds;
+import com.google.android.gms.ads.interstitial.InterstitialAd;
+import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback;
+import com.google.android.ump.ConsentInformation;
+import com.google.android.ump.ConsentRequestParameters;
+import com.google.android.ump.UserMessagingPlatform;
 
 public class MainActivity extends Activity {
+    // Google's official SAMPLE identifiers: test impressions never earn money.
+    private static final String TEST_INTERSTITIAL_ID="ca-app-pub-3940256099942544/1033173712";
+    private static final long MIN_AD_INTERVAL_MS=90000L;
+    private GhostGameView gameView;
+    private ConsentInformation consentInformation;
+    private InterstitialAd interstitial;
+    private boolean adsInitialized=false, adLoading=false, privacyOptionsRequired=false;
+    private long lastAdShownAt=0;
+
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         getWindow().setStatusBarColor(Color.rgb(18,10,46));
         getWindow().setNavigationBarColor(Color.rgb(18,10,46));
-        setContentView(new GhostGameView(this));
+        gameView=new GhostGameView(this);
+        setContentView(gameView);
+        requestAdConsent();
+    }
+
+    private void requestAdConsent(){
+        consentInformation=UserMessagingPlatform.getConsentInformation(this);
+        consentInformation.requestConsentInfoUpdate(this,
+            new ConsentRequestParameters.Builder().build(),
+            ()->{
+                refreshPrivacyOption();
+                UserMessagingPlatform.loadAndShowConsentFormIfRequired(this,error->{
+                    refreshPrivacyOption();
+                    if(consentInformation.canRequestAds())initializeAds();
+                });
+                if(consentInformation.canRequestAds())initializeAds();
+            },
+            error->{
+                refreshPrivacyOption();
+                // A previous valid consent may still permit ads; otherwise stay ad-free.
+                if(consentInformation.canRequestAds())initializeAds();
+            });
+    }
+
+    private void refreshPrivacyOption(){
+        privacyOptionsRequired=consentInformation.getPrivacyOptionsRequirementStatus()
+            ==ConsentInformation.PrivacyOptionsRequirementStatus.REQUIRED;
+        if(gameView!=null)gameView.invalidate();
+    }
+
+    boolean needsPrivacyOptions(){return privacyOptionsRequired;}
+
+    void openPrivacyOptions(){
+        if(!privacyOptionsRequired)return;
+        UserMessagingPlatform.showPrivacyOptionsForm(this,error->{
+            refreshPrivacyOption();
+            if(consentInformation.canRequestAds())initializeAds();
+            else interstitial=null;
+        });
+    }
+
+    private void initializeAds(){
+        if(adsInitialized)return;
+        adsInitialized=true;
+        MobileAds.initialize(this,status->runOnUiThread(this::loadNextAd));
+    }
+
+    private void loadNextAd(){
+        if(!adsInitialized||!consentInformation.canRequestAds()||adLoading||interstitial!=null)return;
+        adLoading=true;
+        InterstitialAd.load(this,TEST_INTERSTITIAL_ID,new AdRequest.Builder().build(),
+            new InterstitialAdLoadCallback(){
+                @Override public void onAdLoaded(InterstitialAd ad){
+                    adLoading=false;interstitial=ad;
+                }
+                @Override public void onAdFailedToLoad(LoadAdError error){
+                    adLoading=false;interstitial=null;
+                }
+            });
+    }
+
+    void onLevelCompleted(int completedLevel){
+        // Let the victory animation play first. Never block the NEXT LEVEL button.
+        if(completedLevel<4||(completedLevel-4)%3!=0)return;
+        gameView.postDelayed(()->{
+            if(!gameView.isShowingVictory(completedLevel)||interstitial==null
+               ||!consentInformation.canRequestAds())return;
+            long now=android.os.SystemClock.elapsedRealtime();
+            if(lastAdShownAt!=0&&now-lastAdShownAt<MIN_AD_INTERVAL_MS)return;
+            InterstitialAd ad=interstitial;interstitial=null;
+            ad.setFullScreenContentCallback(new FullScreenContentCallback(){
+                @Override public void onAdDismissedFullScreenContent(){loadNextAd();}
+                @Override public void onAdFailedToShowFullScreenContent(AdError error){loadNextAd();}
+            });
+            lastAdShownAt=now;
+            ad.show(this);
+        },3200);
     }
 }
 
@@ -579,7 +674,8 @@ class GhostGameView extends View {
 
     private void drawOverlay(Canvas c,float w,float h){
         p.setColor(Color.argb(218,10,5,30));c.drawRect(0,0,w,h,p);
-        float l=w*.08f,r=w*.92f,t=won?h*.19f:h*.30f,b=won?h*.76f:h*.68f;
+        float l=w*.08f,r=w*.92f,t=won?h*.19f:h*.30f,b=won?h*.76f:
+            paused&&getContext() instanceof MainActivity&&((MainActivity)getContext()).needsPrivacyOptions()?h*.79f:h*.68f;
         panel(c,l,t,r,b,Color.rgb(68,35,112));
         p.setTextAlign(Paint.Align.CENTER);p.setColor(Color.WHITE);p.setTextSize(w*.075f);
         c.drawText(paused?"PAUSED":won?"LEVEL COMPLETE!":"SO CLOSE!",w/2,t+h*.068f,p);
@@ -613,6 +709,11 @@ class GhostGameView extends View {
             drawRound(c,w*.22f,t+h*.27f,w*.78f,t+h*.35f,Color.rgb(255,188,64),50);
             p.setColor(Color.rgb(55,25,70));p.setTextSize(w*.045f);
             c.drawText(paused?"CONTINUE":"RETRY",w/2,t+h*.325f,p);
+            if(paused&&getContext() instanceof MainActivity&&((MainActivity)getContext()).needsPrivacyOptions()){
+                drawRound(c,w*.22f,h*.70f,w*.78f,h*.765f,Color.rgb(105,73,162),40);
+                p.setColor(Color.WHITE);p.setTextSize(w*.036f);
+                c.drawText("PRIVACY OPTIONS",w/2,h*.745f,p);
+            }
         }
     }
 
@@ -646,6 +747,10 @@ class GhostGameView extends View {
             invalidate();return true;
         }
         if(won||lost||paused){
+            if(paused&&y>getHeight()*.70f&&y<getHeight()*.77f
+               &&getContext() instanceof MainActivity){
+                ((MainActivity)getContext()).openPrivacyOptions();return true;
+            }
             if(y>(won?getHeight()*.69f:getHeight()*.57f)&&y<(won?getHeight()*.76f:getHeight()*.68f)){
                 if(paused)paused=false;
                 else {if(won)level++;newLevel();}
@@ -995,9 +1100,12 @@ class GhostGameView extends View {
         }
     }
 
+    boolean isShowingVictory(int completedLevel){return won&&level==completedLevel;}
+
     private void checkEnd(){
         if(!won&&iceLeft==0&&collected[0]>=goals[0]&&collected[1]>=goals[1]&&collected[2]>=goals[2]){
             won=true;victoryStart=System.currentTimeMillis();boosterCount[rng.nextInt(7)]++;
+            if(getContext() instanceof MainActivity)((MainActivity)getContext()).onLevelCompleted(level);
             highestLevel=Math.max(highestLevel,level+1);
             progress.edit().putInt("highest_level",highestLevel).apply();
             for(int i=0;i<100;i++)sparks.add(new Spark(rng.nextFloat()*getWidth(),getHeight()*.25f,
