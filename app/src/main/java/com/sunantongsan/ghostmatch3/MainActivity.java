@@ -595,14 +595,14 @@ class GhostGameView extends View {
         for(int r=0;r<N;r++){
             int run=1;
             for(int c=1;c<=N;c++){
-                if(c<N&&board[r][c]>=0&&base(board[r][c])==base(board[r][c-1])) run++;
+                if(c<N&&base(board[r][c])>=0&&base(board[r][c])==base(board[r][c-1])) run++;
                 else {if(run>=3)for(int k=c-run;k<c;k++)out.add(r*N+k);run=1;}
             }
         }
         for(int c=0;c<N;c++){
             int run=1;
             for(int r=1;r<=N;r++){
-                if(r<N&&board[r][c]>=0&&base(board[r][c])==base(board[r-1][c])) run++;
+                if(r<N&&base(board[r][c])>=0&&base(board[r][c])==base(board[r-1][c])) run++;
                 else {if(run>=3)for(int k=r-run;k<r;k++)out.add(k*N+c);run=1;}
             }
         }
