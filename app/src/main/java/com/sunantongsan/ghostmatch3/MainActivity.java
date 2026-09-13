@@ -71,7 +71,7 @@ class GhostGameView extends View {
         ghostSheet=BitmapFactory.decodeResource(getResources(),R.drawable.ghost_sprites);
         boosterSheet=BitmapFactory.decodeResource(getResources(),R.drawable.booster_sprites);
         magicItems=BitmapFactory.decodeResource(getResources(),R.drawable.magic_items);
-        dancingSkeleton=BitmapFactory.decodeResource(getResources(),R.drawable.dancing_skeleton);
+        dancingSkeleton=BitmapFactory.decodeResource(getResources(),R.drawable.anatomical_skeleton_dance);
         hauntedBackground=BitmapFactory.decodeResource(getResources(),R.drawable.haunted_background);
         progress=c.getSharedPreferences("ghostmatch_progress",Context.MODE_PRIVATE);
         highestLevel=Math.max(1,progress.getInt("highest_level",1));
@@ -530,11 +530,13 @@ class GhostGameView extends View {
             c.drawText("★ ★ ★",w/2,t+h*.118f,p);
             long elapsed=System.currentTimeMillis()-victoryStart;
             float bob=(float)Math.sin(elapsed/170f)*h*.005f;
-            int frame=(int)((elapsed/285)%4);
+            // Each routine lasts long enough to recognize: two moonwalk poses, then two pop poses.
+            int routine=(int)((elapsed/1680)%2);
+            int frame=routine*2+(int)((elapsed/280)%2);
             if(dancingSkeleton!=null&&!dancingSkeleton.isRecycled()){
                 float sw=dancingSkeleton.getWidth()/4f;
                 Rect source=new Rect((int)(frame*sw),0,(int)((frame+1)*sw),dancingSkeleton.getHeight());
-                float size=Math.min(w*.52f,h*.32f);
+                float size=Math.min(w*.43f,h*.32f);
                 int saved=c.save();
                 c.rotate((float)Math.sin(elapsed/360f)*3f,w/2,t+h*.305f);
                 c.drawBitmap(dancingSkeleton,source,
@@ -542,7 +544,7 @@ class GhostGameView extends View {
                 c.restoreToCount(saved);
             }else drawGhost(c,w/2,t+h*.29f,w*.12f,colors[0],0,false);
             p.setColor(Color.rgb(233,220,255));p.setTextSize(w*.04f);
-            c.drawText("Your spooky dancer celebrates the win!",w/2,t+h*.494f,p);
+            c.drawText(routine==0?"MOONWALK!":"POP DANCE!",w/2,t+h*.494f,p);
             drawRound(c,w*.20f,t+h*.515f,w*.80f,t+h*.565f,Color.rgb(255,188,64),50);
             p.setColor(Color.rgb(55,25,70));p.setTextSize(w*.045f);
             c.drawText("NEXT LEVEL",w/2,t+h*.549f,p);
