@@ -536,8 +536,7 @@ class GhostGameView extends View {
                     performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
                     if(mode==0){
                         if(boosterCount[0]>0){
-                            swap(touchDownR,touchDownC,tr,tc);boosterCount[0]--;mode=-1;
-                            resolveCascades();checkEnd();
+                            freeSwap(touchDownR,touchDownC,tr,tc);
                         }
                     }else if(mode>=1&&mode<=3||mode==5){cellTap(touchDownR,touchDownC);}
                     else attemptSwipe(touchDownR,touchDownC,tr,tc);
@@ -585,6 +584,22 @@ class GhostGameView extends View {
         invalidate();
     }
 
+    private void freeSwap(int r1,int c1,int r2,int c2){
+        int a=board[r1][c1],b=board[r2][c2];
+        swap(r1,c1,r2,c2);
+        useBooster(0,"Free magic swap!");
+        cascadeDepth=0;
+        if(a>=TYPES||b>=TYPES){
+            powerMultiplier=a>=TYPES&&b>=TYPES?2:1;
+            Set<Integer> hits=new HashSet<>();
+            if(a>=TYPES)expandPower(r2,c2,a,hits,powerMultiplier,b<TYPES?b:-1);
+            if(b>=TYPES)expandPower(r1,c1,b,hits,powerMultiplier,a<TYPES?a:-1);
+            beginExplosion(hits,false,-1,-1);
+        }else if(hasAnyMatch())beginExplosion(findMatches(),true,r2,c2);
+        else{ensureMove();message("Free swap complete!");}
+        invalidate();
+    }
+
     private void cellTap(int r,int c){
         if(mode>=1&&mode<=3){
             Set<Integer> hit=new HashSet<>();
@@ -607,7 +622,7 @@ class GhostGameView extends View {
         if(selectedR==r&&selectedC==c){selectedR=-1;selectedC=-1;invalidate();return;}
         if(Math.abs(selectedR-r)+Math.abs(selectedC-c)==1){
             int sr=selectedR,sc=selectedC;selectedR=-1;selectedC=-1;
-            if(mode==0){swap(sr,sc,r,c);useBooster(0,"Free swap!");resolveCascades();checkEnd();}
+            if(mode==0){freeSwap(sr,sc,r,c);}
             else attemptSwipe(sr,sc,r,c);
         }else{selectedR=r;selectedC=c;}
         invalidate();
