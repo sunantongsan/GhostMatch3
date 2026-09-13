@@ -88,7 +88,7 @@ class GhostGameView extends View {
         moves=level<=3?14:level<=5?16:Math.min(32,17+level/4);
         target=1500+level*200;
         for(int i=0;i<TYPES;i++){
-            goals[i]=level<=3?level+1:Math.min(21,4+level/3);
+            goals[i]=level<=3?level:Math.min(21,4+level/3);
             if(level>=9&&i==(level-1)%TYPES)goals[i]+=Math.min(5,1+level/10);
             collected[i]=0;
         }
