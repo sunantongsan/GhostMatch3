@@ -190,7 +190,7 @@ class GhostGameView extends View {
             postInvalidateDelayed(100);
         }
         if(comboUntil>System.currentTimeMillis()){
-            float lift=(comboUntil-System.currentTimeMillis())/1200f;
+            float lift=(comboUntil-System.currentTimeMillis())/1800f;
             p.setTextAlign(Paint.Align.CENTER);p.setTypeface(Typeface.create("sans",Typeface.BOLD));
             p.setTextSize(w*.078f);p.setColor(Color.WHITE);
             p.setShadowLayer(18,0,0,Color.rgb(255,87,203));
@@ -246,7 +246,7 @@ class GhostGameView extends View {
     }
 
     private void drawSpellEffects(Canvas c){
-        float progress=Math.min(1f,(System.currentTimeMillis()-phaseStart)/850f);
+        float progress=Math.min(1f,(System.currentTimeMillis()-phaseStart)/1100f);
         float pulse=(float)Math.sin(progress*Math.PI);
         int saved=c.save();
         c.clipRect(boardX,boardY,boardX+N*cell,boardY+N*cell);
@@ -359,12 +359,12 @@ class GhostGameView extends View {
             }
         }
         if(animationPhase==2){
-            float t=Math.min(1f,(System.currentTimeMillis()-phaseStart)/420f);
+            float t=Math.min(1f,(System.currentTimeMillis()-phaseStart)/550f);
             float eased=1f-(float)Math.pow(1f-t,3);
             cy+=fallFrom[r][col]*cell*(1f-eased);
         }
         if(animationPhase==1&&exploding.contains(r*N+col)){
-            float t=Math.min(1f,(System.currentTimeMillis()-phaseStart)/420f);
+            float t=Math.min(1f,(System.currentTimeMillis()-phaseStart)/1100f);
             int save=c.save();c.scale(1f+.45f*t,1f+.45f*t,cx,cy);
             spritePaint.setAlpha(Math.max(0,(int)(255*(1f-t))));
             drawPiece(c,cx,cy,kind,type,sel);
@@ -571,7 +571,7 @@ class GhostGameView extends View {
                         if(boosterCount[0]>0){
                             freeSwap(touchDownR,touchDownC,tr,tc);
                         }
-                    }else if(mode>=1&&mode<=3||mode==5){cellTap(touchDownR,touchDownC);}
+                    }else if(mode>=1&&mode<=5){cellTap(touchDownR,touchDownC);}
                     else attemptSwipe(touchDownR,touchDownC,tr,tc);
                 }
                 touchDownR=-1;touchDownC=-1;invalidate();return true;
@@ -818,7 +818,7 @@ class GhostGameView extends View {
             }
         }
         if(combo>=2){
-            comboText="COMBO x"+combo+"!";comboUntil=System.currentTimeMillis()+1200;
+            comboText="COMBO x"+combo+"!";comboUntil=System.currentTimeMillis()+1800;
             performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
         }
         final int serial=animationSerial;
@@ -836,7 +836,7 @@ class GhostGameView extends View {
                 if(!next.isEmpty())beginExplosion(next,true,-1,-1);
                 else{cascadeDepth=0;ensureMove();checkEnd();}
             },550);
-        },850);
+        },1100);
         invalidate();
     }
 
