@@ -116,6 +116,8 @@ class GhostGameView extends View {
     private static final int N=7, TYPES=3;
     private final int[][] board=new int[N][N];
     private final int[][] ice=new int[N][N];
+    private final boolean[][] blocked=new boolean[N][N];
+    private static final int WALL=-99;
     private int iceLeft=0,iceInitial=0,highestLevel=1;
     private final android.content.SharedPreferences progress;
     private final float[][] fallFrom=new float[N][N];
@@ -184,35 +186,60 @@ class GhostGameView extends View {
     private void newLevel(){
         animationSerial++;animationPhase=0;exploding.clear();castPoints.clear();powerMultiplier=1;
         for(float[] row:fallFrom)Arrays.fill(row,0);
-        moves=level<=3?14:level<=5?16:Math.min(32,17+level/4);
-        target=1500+level*200;
+        configureLayout();
+        if(level==1){moves=8;target=700;}
+        else if(level==2){moves=10;target=950;}
+        else if(level==3){moves=12;target=1250;}
+        else if(level<=5){moves=14;target=1500+level*120;}
+        else moves=Math.min(31,15+level/3);
         for(int i=0;i<TYPES;i++){
-            goals[i]=level<=3?level:Math.min(21,4+level/3);
-            if(level>=9&&i==(level-1)%TYPES)goals[i]+=Math.min(5,1+level/10);
+            goals[i]=level<=3?2+level:level<=7?5+level/2:Math.min(24,7+level/2);
+            if(level>=12&&i==(level-1)%TYPES)goals[i]+=Math.min(5,level/8);
             collected[i]=0;
         }
         for(int[] row:ice)Arrays.fill(row,0);
         iceLeft=0;
-        if(level>=6){
-            int iceCount=Math.min(18,2+(level-6)/2);
-            int strength=level>=20?2:1;
-            for(int k=0;k<iceCount;k++){
-                int rr,cc;
-                do{rr=rng.nextInt(N);cc=rng.nextInt(N);}while(ice[rr][cc]>0);
-                ice[rr][cc]=strength;iceLeft+=strength;
-            }
+        int iceCount=level<4?0:Math.min(22,2+(level-4)/2);
+        int strength=level>=18?2:1;
+        ArrayList<Integer> open=new ArrayList<>();
+        for(int r=0;r<N;r++)for(int c=0;c<N;c++)if(!blocked[r][c])open.add(r*N+c);
+        Collections.shuffle(open,rng);
+        for(int k=0;k<Math.min(iceCount,open.size());k++){
+            int pos=open.get(k),rr=pos/N,cc=pos%N;
+            ice[rr][cc]=strength;iceLeft+=strength;
         }
         iceInitial=iceLeft;
-        score=0; combo=0; won=false; lost=false; paused=false; mode=-1;helperFirstR=-1;
-        for(int r=0;r<N;r++) for(int c=0;c<N;c++){
-            int t;
-            do { t=rng.nextInt(TYPES); } while((c>=2&&board[r][c-1]==t&&board[r][c-2]==t)||(r>=2&&board[r-1][c]==t&&board[r-2][c]==t));
+        score=0;combo=0;won=false;lost=false;paused=false;mode=-1;helperFirstR=-1;
+        for(int r=0;r<N;r++)for(int c=0;c<N;c++){
+            if(blocked[r][c]){board[r][c]=WALL;continue;}
+            int t,guard=0;
+            do{
+                t=rng.nextInt(TYPES);guard++;
+            }while(guard<20&&((c>=2&&!blocked[r][c-1]&&!blocked[r][c-2]&&board[r][c-1]==t&&board[r][c-2]==t)
+                ||(r>=2&&!blocked[r-1][c]&&!blocked[r-2][c]&&board[r-1][c]==t&&board[r-2][c]==t)));
             board[r][c]=t;
         }
         ensureMove();
         if(tutorialStage==1)tutorialMove=findPossibleMove();
-        message(level<=3?"A few matches to win!":"Level "+level+" — match the goals!");
+        String shape=level<=2?"Small garden":level<=5?"Training hall":level<=9?"Haunted manor":
+            level<=14?"Broken corners":level<=19?"Moon cross":level<=24?"Split crypt":"Cursed hourglass";
+        message(level<=3?"Easy start — "+shape:"Level "+level+" — "+shape);
         invalidate();
+    }
+
+    private void configureLayout(){
+        for(boolean[] row:blocked)Arrays.fill(row,false);
+        for(int r=0;r<N;r++)for(int c=0;c<N;c++){
+            boolean wall=false;
+            if(level<=2)wall=r==0||r==N-1||c==0||c==N-1;
+            else if(level<=5)wall=r==0||c==N-1;
+            else if(level<=9)wall=false;
+            else if(level<=14)wall=(r==0||r==N-1)&&(c==0||c==N-1);
+            else if(level<=19)wall=(r<2||r>N-3)&&(c<2||c>N-3);
+            else if(level<=24)wall=c==N/2&&r>=2&&r<=4;
+            else wall=((r==0||r==N-1)&&(c<2||c>N-3))||(Math.abs(r-N/2)<=1&&(c==0||c==N-1));
+            blocked[r][c]=wall;
+        }
     }
 
     @Override protected void onDraw(Canvas c){
@@ -495,6 +522,13 @@ class GhostGameView extends View {
 
     private void drawCell(Canvas c,int r,int col){
         float x=boardX+col*cell, y=boardY+r*cell, pad=cell*.075f;
+        if(blocked[r][col]){
+            drawRound(c,x+pad,y+pad,x+cell-pad,y+cell-pad,Color.argb(135,19,13,43),cell*.22f);
+            stroke.setColor(Color.argb(120,123,94,165));stroke.setStrokeWidth(cell*.025f);
+            c.drawLine(x+cell*.28f,y+cell*.30f,x+cell*.72f,y+cell*.70f,stroke);
+            c.drawLine(x+cell*.72f,y+cell*.30f,x+cell*.28f,y+cell*.70f,stroke);
+            return;
+        }
         float bob=(float)Math.sin((System.currentTimeMillis()-gameStart)/420.0+r*.8+col*.65)*cell*.025f;
         int back=((r+col)&1)==0?Color.argb(75,118,79,173):Color.argb(55,78,52,132);
         drawRound(c,x+pad,y+pad,x+cell-pad,y+cell-pad,back,cell*.22f);
@@ -797,6 +831,7 @@ class GhostGameView extends View {
             if(!won&&!lost&&!paused&&y>=boardY&&y<boardY+N*cell&&x>=boardX&&x<boardX+N*cell){
                 touchDownC=Math.min(N-1,(int)((x-boardX)/cell));
                 touchDownR=Math.min(N-1,(int)((y-boardY)/cell));
+                if(blocked[touchDownR][touchDownC]){touchDownR=-1;touchDownC=-1;return true;}
                 selectedR=touchDownR; selectedC=touchDownC;
                 reactionR=touchDownR;reactionC=touchDownC;
                 reactionStart=System.currentTimeMillis();reactionUntil=reactionStart+REACTION_MS;
@@ -845,7 +880,7 @@ class GhostGameView extends View {
                 if(Math.abs(dx)>Math.abs(dy))tc+=dx>0?1:-1;
                 else tr+=dy>0?1:-1;
                 selectedR=-1;selectedC=-1;
-                if(tr>=0&&tr<N&&tc>=0&&tc<N){
+                if(tr>=0&&tr<N&&tc>=0&&tc<N&&!blocked[tr][tc]){
                     swipeFX=boardX+(tc+.5f)*cell;swipeFY=boardY+(tr+.5f)*cell;
                     performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
                     if(mode==0){
@@ -957,8 +992,8 @@ class GhostGameView extends View {
 
     private int[] findPossibleMove(){
         for(int r=0;r<N;r++)for(int c=0;c<N;c++){
-            if(c+1<N){swap(r,c,r,c+1);boolean ok=hasAnyMatch();swap(r,c,r,c+1);if(ok)return new int[]{r,c,r,c+1};}
-            if(r+1<N){swap(r,c,r+1,c);boolean ok=hasAnyMatch();swap(r,c,r+1,c);if(ok)return new int[]{r,c,r+1,c};}
+            if(c+1<N&&!blocked[r][c]&&!blocked[r][c+1]){swap(r,c,r,c+1);boolean ok=hasAnyMatch();swap(r,c,r,c+1);if(ok)return new int[]{r,c,r,c+1};}
+            if(r+1<N&&!blocked[r][c]&&!blocked[r+1][c]){swap(r,c,r+1,c);boolean ok=hasAnyMatch();swap(r,c,r+1,c);if(ok)return new int[]{r,c,r+1,c};}
         }return null;
     }
 
@@ -1072,6 +1107,7 @@ class GhostGameView extends View {
         if(cascadeDepth++>=12){cascadeDepth=0;ensureMove();checkEnd();return;}
         int[] reward=player?powerReward(preferredR,preferredC):null;
         Set<Integer> expanded=new HashSet<>(hits),processed=new HashSet<>();
+        expanded.removeIf(pos->pos<0||pos>=N*N||blocked[pos/N][pos%N]);
         boolean changed;
         do{
             changed=false;
@@ -1129,30 +1165,49 @@ class GhostGameView extends View {
 
     private void collapseAnimated(){
         for(int c=0;c<N;c++){
-            int write=N-1,spawn=-1;
-            for(int r=N-1;r>=0;r--)if(board[r][c]>=0){
-                board[write][c]=board[r][c];fallFrom[write][c]=r-write;write--;
-            }
-            while(write>=0){
-                board[write][c]=rng.nextInt(TYPES);
-                fallFrom[write][c]=spawn-write;
-                write--;spawn--;
+            int end=N-1;
+            while(end>=0){
+                while(end>=0&&blocked[end][c]){board[end][c]=WALL;fallFrom[end][c]=0;end--;}
+                if(end<0)break;
+                int start=end;while(start>0&&!blocked[start-1][c])start--;
+                collapseSegment(c,start,end,true);
+                end=start-1;
             }
         }
     }
 
     private void collapse(){
         for(int c=0;c<N;c++){
-            int write=N-1;
-            for(int r=N-1;r>=0;r--)if(board[r][c]>=0)board[write--][c]=board[r][c];
-            while(write>=0)board[write--][c]=rng.nextInt(TYPES);
+            int end=N-1;
+            while(end>=0){
+                while(end>=0&&blocked[end][c]){board[end][c]=WALL;end--;}
+                if(end<0)break;
+                int start=end;while(start>0&&!blocked[start-1][c])start--;
+                collapseSegment(c,start,end,false);
+                end=start-1;
+            }
+        }
+    }
+
+    private void collapseSegment(int c,int start,int end,boolean animated){
+        int write=end;
+        for(int r=end;r>=start;r--)if(board[r][c]>=0){
+            board[write][c]=board[r][c];
+            if(animated)fallFrom[write][c]=r-write;
+            write--;
+        }
+        int spawn=start-1;
+        while(write>=start){
+            board[write][c]=rng.nextInt(TYPES);
+            if(animated)fallFrom[write][c]=spawn-write;
+            write--;spawn--;
         }
     }
 
     private boolean possibleMove(){
         for(int r=0;r<N;r++)for(int c=0;c<N;c++){
-            if(c+1<N){swap(r,c,r,c+1);boolean ok=hasAnyMatch();swap(r,c,r,c+1);if(ok)return true;}
-            if(r+1<N){swap(r,c,r+1,c);boolean ok=hasAnyMatch();swap(r,c,r+1,c);if(ok)return true;}
+            if(c+1<N&&!blocked[r][c]&&!blocked[r][c+1]){swap(r,c,r,c+1);boolean ok=hasAnyMatch();swap(r,c,r,c+1);if(ok)return true;}
+            if(r+1<N&&!blocked[r][c]&&!blocked[r+1][c]){swap(r,c,r+1,c);boolean ok=hasAnyMatch();swap(r,c,r+1,c);if(ok)return true;}
         }return false;
     }
 
@@ -1162,17 +1217,17 @@ class GhostGameView extends View {
     }
     private void shuffle(){
         ArrayList<Integer> list=new ArrayList<>();
-        for(int[] row:board)for(int v:row)list.add(v<0?rng.nextInt(TYPES):v);
+        for(int r=0;r<N;r++)for(int c=0;c<N;c++)if(!blocked[r][c])list.add(board[r][c]<0?rng.nextInt(TYPES):board[r][c]);
         do{
             Collections.shuffle(list,rng);int k=0;
-            for(int r=0;r<N;r++)for(int c=0;c<N;c++)board[r][c]=list.get(k++);
+            for(int r=0;r<N;r++)for(int c=0;c<N;c++)board[r][c]=blocked[r][c]?WALL:list.get(k++);
         }while((hasAnyMatch()||!possibleMove()));
     }
 
     private void showHint(){
         for(int r=0;r<N;r++)for(int c=0;c<N;c++){
-            if(c+1<N){swap(r,c,r,c+1);boolean ok=hasAnyMatch();swap(r,c,r,c+1);if(ok){selectedR=r;selectedC=c;message("Hint: select the glowing ghost");invalidate();return;}}
-            if(r+1<N){swap(r,c,r+1,c);boolean ok=hasAnyMatch();swap(r,c,r+1,c);if(ok){selectedR=r;selectedC=c;message("Hint: select the glowing ghost");invalidate();return;}}
+            if(c+1<N&&!blocked[r][c]&&!blocked[r][c+1]){swap(r,c,r,c+1);boolean ok=hasAnyMatch();swap(r,c,r,c+1);if(ok){selectedR=r;selectedC=c;message("Hint: select the glowing ghost");invalidate();return;}}
+            if(r+1<N&&!blocked[r][c]&&!blocked[r+1][c]){swap(r,c,r+1,c);boolean ok=hasAnyMatch();swap(r,c,r+1,c);if(ok){selectedR=r;selectedC=c;message("Hint: select the glowing ghost");invalidate();return;}}
         }
     }
 
