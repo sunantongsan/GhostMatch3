@@ -94,21 +94,22 @@ public class MainActivity extends Activity {
     }
 
     void onLevelCompleted(int completedLevel){
-        // Let the victory animation play first. Never block the NEXT LEVEL button.
-        if(completedLevel<4||(completedLevel-4)%3!=0)return;
-        gameView.postDelayed(()->{
-            if(!gameView.isShowingVictory(completedLevel)||interstitial==null
-               ||!consentInformation.canRequestAds())return;
-            long now=android.os.SystemClock.elapsedRealtime();
-            if(lastAdShownAt!=0&&now-lastAdShownAt<MIN_AD_INTERVAL_MS)return;
-            InterstitialAd ad=interstitial;interstitial=null;
-            ad.setFullScreenContentCallback(new FullScreenContentCallback(){
-                @Override public void onAdDismissedFullScreenContent(){loadNextAd();}
-                @Override public void onAdFailedToShowFullScreenContent(AdError error){loadNextAd();}
-            });
-            lastAdShownAt=now;
-            ad.show(this);
-        },3200);
+        // Keep the celebration uninterrupted; the ad belongs to the NEXT LEVEL transition.
+        loadNextAd();
+    }
+
+    void showAdBeforeNextLevel(Runnable continueToLevel){
+        if(interstitial==null||consentInformation==null||!consentInformation.canRequestAds()){
+            loadNextAd();continueToLevel.run();return;
+        }
+        InterstitialAd ad=interstitial;interstitial=null;
+        ad.setFullScreenContentCallback(new FullScreenContentCallback(){
+            private boolean continued=false;
+            private void finish(){if(continued)return;continued=true;loadNextAd();continueToLevel.run();}
+            @Override public void onAdDismissedFullScreenContent(){finish();}
+            @Override public void onAdFailedToShowFullScreenContent(AdError error){finish();}
+        });
+        ad.show(this);
     }
 }
 
@@ -148,7 +149,7 @@ class GhostGameView extends View {
     private float boardX,boardY,cell,boosterY;
     private float touchDownX, touchDownY;
     private int touchDownR=-1, touchDownC=-1;
-    private boolean won=false,lost=false;
+    private boolean won=false,lost=false,victoryAdvancing=false;
     private long gameStart=System.currentTimeMillis(),victoryStart=0;
     private final ArrayList<Spark> sparks=new ArrayList<>();
     private String comboText="";
@@ -175,7 +176,7 @@ class GhostGameView extends View {
         ghostReactions=BitmapFactory.decodeResource(getResources(),R.drawable.ghost_reactions);
         boosterSheet=BitmapFactory.decodeResource(getResources(),R.drawable.booster_sprites);
         magicItems=BitmapFactory.decodeResource(getResources(),R.drawable.magic_items);
-        dancingSkeleton=BitmapFactory.decodeResource(getResources(),R.drawable.anatomical_skeleton_dance);
+        dancingSkeleton=BitmapFactory.decodeResource(getResources(),R.drawable.skeleton_dance_v2);
         hauntedBackground=BitmapFactory.decodeResource(getResources(),R.drawable.haunted_background);
         progress=c.getSharedPreferences("ghostmatch_progress",Context.MODE_PRIVATE);
         highestLevel=Math.max(1,progress.getInt("highest_level",1));
@@ -210,7 +211,7 @@ class GhostGameView extends View {
             ice[rr][cc]=strength;iceLeft+=strength;
         }
         iceInitial=iceLeft;
-        score=0;combo=0;won=false;lost=false;paused=false;mode=-1;helperFirstR=-1;
+        score=0;combo=0;won=false;lost=false;victoryAdvancing=false;paused=false;mode=-1;helperFirstR=-1;
         for(int r=0;r<N;r++)for(int c=0;c<N;c++){
             if(blocked[r][c]){board[r][c]=WALL;continue;}
             int t,guard=0;
@@ -854,25 +855,35 @@ class GhostGameView extends View {
             p.setColor(Color.rgb(255,216,91));p.setTextSize(w*.083f);
             c.drawText("★ ★ ★",w/2,t+h*.118f,p);
             long elapsed=System.currentTimeMillis()-victoryStart;
-            float bob=(float)Math.sin(elapsed/170f)*h*.005f;
-            // Each routine lasts long enough to recognize: two moonwalk poses, then two pop poses.
-            int routine=(int)((elapsed/1680)%2);
-            int frame=routine*2+(int)((elapsed/280)%2);
+            drawVictoryConfetti(c,w,h,elapsed);
+            int frame=Math.min(7,(int)((elapsed/155)%8));
             if(dancingSkeleton!=null&&!dancingSkeleton.isRecycled()){
-                float sw=dancingSkeleton.getWidth()/4f;
+                float sw=dancingSkeleton.getWidth()/8f;
                 Rect source=new Rect((int)(frame*sw),0,(int)((frame+1)*sw),dancingSkeleton.getHeight());
-                float size=Math.min(w*.43f,h*.32f);
+                float size=Math.min(w*.49f,h*.345f);
+                float phase=elapsed/310f;
+                float slide=(float)Math.sin(elapsed/720f)*w*.105f;
+                float bob=Math.abs((float)Math.sin(phase))*h*.009f;
                 int saved=c.save();
-                c.rotate((float)Math.sin(elapsed/360f)*3f,w/2,t+h*.305f);
+                c.translate(slide,bob);
+                c.rotate((float)Math.sin(phase*.65f)*4.2f,w/2,t+h*.31f);
+                float sx=1f+(float)Math.sin(phase)*.035f,sy=1f-(float)Math.sin(phase)*.025f;
+                c.scale(sx,sy,w/2,t+h*.31f);
                 c.drawBitmap(dancingSkeleton,source,
-                    new RectF(w/2-size*.50f,t+h*.137f+bob,w/2+size*.50f,t+h*.472f+bob),spritePaint);
+                    new RectF(w/2-size*.53f,t+h*.125f,w/2+size*.53f,t+h*.485f),spritePaint);
                 c.restoreToCount(saved);
             }else drawGhost(c,w/2,t+h*.29f,w*.12f,colors[0],0,false);
-            p.setColor(Color.rgb(233,220,255));p.setTextSize(w*.04f);
-            c.drawText(routine==0?"MOONWALK!":"POP DANCE!",w/2,t+h*.494f,p);
-            drawRound(c,w*.20f,t+h*.515f,w*.80f,t+h*.565f,Color.rgb(255,188,64),50);
-            p.setColor(Color.rgb(55,25,70));p.setTextSize(w*.045f);
-            c.drawText("NEXT LEVEL",w/2,t+h*.549f,p);
+            p.setColor(Color.rgb(233,220,255));p.setTextSize(w*.037f);
+            String dance=elapsed<1800?"กวนแบบลื่น ๆ!":elapsed<3600?"MOONWALK!":elapsed<5600?"ชัยชนะของเรา!":"พร้อมไปต่อ!";
+            c.drawText(dance,w/2,t+h*.502f,p);
+            if(elapsed>=5600){
+                float pulse=.97f+.03f*(float)Math.sin(elapsed/150f);
+                int save=c.save();c.scale(pulse,pulse,w/2,t+h*.545f);
+                drawRound(c,w*.20f,t+h*.515f,w*.80f,t+h*.575f,Color.rgb(255,188,64),50);
+                p.setColor(Color.rgb(55,25,70));p.setTextSize(w*.043f);
+                c.drawText(victoryAdvancing?"กำลังโหลด...":"ไปด่านต่อไป",w/2,t+h*.557f,p);
+                c.restoreToCount(save);
+            }
         }else{
             p.setTextSize(w*.12f);c.drawText("♥",w/2,t+h*.17f,p);
             p.setTextSize(w*.044f);p.setColor(Color.rgb(233,220,255));
@@ -886,6 +897,30 @@ class GhostGameView extends View {
                 c.drawText("PRIVACY OPTIONS",w/2,h*.745f,p);
             }
         }
+    }
+
+    private void drawVictoryConfetti(Canvas c,float w,float h,long elapsed){
+        float fall=(elapsed%4200L)/4200f;
+        int[] festive={Color.rgb(255,210,55),Color.rgb(255,75,165),Color.rgb(91,229,255),
+            Color.rgb(133,238,78),Color.rgb(181,103,255)};
+        for(int i=0;i<64;i++){
+            float seed=(i*37%101)/101f;
+            float x=(i*83%113)/113f*w+(float)Math.sin(elapsed/260f+i)*w*.018f;
+            float y=((seed+fall*1.45f)%1f)*h*.70f+h*.02f;
+            float turn=(float)Math.sin(elapsed/90f+i*.8f);
+            p.setColor(festive[i%festive.length]);
+            int save=c.save();c.rotate(turn*55f,x,y);
+            c.drawRoundRect(x-w*.007f,y-h*.006f,x+w*.007f,y+h*.006f,w*.004f,w*.004f,p);
+            c.restoreToCount(save);
+        }
+    }
+
+    private void goToNextLevel(){
+        if(victoryAdvancing)return;
+        victoryAdvancing=true;invalidate();
+        Runnable advance=()->{level++;newLevel();};
+        if(getContext() instanceof MainActivity)((MainActivity)getContext()).showAdBeforeNextLevel(advance);
+        else advance.run();
     }
 
     @Override public boolean onTouchEvent(android.view.MotionEvent e){
@@ -929,9 +964,11 @@ class GhostGameView extends View {
                &&getContext() instanceof MainActivity){
                 ((MainActivity)getContext()).openPrivacyOptions();return true;
             }
-            if(y>(won?getHeight()*.69f:getHeight()*.57f)&&y<(won?getHeight()*.76f:getHeight()*.68f)){
+            boolean danceFinished=!won||System.currentTimeMillis()-victoryStart>=5600;
+            if(danceFinished&&y>(won?getHeight()*.69f:getHeight()*.57f)&&y<(won?getHeight()*.78f:getHeight()*.68f)){
                 if(paused)paused=false;
-                else {if(won)level++;newLevel();}
+                else if(won)goToNextLevel();
+                else newLevel();
                 invalidate();
             }
             return true;
