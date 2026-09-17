@@ -34,22 +34,22 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs app/build/outputs/apk/debug/app-debug.apk
 
       - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk GhostMatch3-v0.16.0.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk GhostMatch3-v0.17.0.apk
 
       - name: Upload test APK
         uses: actions/upload-artifact@v4
         with:
           name: GhostMatch3-Android-APK
-          path: GhostMatch3-v0.16.0.apk
+          path: GhostMatch3-v0.17.0.apk
 
       - name: Publish test release
         uses: ncipollo/release-action@v1
         with:
-          tag: v0.16.0
-          name: Ghost Match 3 - Test Version 0.16.0
-          artifacts: GhostMatch3-v0.16.0.apk
+          tag: v0.17.0
+          name: Ghost Match 3 - Test Version 0.17.0
+          artifacts: GhostMatch3-v0.17.0.apk
           allowUpdates: true
           replacesArtifacts: true
           body: |
-            Premium launcher icon, animated first-play lesson and highlighted mission briefing. Progressive level layouts, shaped boards and staged ice obstacles. Premium living ghost sprites with tap reactions: wiggle, tongue-out and comic pop-eyes. Polished ghost charge-and-burst animation and soft landing motion. Test-only Google AdMob interstitials after selected level completion screens. SAMPLE IDs generate no revenue. Never ship to Play with sample IDs; configure own IDs and privacy policy first.
-            Download GhostMatch3-v0.16.0.apk and install it on an Android phone.
+            Fluid eight-pose skeleton victory dance, confetti celebration, delayed next-level menu and natural transition test ad. Premium launcher icon, animated first-play lesson and highlighted mission briefing. Progressive level layouts, shaped boards and staged ice obstacles. Premium living ghost sprites with tap reactions: wiggle, tongue-out and comic pop-eyes. Polished ghost charge-and-burst animation and soft landing motion. Test-only Google AdMob interstitials after selected level completion screens. SAMPLE IDs generate no revenue. Never ship to Play with sample IDs; configure own IDs and privacy policy first.
+            Download GhostMatch3-v0.17.0.apk and install it on an Android phone.
