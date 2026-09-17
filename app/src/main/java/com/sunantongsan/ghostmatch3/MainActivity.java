@@ -139,7 +139,8 @@ class GhostGameView extends View {
     private final int[] collected=new int[TYPES];
     private final int[] goals={10,10,10};
     private int helperFirstR=-1,helperFirstC=-1;
-    private boolean paused=false;
+    private boolean paused=false,missionBrief=false;
+    private long missionBriefStart=0;
     private int level=1, moves=28, score=0, target=1800, selectedR=-1, selectedC=-1;
     private int mode=-1, combo=0;
     private int tutorialStage=-1;
@@ -224,6 +225,7 @@ class GhostGameView extends View {
         String shape=level<=2?"Small garden":level<=5?"Training hall":level<=9?"Haunted manor":
             level<=14?"Broken corners":level<=19?"Moon cross":level<=24?"Split crypt":"Cursed hourglass";
         message(level<=3?"Easy start — "+shape:"Level "+level+" — "+shape);
+        missionBrief=level>1;missionBriefStart=System.currentTimeMillis();
         invalidate();
     }
 
@@ -329,8 +331,38 @@ class GhostGameView extends View {
             c.drawText(comboText,w/2,boardY+cell*N*.48f-lift*w*.08f,p);p.clearShadowLayer();
         }
         if(won||lost||paused) drawOverlay(c,w,h);
+        if(missionBrief&&tutorialStage<0&&!won&&!lost&&!paused)drawMissionBrief(c,w,h);
         if(tutorialStage==0||tutorialStage==2&&animationPhase==0)drawTutorialPage(c,w,h);
         postInvalidateOnAnimation();
+    }
+
+    private void drawMissionBrief(Canvas c,float w,float h){
+        long elapsed=System.currentTimeMillis()-missionBriefStart;
+        float pulse=.96f+.04f*(float)Math.sin(elapsed/180f);
+        p.setColor(Color.argb(225,10,5,35));c.drawRect(0,0,w,h,p);
+        float top=h*.22f;
+        panel(c,w*.06f,top,w*.94f,h*.76f,Color.rgb(65,34,116));
+        p.setTextAlign(Paint.Align.CENTER);p.setTypeface(Typeface.create("sans",Typeface.BOLD));
+        p.setColor(Color.rgb(255,216,79));p.setTextSize(w*.042f);
+        c.drawText("ภารกิจด่าน "+level,w/2,top+h*.058f,p);
+        p.setColor(Color.WHITE);p.setTextSize(w*.056f);
+        c.drawText("ทำให้ครบเพื่อผ่านด่าน",w/2,top+h*.118f,p);
+        for(int i=0;i<TYPES;i++){
+            float gx=w*(.27f+.23f*i),gy=top+h*.215f;
+            int save=c.save();c.scale(pulse,pulse,gx,gy);
+            drawGhost(c,gx,gy,w*.063f,colors[i],i,false);c.restoreToCount(save);
+            p.setColor(Color.WHITE);p.setTextSize(w*.037f);
+            c.drawText("เก็บ "+goals[i]+" ตัว",gx,gy+h*.075f,p);
+        }
+        drawRound(c,w*.15f,top+h*.32f,w*.85f,top+h*.385f,Color.rgb(43,31,91),w*.025f);
+        p.setColor(Color.rgb(255,209,84));p.setTextSize(w*.041f);
+        c.drawText("ย้ายได้ "+moves+" ครั้ง",w/2,top+h*.363f,p);
+        p.setColor(iceInitial>0?Color.rgb(177,235,255):Color.rgb(205,192,235));p.setTextSize(w*.031f);
+        String obstacle=iceInitial>0?"ทำลายน้ำแข็ง "+iceInitial+" ชั้นด้วย":"ด่านนี้ยังไม่มีน้ำแข็ง";
+        c.drawText(obstacle,w/2,top+h*.428f,p);
+        drawRound(c,w*.20f,top+h*.47f,w*.80f,top+h*.54f,Color.rgb(83,199,48),w*.05f);
+        p.setColor(Color.WHITE);p.setTextSize(w*.047f);
+        c.drawText("เริ่มด่าน",w/2,top+h*.518f,p);
     }
 
     private void finishTutorial(){
@@ -360,7 +392,8 @@ class GhostGameView extends View {
 
     private void drawTutorialPage(Canvas c,float w,float h){
         p.setColor(Color.argb(225,12,7,39));c.drawRect(0,0,w,h,p);
-        float t=h*.285f;
+        if(tutorialStage==0)drawTutorialVideo(c,w,h);
+        float t=tutorialStage==0?h*.325f:h*.285f;
         panel(c,w*.075f,t,w*.925f,h*.71f,Color.rgb(72,39,125));
         drawGhost(c,w/2,t+h*.095f,w*.11f,colors[0],0,false);
         p.setTextAlign(Paint.Align.CENTER);p.setColor(Color.WHITE);
@@ -410,6 +443,38 @@ class GhostGameView extends View {
         castle.lineTo(w*.38f,h*.21f);castle.close();c.drawPath(castle,p);
         p.setColor(Color.argb(18,170,225,255));
         for(int i=0;i<5;i++)c.drawOval(-w*.15f+i*w*.27f,h*(.72f+i*.025f),w*.35f+i*w*.27f,h*(.83f+i*.025f),p);
+    }
+
+    private void drawTutorialVideo(Canvas c,float w,float h){
+        long loop=(System.currentTimeMillis()-gameStart)%3600L;
+        float top=h*.155f,left=w*.16f,size=w*.17f;
+        drawRound(c,left-w*.025f,top-w*.025f,left+size*4+w*.025f,top+size+w*.025f,
+            Color.argb(230,32,28,78),w*.035f);
+        int moving=loop<1900?1:2;
+        for(int i=0;i<4;i++){
+            float cx=left+(i+.5f)*size,cy=top+size*.5f;
+            drawRound(c,left+i*size+size*.05f,top+size*.05f,left+(i+1)*size-size*.05f,
+                top+size-size*.05f,Color.argb(90,121,86,181),size*.20f);
+            int type=i==0||i>=2?0:1;
+            if(loop>2300&&type==0){
+                float burst=Math.min(1f,(loop-2300)/650f);
+                int save=c.save();c.scale(1f+.38f*burst,1f+.38f*burst,cx,cy);
+                spritePaint.setAlpha((int)(255*(1f-burst)));
+                drawGhost(c,cx,cy,size*.30f,colors[type],type,false);
+                spritePaint.setAlpha(255);c.restoreToCount(save);
+            }else drawGhost(c,cx,cy,size*.30f,colors[type],type,false);
+        }
+        if(loop<2300){
+            float t=Math.min(1f,loop/1500f);
+            float fx=left+size*(1.5f+t),fy=top+size*.62f;
+            p.setColor(Color.argb(235,255,226,177));p.setShadowLayer(12,0,0,Color.WHITE);
+            c.drawCircle(fx,fy,size*.13f,p);p.clearShadowLayer();
+            stroke.setColor(Color.rgb(255,221,74));stroke.setStrokeWidth(size*.045f);
+            c.drawLine(left+size*1.5f,top+size*.78f,fx,fy,stroke);
+        }else{
+            p.setTextAlign(Paint.Align.CENTER);p.setColor(Color.rgb(255,224,83));
+            p.setTextSize(w*.047f);c.drawText("จับคู่ 3!",w/2,top+size*.68f,p);
+        }
     }
 
     private void drawEffects(Canvas c,float w,float h){
@@ -826,6 +891,7 @@ class GhostGameView extends View {
     @Override public boolean onTouchEvent(android.view.MotionEvent e){
         float x=e.getX(),y=e.getY();
         if(e.getAction()==MotionEvent.ACTION_DOWN){
+            if(missionBrief)return true;
             if(tutorialStage==0||tutorialStage==2&&animationPhase==0)return true;
             touchDownX=x; touchDownY=y;
             if(!won&&!lost&&!paused&&y>=boardY&&y<boardY+N*cell&&x>=boardX&&x<boardX+N*cell){
@@ -841,6 +907,7 @@ class GhostGameView extends View {
             return true;
         }
         if(e.getAction()!=MotionEvent.ACTION_UP)return true;
+        if(missionBrief){missionBrief=false;message("ทำภารกิจให้ครบ แล้วไปด่านต่อไป!");invalidate();return true;}
         if(tutorialStage==0){
             if(y>getHeight()*.53f&&y<getHeight()*.65f){
                 tutorialStage=1;tutorialMove=findPossibleMove();
