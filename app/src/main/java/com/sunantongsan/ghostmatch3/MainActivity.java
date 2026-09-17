@@ -130,7 +130,7 @@ class GhostGameView extends View {
     private final Paint p=new Paint(3);
     private final Paint stroke=new Paint(3);
     private final Paint spritePaint=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);
-    private Bitmap ghostSheet,boosterSheet,hauntedBackground,magicItems,dancingSkeleton;
+    private Bitmap ghostSheet,ghostReactions,boosterSheet,hauntedBackground,magicItems,dancingSkeleton;
     private final int[] colors={Color.rgb(245,245,255),Color.rgb(188,236,172),Color.rgb(161,77,227)};
     private final String[] boosterNames={"SWAP","HAMMER","ROW","COLUMN","BURST","RAINBOW","+5"};
     private final int[] boosterCount={8,8,6,6,6,8,8};
@@ -151,6 +151,9 @@ class GhostGameView extends View {
     private String comboText="";
     private long comboUntil=0;
     private float swipeFX=-1, swipeFY=-1;
+    private int reactionR=-1,reactionC=-1;
+    private long reactionStart=0,reactionUntil=0;
+    private static final long REACTION_MS=1250L;
     private static class Spark {
         float x,y,vx,vy,life,size; int color;
         Spark(float x,float y,float vx,float vy,float life,float size,int color){
@@ -166,6 +169,7 @@ class GhostGameView extends View {
         setLayerType(View.LAYER_TYPE_SOFTWARE,null);
         stroke.setStyle(Paint.Style.STROKE);
         ghostSheet=BitmapFactory.decodeResource(getResources(),R.drawable.ghost_sprites);
+        ghostReactions=BitmapFactory.decodeResource(getResources(),R.drawable.ghost_reactions);
         boosterSheet=BitmapFactory.decodeResource(getResources(),R.drawable.booster_sprites);
         magicItems=BitmapFactory.decodeResource(getResources(),R.drawable.magic_items);
         dancingSkeleton=BitmapFactory.decodeResource(getResources(),R.drawable.anatomical_skeleton_dance);
@@ -392,6 +396,7 @@ class GhostGameView extends View {
             c.drawCircle(s.x,s.y,s.size*(.55f+s.life),p);p.clearShadowLayer();
         }
         if(animationPhase==1&&!castPoints.isEmpty())drawSpellEffects(c);
+        if(System.currentTimeMillis()<reactionUntil)postInvalidateOnAnimation();
         if(swipeFX>=0){
             p.setColor(Color.argb(90,255,255,255));
             c.drawCircle(swipeFX,swipeFY,cell*.18f,p);
@@ -535,7 +540,7 @@ class GhostGameView extends View {
             float scale=1f+.075f*pulse*charge+.78f*blast;
             c.scale(scale,scale,cx,cy);
             spritePaint.setAlpha(Math.max(0,(int)(255*(1f-blast))));
-            drawPiece(c,cx,cy,kind,type,sel);
+            drawPiece(c,cx,cy,kind,type,sel,r,col);
             c.restoreToCount(save);spritePaint.setAlpha(255);
             if(blast>0f){
                 for(int k=0;k<6;k++){
@@ -546,7 +551,7 @@ class GhostGameView extends View {
                         cell*.043f*(1f-blast)+1f,p);
                 }
             }
-        }else drawPiece(c,cx,cy,kind,type,sel);
+        }else drawPiece(c,cx,cy,kind,type,sel,r,col);
         if(ice[r][col]>0){
             p.setColor(ice[r][col]>1?Color.argb(155,160,223,255):Color.argb(100,176,235,255));
             c.drawRoundRect(x+pad,y+pad,x+cell-pad,y+cell-pad,cell*.18f,cell*.18f,p);
@@ -555,8 +560,11 @@ class GhostGameView extends View {
         }
     }
 
-    private void drawPiece(Canvas c,float cx,float cy,int kind,int type,boolean selected){
-        if(kind==0){drawGhost(c,cx,cy,cell*.34f,colors[type],type,selected);return;}
+    private void drawPiece(Canvas c,float cx,float cy,int kind,int type,boolean selected,int row,int col){
+        if(kind==0){
+            drawGhostAlive(c,cx,cy,cell*.34f,type,selected,row,col);
+            return;
+        }
         float t=(System.currentTimeMillis()-gameStart)/280f;
         float radius=cell*(.43f+.055f*(float)Math.sin(t));
         p.setColor(kind==3?Color.argb(105,255,118,227):Color.argb(105,255,204,87));
@@ -576,7 +584,48 @@ class GhostGameView extends View {
         }
     }
 
+    private void drawGhostAlive(Canvas c,float cx,float cy,float rad,int type,boolean selected,int row,int col){
+        long now=System.currentTimeMillis();
+        boolean reacting=row==reactionR&&col==reactionC&&now<reactionUntil;
+        if(ghostReactions!=null&&!ghostReactions.isRecycled()){
+            int frame=reacting?Math.min(3,1+(int)((now-reactionStart)/320L)):0;
+            int sw=ghostReactions.getWidth()/3,sh=ghostReactions.getHeight()/4;
+            Rect source=new Rect(type*sw,frame*sh,(type+1)*sw,(frame+1)*sh);
+            float wiggle=reacting?(float)Math.sin((now-reactionStart)/55f)*9f:0f;
+            float squash=reacting?1f+.07f*(float)Math.sin((now-reactionStart)/70f):1f;
+            int save=c.save();
+            c.rotate(wiggle,cx,cy);
+            c.scale(2f-squash,squash,cx,cy);
+            RectF dest=new RectF(cx-rad*1.27f,cy-rad*1.29f,cx+rad*1.27f,cy+rad*1.29f);
+            spritePaint.setAlpha(255);
+            c.drawBitmap(ghostReactions,source,dest,spritePaint);
+            c.restoreToCount(save);
+            if(selected){
+                stroke.setColor(Color.rgb(255,221,78));stroke.setStrokeWidth(rad*.10f);
+                stroke.setShadowLayer(18,0,0,Color.rgb(255,232,122));
+                c.drawCircle(cx,cy,rad*1.18f,stroke);stroke.clearShadowLayer();
+            }
+            if(reacting){
+                p.setColor(Color.argb(150,255,240,130));
+                for(int i=0;i<3;i++){
+                    float a=(now-reactionStart)/130f+i*2.09f;
+                    c.drawCircle(cx+(float)Math.cos(a)*rad*1.35f,cy+(float)Math.sin(a)*rad*1.18f,rad*.09f,p);
+                }
+            }
+            return;
+        }
+        drawGhost(c,cx,cy,rad,colors[type],type,selected);
+    }
+
     private void drawGhost(Canvas c,float cx,float cy,float rad,int color,int face,boolean selected){
+        if(ghostReactions!=null&&!ghostReactions.isRecycled()){
+            int type=Math.max(0,Math.min(2,face));
+            int sw=ghostReactions.getWidth()/3,sh=ghostReactions.getHeight()/4;
+            Rect source=new Rect(type*sw,0,(type+1)*sw,sh);
+            RectF dest=new RectF(cx-rad*1.24f,cy-rad*1.25f,cx+rad*1.24f,cy+rad*1.25f);
+            c.drawBitmap(ghostReactions,source,dest,spritePaint);
+            return;
+        }
         if(ghostSheet!=null&&!ghostSheet.isRecycled()){
             int type=Math.max(0,Math.min(2,face));
             float sheetCell=ghostSheet.getWidth()/3f;
@@ -748,7 +797,11 @@ class GhostGameView extends View {
             if(!won&&!lost&&!paused&&y>=boardY&&y<boardY+N*cell&&x>=boardX&&x<boardX+N*cell){
                 touchDownC=Math.min(N-1,(int)((x-boardX)/cell));
                 touchDownR=Math.min(N-1,(int)((y-boardY)/cell));
-                selectedR=touchDownR; selectedC=touchDownC; invalidate();
+                selectedR=touchDownR; selectedC=touchDownC;
+                reactionR=touchDownR;reactionC=touchDownC;
+                reactionStart=System.currentTimeMillis();reactionUntil=reactionStart+REACTION_MS;
+                performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);
+                invalidate();
             } else {touchDownR=-1;touchDownC=-1;}
             return true;
         }
