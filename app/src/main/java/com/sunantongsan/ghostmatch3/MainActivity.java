@@ -218,7 +218,9 @@ class GhostGameView extends View {
             do{
                 t=rng.nextInt(TYPES);guard++;
             }while(guard<20&&((c>=2&&!blocked[r][c-1]&&!blocked[r][c-2]&&board[r][c-1]==t&&board[r][c-2]==t)
-                ||(r>=2&&!blocked[r-1][c]&&!blocked[r-2][c]&&board[r-1][c]==t&&board[r-2][c]==t)));
+                ||(r>=2&&!blocked[r-1][c]&&!blocked[r-2][c]&&board[r-1][c]==t&&board[r-2][c]==t)
+                ||(r>=1&&c>=1&&!blocked[r-1][c]&&!blocked[r][c-1]&&!blocked[r-1][c-1]
+                    &&board[r-1][c]==t&&board[r][c-1]==t&&board[r-1][c-1]==t)));
             board[r][c]=t;
         }
         ensureMove();
@@ -408,7 +410,7 @@ class GhostGameView extends View {
             c.drawText("เริ่มด้วยผีคู่ที่เรืองแสงบนกระดาน",w/2,t+h*.319f,p);
         }else{
             c.drawText("ผีที่จับคู่จะหาย แล้วตัวใหม่ตกลงมา",w/2,t+h*.245f,p);
-            c.drawText("จับ 4 หรือ 5 ตัว จะได้ไอเท็มเวทมนตร์",w/2,t+h*.282f,p);
+            c.drawText("จับ 4, 5 หรือสี่เหลี่ยม 2×2 รับไอเท็ม",w/2,t+h*.282f,p);
             c.drawText("แตะตัวช่วยด้านล่างเมื่ออยากให้ช่วย",w/2,t+h*.319f,p);
         }
         drawRound(c,w*.20f,h*.555f,w*.80f,h*.615f,Color.rgb(255,191,78),w*.035f);
