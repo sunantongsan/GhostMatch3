@@ -34,22 +34,22 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs app/build/outputs/apk/debug/app-debug.apk
 
       - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk GhostMatch3-v0.18.0.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk GhostMatch3-v0.19.0.apk
 
       - name: Upload test APK
         uses: actions/upload-artifact@v4
         with:
           name: GhostMatch3-Android-APK
-          path: GhostMatch3-v0.18.0.apk
+          path: GhostMatch3-v0.19.0.apk
 
       - name: Publish test release
         uses: ncipollo/release-action@v1
         with:
-          tag: v0.18.0
-          name: Ghost Match 3 - Test Version 0.18.0
-          artifacts: GhostMatch3-v0.18.0.apk
+          tag: v0.19.0
+          name: Ghost Match 3 - Test Version 0.19.0
+          artifacts: GhostMatch3-v0.19.0.apk
           allowUpdates: true
           replacesArtifacts: true
           body: |
-            Completed targets now show a green check while every objective remains visible. The star meter follows score, and a first three-star clear grants two extra magic boosters. Ghosts are larger, board frames change by level theme, and matching four ghosts in a 2x2 square creates a new four-direction rocket with cinematic trails and four simultaneous impacts. Test-only Google AdMob interstitials use SAMPLE IDs and generate no revenue.
-            Download GhostMatch3-v0.18.0.apk and install it on an Android phone.
+            Major adventure update: a polished winding world map with 120 door stages across 10 worlds, twelve rotating board silhouettes, 3–4 visible objectives per stage, larger ghosts, and a carefully ramped 50% challenge increase. Ice, goals, moves, score targets, themes and multi-layer obstacles now scale through the campaign. Test-only Google AdMob interstitials use SAMPLE IDs and generate no revenue.
+            Download GhostMatch3-v0.19.0.apk and install it on an Android phone.
