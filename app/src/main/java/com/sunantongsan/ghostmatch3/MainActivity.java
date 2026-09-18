@@ -140,7 +140,8 @@ class GhostGameView extends View {
     private final int[] collected=new int[TYPES];
     private final int[] goals={10,10,10};
     private int helperFirstR=-1,helperFirstC=-1;
-    private boolean paused=false,missionBrief=false;
+    private boolean paused=false,missionBrief=false,worldMap=true;
+    private int mapWorld=0;
     private long missionBriefStart=0;
     private int level=1, moves=28, score=0, target=1800, selectedR=-1, selectedC=-1;
     private int mode=-1, combo=0;
@@ -180,7 +181,9 @@ class GhostGameView extends View {
         hauntedBackground=BitmapFactory.decodeResource(getResources(),R.drawable.haunted_background);
         progress=c.getSharedPreferences("ghostmatch_progress",Context.MODE_PRIVATE);
         highestLevel=Math.max(1,progress.getInt("highest_level",1));
+        highestLevel=Math.min(120,highestLevel);
         level=highestLevel;
+        mapWorld=(highestLevel-1)/12;
         tutorialStage=level==1&&!progress.getBoolean("tutorial_complete",false)?0:-1;
         newLevel();
     }
@@ -189,20 +192,20 @@ class GhostGameView extends View {
         animationSerial++;animationPhase=0;exploding.clear();castPoints.clear();powerMultiplier=1;
         for(float[] row:fallFrom)Arrays.fill(row,0);
         configureLayout();
-        if(level==1){moves=8;target=700;}
-        else if(level==2){moves=10;target=950;}
-        else if(level==3){moves=12;target=1250;}
-        else if(level<=5){moves=14;target=1500+level*120;}
-        else {moves=Math.min(31,15+level/3);target=Math.min(12000,1650+level*230);}
+        if(level==1){moves=8;target=850;}
+        else if(level==2){moves=9;target=1200;}
+        else if(level==3){moves=10;target=1550;}
+        else if(level<=5){moves=11;target=1900+level*150;}
+        else {moves=Math.min(26,12+level/8);target=Math.min(18000,2300+level*275);}
         for(int i=0;i<TYPES;i++){
-            goals[i]=level<=3?2+level:level<=7?5+level/2:Math.min(24,7+level/2);
-            if(level>=12&&i==(level-1)%TYPES)goals[i]+=Math.min(5,level/8);
+            goals[i]=level<=3?3+level:level<=7?7+level/2:Math.min(30,9+(level*2)/3);
+            if(level>=12&&i==(level-1)%TYPES)goals[i]+=Math.min(7,level/12);
             collected[i]=0;
         }
         for(int[] row:ice)Arrays.fill(row,0);
         iceLeft=0;
-        int iceCount=level<4?0:Math.min(22,2+(level-4)/2);
-        int strength=level>=18?2:1;
+        int iceCount=level<4?0:Math.min(30,3+(level-4)/3+(level/20)*2);
+        int strength=level>=70?3:level>=18?2:1;
         ArrayList<Integer> open=new ArrayList<>();
         for(int r=0;r<N;r++)for(int c=0;c<N;c++)if(!blocked[r][c])open.add(r*N+c);
         Collections.shuffle(open,rng);
@@ -225,8 +228,9 @@ class GhostGameView extends View {
         }
         ensureMove();
         if(tutorialStage==1)tutorialMove=findPossibleMove();
-        String shape=level<=2?"Small garden":level<=5?"Training hall":level<=9?"Haunted manor":
-            level<=14?"Broken corners":level<=19?"Moon cross":level<=24?"Split crypt":"Cursed hourglass";
+        String[] shapeNames={"สวนผี","ประตูโค้ง","ลานเวท","เพชรต้องสาป","ป้อมค้างคาว","นาฬิกาทราย",
+            "ปราสาท","ห้องแฝด","จันทร์เสี้ยว","มงกุฎ","ประตูมิติ","ลานบอส"};
+        String shape=shapeNames[(level-1)%shapeNames.length];
         message(level<=3?"Easy start — "+shape:"Level "+level+" — "+shape);
         missionBrief=level>1;missionBriefStart=System.currentTimeMillis();
         invalidate();
@@ -234,16 +238,88 @@ class GhostGameView extends View {
 
     private void configureLayout(){
         for(boolean[] row:blocked)Arrays.fill(row,false);
+        int shape=(level-1)%12;
         for(int r=0;r<N;r++)for(int c=0;c<N;c++){
             boolean wall=false;
-            if(level<=2)wall=r==0||r==N-1||c==0||c==N-1;
-            else if(level<=5)wall=r==0||c==N-1;
-            else if(level<=9)wall=false;
-            else if(level<=14)wall=(r==0||r==N-1)&&(c==0||c==N-1);
-            else if(level<=19)wall=(r<2||r>N-3)&&(c<2||c>N-3);
-            else if(level<=24)wall=c==N/2&&r>=2&&r<=4;
-            else wall=((r==0||r==N-1)&&(c<2||c>N-3))||(Math.abs(r-N/2)<=1&&(c==0||c==N-1));
+            if(shape==0)wall=r==0||r==N-1||c==0||c==N-1;
+            else if(shape==1)wall=(r==0&&(c<2||c>4))||(r==6&&(c==0||c==6));
+            else if(shape==2)wall=false;
+            else if(shape==3)wall=(r==0||r==6)&&(c<2||c>4)||(r==1||r==5)&&(c==0||c==6);
+            else if(shape==4)wall=(r<2||r>4)&&(c<2||c>4);
+            else if(shape==5)wall=(r==0||r==6)&&(c<2||c>4)||(r==1||r==5)&&(c==0||c==6);
+            else if(shape==6)wall=(r==0&&(c==1||c==5))||(r==6&&(c==0||c==3||c==6));
+            else if(shape==7)wall=c==3&&r>=2&&r<=4;
+            else if(shape==8)wall=(c==0&&r>0&&r<6)||(c==1&&r>=2&&r<=4);
+            else if(shape==9)wall=(r==0&&(c==1||c==3||c==5))||(r==6&&(c<2||c>4));
+            else if(shape==10)wall=(r==1||r==5)&&(c==1||c==5)||(r==3&&c==3);
+            else wall=(r==0||r==6)&&(c==0||c==6)||(r==3&&(c==0||c==6));
             blocked[r][c]=wall;
+        }
+    }
+
+    private float mapNodeX(int index,float w){
+        int row=index/3,col=index%3;
+        if((row&1)==1)col=2-col;
+        return w*(.20f+.30f*col);
+    }
+
+    private float mapNodeY(int index,float h){return h*(.245f+.165f*(index/3));}
+
+    private void drawWorldMap(Canvas c,float w,float h){
+        p.setTypeface(Typeface.create("sans",Typeface.BOLD));p.setTextAlign(Paint.Align.CENTER);
+        p.setColor(Color.argb(105,7,3,25));c.drawRect(0,0,w,h,p);
+        Paint mist=new Paint(Paint.ANTI_ALIAS_FLAG);
+        mist.setShader(new RadialGradient(w*.5f,h*.50f,w*.72f,Color.argb(95,118,54,191),Color.TRANSPARENT,Shader.TileMode.CLAMP));
+        c.drawRect(0,0,w,h,mist);
+        panel(c,w*.055f,h*.025f,w*.945f,h*.17f,Color.rgb(61,30,111));
+        p.setColor(Color.rgb(255,217,80));p.setTextSize(w*.055f);
+        c.drawText("เส้นทางอาณาจักรผี",w/2,h*.082f,p);
+        p.setColor(Color.WHITE);p.setTextSize(w*.034f);
+        c.drawText("โลก "+(mapWorld+1)+" / 10  •  ด่าน "+(mapWorld*12+1)+"–"+(mapWorld*12+12),w/2,h*.13f,p);
+        stroke.setStrokeWidth(w*.024f);stroke.setStrokeCap(Paint.Cap.ROUND);
+        for(int i=0;i<11;i++){
+            float x1=mapNodeX(i,w),y1=mapNodeY(i,h),x2=mapNodeX(i+1,w),y2=mapNodeY(i+1,h);
+            int stage=mapWorld*12+i+1;
+            stroke.setColor(stage<highestLevel?Color.rgb(122,225,81):Color.rgb(91,70,124));
+            stroke.setShadowLayer(12,0,0,stroke.getColor());c.drawLine(x1,y1,x2,y2,stroke);stroke.clearShadowLayer();
+        }
+        for(int i=0;i<12;i++){
+            int stage=mapWorld*12+i+1;boolean unlocked=stage<=highestLevel;boolean cleared=stage<highestLevel;
+            float x=mapNodeX(i,w),y=mapNodeY(i,h),rad=w*.067f;
+            p.setColor(unlocked?Color.rgb(111,55,178):Color.rgb(48,40,69));
+            if(stage%12==0)p.setColor(unlocked?Color.rgb(174,63,120):Color.rgb(63,40,58));
+            p.setShadowLayer(unlocked?18:5,0,0,unlocked?Color.rgb(177,100,255):Color.BLACK);
+            c.drawCircle(x,y,rad,p);p.clearShadowLayer();
+            stroke.setStyle(Paint.Style.STROKE);stroke.setStrokeWidth(w*.009f);
+            stroke.setColor(cleared?Color.rgb(116,242,95):unlocked?Color.rgb(255,213,79):Color.rgb(105,91,124));
+            c.drawCircle(x,y,rad,stroke);stroke.setStyle(Paint.Style.STROKE);
+            p.setColor(unlocked?Color.WHITE:Color.rgb(150,140,166));p.setTextSize(w*.037f);
+            c.drawText(unlocked?"🚪":"🔒",x,y-w*.005f,p);
+            p.setTextSize(w*.027f);c.drawText(""+stage,x,y+w*.043f,p);
+            if(cleared){p.setColor(Color.rgb(104,239,87));p.setTextSize(w*.030f);c.drawText("✓",x+rad*.78f,y-rad*.62f,p);}
+        }
+        drawRound(c,w*.06f,h*.91f,w*.30f,h*.965f,mapWorld>0?Color.rgb(91,58,145):Color.rgb(53,44,71),w*.03f);
+        drawRound(c,w*.70f,h*.91f,w*.94f,h*.965f,mapWorld<9?Color.rgb(91,58,145):Color.rgb(53,44,71),w*.03f);
+        p.setColor(Color.WHITE);p.setTextSize(w*.031f);c.drawText("‹ โลกก่อน",w*.18f,h*.948f,p);c.drawText("โลกถัดไป ›",w*.82f,h*.948f,p);
+        p.setColor(Color.rgb(225,211,243));p.setTextSize(w*.027f);
+        c.drawText("แตะประตูที่เปิดเพื่อเริ่มด่าน • รวมทั้งหมด 120 ด่าน",w/2,h*.885f,p);
+    }
+
+    private void handleWorldMapTap(float x,float y){
+        float w=getWidth(),h=getHeight();
+        if(y>h*.89f){
+            if(x<w*.38f&&mapWorld>0)mapWorld--;
+            else if(x>w*.62f&&mapWorld<9)mapWorld++;
+            invalidate();return;
+        }
+        for(int i=0;i<12;i++){
+            float dx=x-mapNodeX(i,w),dy=y-mapNodeY(i,h);
+            int stage=mapWorld*12+i+1;
+            if(dx*dx+dy*dy<w*w*.008f){
+                if(stage>highestLevel){message("ประตูนี้ยังล็อกอยู่ ผ่านด่านก่อนหน้าให้สำเร็จก่อน");return;}
+                level=stage;tutorialStage=level==1&&!progress.getBoolean("tutorial_complete",false)?0:-1;
+                worldMap=false;newLevel();missionBrief=level>1;invalidate();return;
+            }
         }
     }
 
@@ -260,6 +336,7 @@ class GhostGameView extends View {
             drawStars(c,w,h);
             drawHauntedScene(c,w,h);
         }
+        if(worldMap){drawWorldMap(c,w,h);postInvalidateOnAnimation();return;}
         p.setTypeface(Typeface.create("sans",Typeface.BOLD));
         p.setTextAlign(Paint.Align.CENTER);
         float margin=w*.055f;
@@ -270,13 +347,20 @@ class GhostGameView extends View {
         p.setTextSize(w*.072f);c.drawText(""+level,w*.135f,h*.113f,p);
         panel(c,w*.235f,top,w*.675f,h*.147f,Color.rgb(51,32,107));
         p.setTextSize(w*.037f);p.setColor(Color.WHITE);c.drawText("เป้าหมาย",w*.455f,h*.052f,p);
-        for(int i=0;i<3;i++){
-            float gx=w*(.316f+.148f*i);
-            drawGhost(c,gx,h*.098f,w*.038f,colors[i],i,false);
-            boolean complete=collected[i]>=goals[i];
+        boolean fourGoals=iceInitial>0;
+        for(int i=0;i<(fourGoals?4:3);i++){
+            float gx=fourGoals?w*(.285f+.11f*i):w*(.316f+.148f*i);
+            if(i<3)drawGhost(c,gx,h*.098f,w*(fourGoals?.033f:.038f),colors[i],i,false);
+            else{
+                p.setTextSize(w*.050f);p.setColor(Color.rgb(179,235,255));
+                c.drawText("❄",gx,h*.108f,p);
+            }
+            boolean complete=i<3?collected[i]>=goals[i]:iceLeft==0;
             p.setColor(complete?Color.rgb(107,236,94):Color.WHITE);
-            p.setTextSize(w*.024f);p.setTextAlign(Paint.Align.CENTER);
-            c.drawText(complete?"✓  "+goals[i]+"/"+goals[i]:collected[i]+"/"+goals[i],gx,h*.145f,p);
+            p.setTextSize(w*(fourGoals?.020f:.024f));p.setTextAlign(Paint.Align.CENTER);
+            String count=i<3?(complete?"✓ "+goals[i]+"/"+goals[i]:collected[i]+"/"+goals[i]):
+                (complete?"✓ 0/"+iceInitial:iceLeft+"/"+iceInitial);
+            c.drawText(count,gx,h*.145f,p);
         }
         panel(c,w*.695f,top,w*.96f,h*.084f,Color.rgb(56,35,105));
         p.setColor(Color.WHITE);p.setTextSize(w*.034f);c.drawText("คะแนน",w*.827f,h*.045f,p);
@@ -295,11 +379,6 @@ class GhostGameView extends View {
             p.setColor(ratio>=i/3f?Color.rgb(255,214,72):Color.rgb(103,90,139));
             p.setTextSize(w*.037f);c.drawText("★",progL+(progR-progL)*i/3f,progY+w*.03f,p);
         }
-        if(iceInitial>0){
-            p.setTextAlign(Paint.Align.CENTER);p.setColor(Color.rgb(178,234,255));p.setTextSize(w*.029f);
-            c.drawText("❄ น้ำแข็ง "+iceLeft+"/"+iceInitial,w*.46f,h*.214f,p);
-        }
-
         boardX=w*.025f; boardY=h*.208f; cell=(w-2*boardX)/N;
         panel(c,boardX-w*.017f,boardY-w*.017f,w-boardX+w*.017f,boardY+cell*N+w*.017f,Color.rgb(37,39,83));
         int boardClip=c.save();
@@ -679,7 +758,7 @@ class GhostGameView extends View {
 
     private void drawPiece(Canvas c,float cx,float cy,int kind,int type,boolean selected,int row,int col){
         if(kind==0){
-            drawGhostAlive(c,cx,cy,cell*.385f,type,selected,row,col);
+            drawGhostAlive(c,cx,cy,cell*.405f,type,selected,row,col);
             return;
         }
         if(kind==5){drawFourWayRocket(c,cx,cy,cell*.43f);return;}
@@ -960,7 +1039,11 @@ class GhostGameView extends View {
     private void goToNextLevel(){
         if(victoryAdvancing)return;
         victoryAdvancing=true;invalidate();
-        Runnable advance=()->{level++;newLevel();};
+        Runnable advance=()->{
+            if(level<120)level++;
+            mapWorld=(level-1)/12;worldMap=true;missionBrief=false;won=false;victoryAdvancing=false;
+            newLevel();worldMap=true;
+        };
         if(getContext() instanceof MainActivity)((MainActivity)getContext()).showAdBeforeNextLevel(advance);
         else advance.run();
     }
@@ -968,6 +1051,7 @@ class GhostGameView extends View {
     @Override public boolean onTouchEvent(android.view.MotionEvent e){
         float x=e.getX(),y=e.getY();
         if(e.getAction()==MotionEvent.ACTION_DOWN){
+            if(worldMap){touchDownX=x;touchDownY=y;return true;}
             if(missionBrief)return true;
             if(tutorialStage==0||tutorialStage==2&&animationPhase==0)return true;
             touchDownX=x; touchDownY=y;
@@ -984,6 +1068,7 @@ class GhostGameView extends View {
             return true;
         }
         if(e.getAction()!=MotionEvent.ACTION_UP)return true;
+        if(worldMap){handleWorldMapTap(x,y);return true;}
         if(missionBrief){missionBrief=false;message("ทำภารกิจให้ครบ แล้วไปด่านต่อไป!");invalidate();return true;}
         if(tutorialStage==0){
             if(y>getHeight()*.53f&&y<getHeight()*.65f){
@@ -1429,7 +1514,7 @@ class GhostGameView extends View {
                 progress.edit().putBoolean("three_star_"+level,true).apply();
             }
             if(getContext() instanceof MainActivity)((MainActivity)getContext()).onLevelCompleted(level);
-            highestLevel=Math.max(highestLevel,level+1);
+            highestLevel=Math.min(120,Math.max(highestLevel,level+1));
             progress.edit().putInt("highest_level",highestLevel).apply();
             for(int i=0;i<100;i++)sparks.add(new Spark(rng.nextFloat()*getWidth(),getHeight()*.25f,
                 (rng.nextFloat()-.5f)*5f,rng.nextFloat()*-5f,.7f+rng.nextFloat(),4+rng.nextFloat()*7f,colors[i%TYPES]));
