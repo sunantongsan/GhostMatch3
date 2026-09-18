@@ -10,8 +10,8 @@ android {
         applicationId = "com.sunantongsan.ghostmatch3"
         minSdk = 24
         targetSdk = 35
-        versionCode = 18
-        versionName = "0.18.0"
+        versionCode = 19
+        versionName = "0.19.0"
     }
 
     buildTypes {
