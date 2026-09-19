@@ -297,8 +297,11 @@ class GhostGameView extends View {
             stroke.setStyle(Paint.Style.STROKE);stroke.setStrokeWidth(w*.009f);
             stroke.setColor(cleared?Color.rgb(116,242,95):unlocked?Color.rgb(255,213,79):Color.rgb(105,91,124));
             c.drawCircle(x,y,rad,stroke);stroke.setStyle(Paint.Style.STROKE);
-            p.setColor(unlocked?Color.WHITE:Color.rgb(150,140,166));p.setTextSize(w*.037f);
-            c.drawText(unlocked?"🚪":"🔒",x,y-w*.005f,p);
+            if(!unlocked)drawLockedStage(c,x,y,rad);
+            else if(stage%12==0)drawMapGhost(c,x,y-rad*.08f,rad*.82f,stage,true);
+            else if(stage%3==0)drawTreasureChest(c,x,y-rad*.04f,rad*.78f,stage);
+            else drawMapGhost(c,x,y-rad*.08f,rad*.78f,stage,false);
+            p.setColor(unlocked?Color.WHITE:Color.rgb(150,140,166));
             p.setTextSize(w*.027f);c.drawText(""+stage,x,y+w*.043f,p);
             if(cleared){p.setColor(Color.rgb(104,239,87));p.setTextSize(w*.030f);c.drawText("✓",x+rad*.78f,y-rad*.62f,p);}
             if(stage%12==0){p.setColor(Color.rgb(255,205,72));p.setTextSize(w*.016f);c.drawText("ประตูใหญ่",x,y+rad*1.35f,p);}
@@ -309,6 +312,55 @@ class GhostGameView extends View {
         p.setColor(Color.WHITE);p.setTextSize(w*.031f);c.drawText("‹ โลกก่อน",w*.18f,h*.948f,p);c.drawText("โลกถัดไป ›",w*.82f,h*.948f,p);
         p.setColor(Color.rgb(225,211,243));p.setTextSize(w*.027f);
         c.drawText("แตะประตูที่เปิดเพื่อเริ่มด่าน • รวมทั้งหมด 120 ด่าน",w/2,h*.885f,p);
+    }
+
+    private void drawMapGhost(Canvas c,float x,float y,float rad,int stage,boolean guardian){
+        int type=(stage*7+stage/3)%TYPES;
+        int aura=new int[]{Color.rgb(100,225,255),Color.rgb(176,255,104),Color.rgb(234,105,255),
+            Color.rgb(255,167,72),Color.rgb(98,142,255),Color.rgb(255,91,154)}[stage%6];
+        p.setColor(Color.argb(80,Color.red(aura),Color.green(aura),Color.blue(aura)));p.setShadowLayer(rad*.45f,0,0,aura);
+        c.drawCircle(x,y,rad*.88f,p);p.clearShadowLayer();
+        drawGhost(c,x,y,rad*(guardian?.62f:.57f),colors[type],type,false);
+        Paint deco=new Paint(Paint.ANTI_ALIAS_FLAG);deco.setColor(Color.rgb(255,215,75));deco.setStyle(Paint.Style.FILL);
+        int style=guardian?0:stage%6;
+        if(style==0){
+            Path crown=new Path();crown.moveTo(x-rad*.43f,y-rad*.52f);crown.lineTo(x-rad*.30f,y-rad*.88f);
+            crown.lineTo(x-rad*.08f,y-rad*.60f);crown.lineTo(x+rad*.10f,y-rad*.91f);
+            crown.lineTo(x+rad*.30f,y-rad*.60f);crown.lineTo(x+rad*.46f,y-rad*.86f);
+            crown.lineTo(x+rad*.39f,y-rad*.47f);crown.close();c.drawPath(crown,deco);
+        }else if(style==1){
+            Path horns=new Path();horns.moveTo(x-rad*.30f,y-rad*.50f);horns.quadTo(x-rad*.75f,y-rad*.88f,x-rad*.63f,y-rad*.25f);
+            horns.lineTo(x-rad*.40f,y-rad*.38f);horns.close();c.drawPath(horns,deco);
+            int save=c.save();c.scale(-1,1,x,y);c.drawPath(horns,deco);c.restoreToCount(save);
+        }else if(style==2){
+            deco.setColor(Color.rgb(105,48,175));Path hat=new Path();hat.moveTo(x-rad*.52f,y-rad*.48f);hat.lineTo(x+rad*.52f,y-rad*.48f);
+            hat.lineTo(x+rad*.08f,y-rad*1.10f);hat.close();c.drawPath(hat,deco);deco.setColor(Color.rgb(255,214,69));c.drawCircle(x+rad*.04f,y-rad*.76f,rad*.09f,deco);
+        }else if(style==3){
+            deco.setStyle(Paint.Style.STROKE);deco.setStrokeWidth(rad*.10f);deco.setColor(Color.rgb(255,230,112));
+            c.drawOval(x-rad*.42f,y-rad*.82f,x+rad*.42f,y-rad*.65f,deco);deco.setStyle(Paint.Style.FILL);
+        }else if(style==4){
+            deco.setColor(Color.rgb(63,27,91));Path wing=new Path();wing.moveTo(x-rad*.40f,y-rad*.05f);wing.lineTo(x-rad*.92f,y-rad*.42f);
+            wing.lineTo(x-rad*.80f,y+rad*.12f);wing.lineTo(x-rad*.48f,y+rad*.30f);wing.close();c.drawPath(wing,deco);
+            int save=c.save();c.scale(-1,1,x,y);c.drawPath(wing,deco);c.restoreToCount(save);
+        }else{
+            deco.setColor(aura);deco.setShadowLayer(rad*.25f,0,0,aura);c.drawCircle(x,y-rad*.55f,rad*.13f,deco);deco.clearShadowLayer();
+        }
+    }
+
+    private void drawTreasureChest(Canvas c,float x,float y,float rad,int stage){
+        int glow=new int[]{Color.rgb(255,208,66),Color.rgb(83,231,255),Color.rgb(239,100,255)}[(stage/3)%3];
+        p.setColor(Color.argb(95,Color.red(glow),Color.green(glow),Color.blue(glow)));p.setShadowLayer(rad*.55f,0,0,glow);c.drawCircle(x,y,rad,p);p.clearShadowLayer();
+        drawRound(c,x-rad*.63f,y-rad*.10f,x+rad*.63f,y+rad*.55f,Color.rgb(132,62,31),rad*.14f);
+        p.setColor(Color.rgb(236,150,53));c.drawArc(x-rad*.63f,y-rad*.58f,x+rad*.63f,y+rad*.27f,180,180,true,p);
+        p.setColor(Color.rgb(255,217,78));c.drawRect(x-rad*.09f,y-rad*.28f,x+rad*.09f,y+rad*.55f,p);
+        c.drawCircle(x,y+rad*.10f,rad*.15f,p);p.setColor(Color.rgb(90,43,36));c.drawCircle(x,y+rad*.10f,rad*.055f,p);
+    }
+
+    private void drawLockedStage(Canvas c,float x,float y,float rad){
+        p.setColor(Color.argb(185,22,18,35));c.drawCircle(x,y,rad*.73f,p);
+        p.setColor(Color.rgb(118,105,139));p.setTextSize(rad*.75f);p.setTextAlign(Paint.Align.CENTER);c.drawText("?",x,y+rad*.25f,p);
+        Paint lock=new Paint(Paint.ANTI_ALIAS_FLAG);lock.setStyle(Paint.Style.STROKE);lock.setStrokeWidth(rad*.10f);lock.setColor(Color.rgb(92,80,111));
+        c.drawArc(x-rad*.20f,y-rad*.75f,x+rad*.20f,y-rad*.25f,180,-180,false,lock);
     }
 
     private void handleWorldMapTap(float x,float y){
