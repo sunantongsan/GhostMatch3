@@ -182,7 +182,7 @@ class GhostGameView extends View {
     private int victoryReward=-1,victoryBonus=-1,victoryBonusCount=0;
     private boolean worldClearReward=false;
     private static final long VICTORY_DANCE_MS=4800L;
-    private static final long FAILURE_LAUGH_MS=2800L;
+    private static final long FAILURE_LAUGH_MS=4800L;
     private final ArrayList<Spark> sparks=new ArrayList<>();
     private String comboText="";
     private long comboUntil=0;
@@ -1127,7 +1127,7 @@ class GhostGameView extends View {
             drawFailureLaugh(c,w,h,System.currentTimeMillis()-lostStart);return;
         }
         p.setColor(Color.argb(218,10,5,30));c.drawRect(0,0,w,h,p);
-        float l=w*.08f,r=w*.92f,t=won?h*.20f:lost?h*.20f:h*.30f,b=won?h*.79f:lost?h*.88f:
+        float l=w*.08f,r=w*.92f,t=won?h*.20f:lost?h*.13f:h*.30f,b=won?h*.79f:lost?h*.93f:
             paused&&getContext() instanceof MainActivity&&((MainActivity)getContext()).needsPrivacyOptions()?h*.79f:h*.68f;
         panel(c,l,t,r,b,Color.rgb(68,35,112));
         p.setTextAlign(Paint.Align.CENTER);p.setColor(Color.WHITE);p.setTextSize(w*.075f);
@@ -1169,15 +1169,16 @@ class GhostGameView extends View {
         }else{
             p.setColor(Color.rgb(233,220,255));p.setTextSize(w*.038f);
             c.drawText("เลือกเล่นต่อ หรือเริ่มด่านใหม่",w/2,t+h*.125f,p);
-            drawRound(c,w*.18f,h*.42f,w*.82f,h*.50f,Color.rgb(255,188,64),45);
-            p.setColor(Color.rgb(55,25,70));p.setTextSize(w*.043f);c.drawText("เริ่มด่านใหม่",w/2,h*.473f,p);
-            drawRound(c,w*.18f,h*.54f,w*.82f,h*.63f,boosterCount[6]>0?Color.rgb(112,202,57):Color.rgb(92,78,112),45);
-            p.setColor(Color.WHITE);p.setTextSize(w*.038f);c.drawText("ใช้ไอเท็ม +5 การย้าย  (เหลือ "+boosterCount[6]+")",w/2,h*.597f,p);
-            drawRound(c,w*.18f,h*.67f,w*.82f,h*.76f,Color.rgb(96,79,214),45);
+            drawLaughingSkullSprite(c,w/2,h*.355f,h*.135f,0f);
+            drawRound(c,w*.18f,h*.47f,w*.82f,h*.55f,Color.rgb(255,188,64),45);
+            p.setColor(Color.rgb(55,25,70));p.setTextSize(w*.043f);c.drawText("เริ่มด่านใหม่",w/2,h*.523f,p);
+            drawRound(c,w*.18f,h*.59f,w*.82f,h*.68f,boosterCount[6]>0?Color.rgb(112,202,57):Color.rgb(92,78,112),45);
+            p.setColor(Color.WHITE);p.setTextSize(w*.038f);c.drawText("ใช้ไอเท็ม +5 การย้าย  (เหลือ "+boosterCount[6]+")",w/2,h*.647f,p);
+            drawRound(c,w*.18f,h*.72f,w*.82f,h*.81f,Color.rgb(96,79,214),45);
             p.setColor(Color.WHITE);p.setTextSize(w*.038f);
-            c.drawText(rewardAdPending?"กำลังเตรียมโฆษณา...":"ดูโฆษณา รับ +5 การย้าย",w/2,h*.727f,p);
+            c.drawText(rewardAdPending?"กำลังเตรียมโฆษณา...":"ดูโฆษณา รับ +5 การย้าย",w/2,h*.777f,p);
             p.setColor(Color.rgb(205,192,235));p.setTextSize(w*.026f);
-            c.drawText("โฆษณาทดสอบ • รับรางวัลเมื่อดูจบ",w/2,h*.815f,p);
+            c.drawText("โฆษณาทดสอบ • รับรางวัลเมื่อดูจบ",w/2,h*.865f,p);
         }
     }
 
@@ -1188,19 +1189,32 @@ class GhostGameView extends View {
         float centerX=w/2+(float)Math.sin(elapsed/90f)*w*.018f;
         float centerY=boardY+cell*N*.48f;
         float size=Math.min(w*.92f,h*.50f)*entrance*bounce;
-        if(laughingSkull!=null&&!laughingSkull.isRecycled()){
-            int save=c.save();c.rotate(tilt,centerX,centerY);
-            spritePaint.setAlpha(255);
-            float aspect=laughingSkull.getWidth()/(float)laughingSkull.getHeight();
-            c.drawBitmap(laughingSkull,null,new RectF(centerX-size*.50f*aspect,centerY-size*.50f,
-                centerX+size*.50f*aspect,centerY+size*.50f),spritePaint);
-            c.restoreToCount(save);
-        }
+        drawLaughingSkullSprite(c,centerX,centerY,size,tilt);
         float textPulse=1f+.06f*(float)Math.sin(elapsed/115f);
         int save=c.save();c.scale(textPulse,textPulse,w/2,h*.79f);
         p.setTextAlign(Paint.Align.CENTER);p.setTypeface(Typeface.create("sans",Typeface.BOLD));
         p.setColor(Color.rgb(255,222,83));p.setTextSize(w*.058f);p.setShadowLayer(16,0,0,Color.rgb(104,34,183));
         c.drawText(elapsed<1250?"ฮ่า ฮ่า ฮ่า!":"เกือบผ่านแล้ว!",w/2,h*.79f,p);p.clearShadowLayer();
+        c.restoreToCount(save);
+    }
+
+    private void drawLaughingSkullSprite(Canvas c,float centerX,float centerY,float size,float tilt){
+        int save=c.save();c.rotate(tilt,centerX,centerY);
+        if(laughingSkull!=null&&!laughingSkull.isRecycled()){
+            spritePaint.setAlpha(255);
+            float aspect=laughingSkull.getWidth()/(float)laughingSkull.getHeight();
+            c.drawBitmap(laughingSkull,null,new RectF(centerX-size*.50f*aspect,centerY-size*.50f,
+                centerX+size*.50f*aspect,centerY+size*.50f),spritePaint);
+        }else{
+            p.setColor(Color.rgb(246,239,220));p.setShadowLayer(size*.10f,0,0,Color.rgb(142,55,225));
+            c.drawOval(centerX-size*.34f,centerY-size*.43f,centerX+size*.34f,centerY+size*.31f,p);p.clearShadowLayer();
+            p.setColor(Color.rgb(55,18,65));
+            c.drawOval(centerX-size*.23f,centerY-size*.18f,centerX-size*.04f,centerY+size*.02f,p);
+            c.drawOval(centerX+size*.04f,centerY-size*.18f,centerX+size*.23f,centerY+size*.02f,p);
+            c.drawOval(centerX-size*.22f,centerY+size*.04f,centerX+size*.22f,centerY+size*.32f,p);
+            p.setColor(Color.rgb(130,247,66));p.setTextSize(size*.28f);p.setTextAlign(Paint.Align.CENTER);
+            c.drawText("5",centerX-size*.43f,centerY-size*.05f,p);c.drawText("5",centerX+size*.43f,centerY+size*.08f,p);
+        }
         c.restoreToCount(save);
     }
 
@@ -1330,11 +1344,11 @@ class GhostGameView extends View {
                 ((MainActivity)getContext()).openPrivacyOptions();return true;
             }
             if(lost){
-                if(y>getHeight()*.42f&&y<getHeight()*.50f)newLevel();
-                else if(y>getHeight()*.54f&&y<getHeight()*.63f){
+                if(y>getHeight()*.47f&&y<getHeight()*.55f)newLevel();
+                else if(y>getHeight()*.59f&&y<getHeight()*.68f){
                     if(boosterCount[6]>0){boosterCount[6]--;continueWithMoves(5);}
                     else message("ไอเท็มเพิ่มการย้ายหมดแล้ว");
-                }else if(y>getHeight()*.67f&&y<getHeight()*.76f&&!rewardAdPending){
+                }else if(y>getHeight()*.72f&&y<getHeight()*.81f&&!rewardAdPending){
                     rewardAdPending=true;invalidate();
                     if(getContext() instanceof MainActivity){
                         ((MainActivity)getContext()).showRewardedMoves(
