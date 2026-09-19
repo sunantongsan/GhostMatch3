@@ -152,6 +152,8 @@ class GhostGameView extends View {
     private int touchDownR=-1, touchDownC=-1;
     private boolean won=false,lost=false,victoryAdvancing=false;
     private long gameStart=System.currentTimeMillis(),victoryStart=0;
+    private int victoryReward=-1,victoryBonus=-1,victoryBonusCount=0;
+    private static final long VICTORY_DANCE_MS=4800L;
     private final ArrayList<Spark> sparks=new ArrayList<>();
     private String comboText="";
     private long comboUntil=0;
@@ -965,46 +967,36 @@ class GhostGameView extends View {
     }
 
     private void drawOverlay(Canvas c,float w,float h){
+        if(won&&System.currentTimeMillis()-victoryStart<VICTORY_DANCE_MS){
+            drawVictoryDance(c,w,h,System.currentTimeMillis()-victoryStart);return;
+        }
         p.setColor(Color.argb(218,10,5,30));c.drawRect(0,0,w,h,p);
-        float l=w*.08f,r=w*.92f,t=won?h*.19f:h*.30f,b=won?h*.76f:
+        float l=w*.08f,r=w*.92f,t=won?h*.20f:h*.30f,b=won?h*.79f:
             paused&&getContext() instanceof MainActivity&&((MainActivity)getContext()).needsPrivacyOptions()?h*.79f:h*.68f;
         panel(c,l,t,r,b,Color.rgb(68,35,112));
         p.setTextAlign(Paint.Align.CENTER);p.setColor(Color.WHITE);p.setTextSize(w*.075f);
-        c.drawText(paused?"PAUSED":won?"LEVEL COMPLETE!":"SO CLOSE!",w/2,t+h*.068f,p);
+        c.drawText(paused?"PAUSED":won?"รางวัลผ่านด่าน":"SO CLOSE!",w/2,t+h*.068f,p);
         if(won){
             p.setColor(Color.rgb(255,216,91));p.setTextSize(w*.083f);
             int stars=starsEarned();
             c.drawText((stars>=1?"★":"☆")+" "+(stars>=2?"★":"☆")+" "+(stars>=3?"★":"☆"),w/2,t+h*.118f,p);
             long elapsed=System.currentTimeMillis()-victoryStart;
             drawVictoryConfetti(c,w,h,elapsed);
-            int frame=Math.min(7,(int)((elapsed/155)%8));
-            if(dancingSkeleton!=null&&!dancingSkeleton.isRecycled()){
-                float sw=dancingSkeleton.getWidth()/8f;
-                Rect source=new Rect((int)(frame*sw),0,(int)((frame+1)*sw),dancingSkeleton.getHeight());
-                float size=Math.min(w*.49f,h*.345f);
-                float phase=elapsed/310f;
-                float slide=(float)Math.sin(elapsed/720f)*w*.105f;
-                float bob=Math.abs((float)Math.sin(phase))*h*.009f;
-                int saved=c.save();
-                c.translate(slide,bob);
-                c.rotate((float)Math.sin(phase*.65f)*4.2f,w/2,t+h*.31f);
-                float sx=1f+(float)Math.sin(phase)*.035f,sy=1f-(float)Math.sin(phase)*.025f;
-                c.scale(sx,sy,w/2,t+h*.31f);
-                c.drawBitmap(dancingSkeleton,source,
-                    new RectF(w/2-size*.53f,t+h*.125f,w/2+size*.53f,t+h*.485f),spritePaint);
-                c.restoreToCount(saved);
-            }else drawGhost(c,w/2,t+h*.29f,w*.12f,colors[0],0,false);
-            p.setColor(Color.rgb(233,220,255));p.setTextSize(w*.037f);
-            String dance=elapsed<1800?"กวนแบบลื่น ๆ!":elapsed<3600?"MOONWALK!":elapsed<5600?(stars==3?"3 ดาว! รับไอเท็มเวทมนตร์!":"ชัยชนะของเรา!"):"พร้อมไปต่อ!";
-            c.drawText(dance,w/2,t+h*.502f,p);
-            if(elapsed>=5600){
-                float pulse=.97f+.03f*(float)Math.sin(elapsed/150f);
-                int save=c.save();c.scale(pulse,pulse,w/2,t+h*.545f);
-                drawRound(c,w*.20f,t+h*.515f,w*.80f,t+h*.575f,Color.rgb(255,188,64),50);
-                p.setColor(Color.rgb(55,25,70));p.setTextSize(w*.043f);
-                c.drawText(victoryAdvancing?"กำลังโหลด...":"ไปด่านต่อไป",w/2,t+h*.557f,p);
-                c.restoreToCount(save);
+            p.setColor(Color.rgb(231,219,251));p.setTextSize(w*.034f);
+            c.drawText("ด่าน "+level+" สำเร็จ • คะแนน "+score,w/2,t+h*.165f,p);
+            drawRewardItem(c,victoryReward,1,w*.16f,t+h*.205f,w*.68f,h*.105f);
+            if(victoryBonusCount>0)drawRewardItem(c,victoryBonus,victoryBonusCount,w*.16f,t+h*.325f,w*.68f,h*.105f);
+            else{
+                drawRound(c,w*.16f,t+h*.325f,w*.84f,t+h*.43f,Color.argb(100,44,29,83),w*.025f);
+                p.setColor(Color.rgb(203,188,229));p.setTextSize(w*.030f);
+                c.drawText("ทำคะแนน 3 ดาว รับไอเท็มเวทมนตร์เพิ่ม",w/2,t+h*.387f,p);
             }
+            float pulse=.97f+.03f*(float)Math.sin(elapsed/150f);
+            int save=c.save();c.scale(pulse,pulse,w/2,t+h*.50f);
+            drawRound(c,w*.20f,t+h*.465f,w*.80f,t+h*.535f,Color.rgb(255,188,64),50);
+            p.setColor(Color.rgb(55,25,70));p.setTextSize(w*.043f);
+            c.drawText(victoryAdvancing?"กำลังโหลด...":"ไปด่านต่อไป",w/2,t+h*.512f,p);
+            c.restoreToCount(save);
         }else{
             p.setTextSize(w*.12f);c.drawText("♥",w/2,t+h*.17f,p);
             p.setTextSize(w*.044f);p.setColor(Color.rgb(233,220,255));
@@ -1019,6 +1011,47 @@ class GhostGameView extends View {
             }
         }
     }
+
+    private void drawVictoryDance(Canvas c,float w,float h,long elapsed){
+        drawVictoryConfetti(c,w,h,elapsed);
+        p.setTextAlign(Paint.Align.CENTER);p.setTypeface(Typeface.create("sans",Typeface.BOLD));
+        p.setColor(Color.WHITE);p.setTextSize(w*.071f);p.setShadowLayer(18,0,0,Color.rgb(126,49,211));
+        c.drawText("ยินดีด้วย",w/2,h*.125f,p);
+        p.setColor(Color.rgb(255,220,79));p.setTextSize(w*.048f);
+        c.drawText("คุณผ่านด่าน "+level+" แล้ว!",w/2,h*.172f,p);p.clearShadowLayer();
+        int frame=Math.min(7,(int)((elapsed/155)%8));
+        if(dancingSkeleton!=null&&!dancingSkeleton.isRecycled()){
+            float sw=dancingSkeleton.getWidth()/8f;
+            Rect source=new Rect((int)(frame*sw),0,(int)((frame+1)*sw),dancingSkeleton.getHeight());
+            float size=Math.min(w*.66f,h*.48f),phase=elapsed/310f;
+            float centerY=boardY+cell*N*.50f;
+            int saved=c.save();
+            c.translate((float)Math.sin(elapsed/720f)*w*.12f,Math.abs((float)Math.sin(phase))*h*.009f);
+            c.rotate((float)Math.sin(phase*.65f)*4.2f,w/2,centerY);
+            c.scale(1f+(float)Math.sin(phase)*.035f,1f-(float)Math.sin(phase)*.025f,w/2,centerY);
+            c.drawBitmap(dancingSkeleton,source,new RectF(w/2-size*.53f,centerY-size*.54f,w/2+size*.53f,centerY+size*.54f),spritePaint);
+            c.restoreToCount(saved);
+        }
+        p.setColor(Color.WHITE);p.setTextSize(w*.035f);p.setShadowLayer(10,0,0,Color.rgb(91,36,161));
+        c.drawText(elapsed<1700?"ฉลองชัยชนะ!":elapsed<3300?"เต้นบนกระดานเลย!":"กำลังเตรียมรางวัล...",w/2,h*.80f,p);p.clearShadowLayer();
+    }
+
+    private void drawRewardItem(Canvas c,int item,int amount,float x,float y,float width,float height){
+        drawRound(c,x,y,x+width,y+height,Color.rgb(255,190,85),wSafe(width*.06f));
+        drawRound(c,x+width*.018f,y+height*.08f,x+height*.92f,y+height*.92f,Color.rgb(104,52,166),height*.20f);
+        if(boosterSheet!=null&&!boosterSheet.isRecycled()&&item>=0){
+            float slice=boosterSheet.getWidth()/7f;
+            Rect source=new Rect((int)(item*slice),0,(int)((item+1)*slice),boosterSheet.getHeight());
+            c.drawBitmap(boosterSheet,source,new RectF(x+height*.08f,y+height*.10f,x+height*.90f,y+height*.90f),spritePaint);
+        }
+        String[] thai={"สลับตำแหน่ง","ค้อนทุบ","ระเบิดทั้งแถว","ระเบิดทั้งคอลัมน์","ระเบิดวิญญาณ","สายรุ้งเวทมนตร์","เพิ่ม 5 การย้าย"};
+        p.setTextAlign(Paint.Align.LEFT);p.setColor(Color.rgb(62,30,75));p.setTextSize(getWidth()*.034f);
+        c.drawText(item>=0?thai[item]:"ไอเท็มช่วยเหลือ",x+height*1.02f,y+height*.48f,p);
+        p.setColor(Color.rgb(148,31,47));p.setTextSize(getWidth()*.040f);
+        c.drawText("ได้รับ  +"+amount,x+height*1.02f,y+height*.79f,p);p.setTextAlign(Paint.Align.CENTER);
+    }
+
+    private float wSafe(float value){return Math.max(8f,value);}
 
     private void drawVictoryConfetti(Canvas c,float w,float h,long elapsed){
         float fall=(elapsed%4200L)/4200f;
@@ -1091,8 +1124,8 @@ class GhostGameView extends View {
                &&getContext() instanceof MainActivity){
                 ((MainActivity)getContext()).openPrivacyOptions();return true;
             }
-            boolean danceFinished=!won||System.currentTimeMillis()-victoryStart>=5600;
-            if(danceFinished&&y>(won?getHeight()*.69f:getHeight()*.57f)&&y<(won?getHeight()*.78f:getHeight()*.68f)){
+            boolean danceFinished=!won||System.currentTimeMillis()-victoryStart>=VICTORY_DANCE_MS;
+            if(danceFinished&&y>(won?getHeight()*.64f:getHeight()*.57f)&&y<(won?getHeight()*.76f:getHeight()*.68f)){
                 if(paused)paused=false;
                 else if(won)goToNextLevel();
                 else newLevel();
@@ -1505,12 +1538,13 @@ class GhostGameView extends View {
     private void checkEnd(){
         if(!won&&iceLeft==0&&collected[0]>=goals[0]&&collected[1]>=goals[1]&&collected[2]>=goals[2]){
             won=true;victoryStart=System.currentTimeMillis();
-            int freeBooster=rng.nextInt(7);boosterCount[freeBooster]++;
+            victoryReward=rng.nextInt(7);victoryBonus=-1;victoryBonusCount=0;
+            boosterCount[victoryReward]++;
             int earnedStars=starsEarned();
             boolean firstThreeStar=earnedStars==3&&!progress.getBoolean("three_star_"+level,false);
             if(firstThreeStar){
-                int magicBooster=2+rng.nextInt(4);
-                boosterCount[magicBooster]+=2;
+                victoryBonus=2+rng.nextInt(4);victoryBonusCount=2;
+                boosterCount[victoryBonus]+=victoryBonusCount;
                 progress.edit().putBoolean("three_star_"+level,true).apply();
             }
             if(getContext() instanceof MainActivity)((MainActivity)getContext()).onLevelCompleted(level);
