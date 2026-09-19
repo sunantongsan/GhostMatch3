@@ -14,6 +14,8 @@ import com.google.android.gms.ads.LoadAdError;
 import com.google.android.gms.ads.MobileAds;
 import com.google.android.gms.ads.interstitial.InterstitialAd;
 import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback;
+import com.google.android.gms.ads.rewarded.RewardedAd;
+import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback;
 import com.google.android.ump.ConsentInformation;
 import com.google.android.ump.ConsentRequestParameters;
 import com.google.android.ump.UserMessagingPlatform;
@@ -21,11 +23,13 @@ import com.google.android.ump.UserMessagingPlatform;
 public class MainActivity extends Activity {
     // Google's official SAMPLE identifiers: test impressions never earn money.
     private static final String TEST_INTERSTITIAL_ID="ca-app-pub-3940256099942544/1033173712";
+    private static final String TEST_REWARDED_ID="ca-app-pub-3940256099942544/5224354917";
     private static final long MIN_AD_INTERVAL_MS=90000L;
     private GhostGameView gameView;
     private ConsentInformation consentInformation;
     private InterstitialAd interstitial;
-    private boolean adsInitialized=false, adLoading=false, privacyOptionsRequired=false;
+    private RewardedAd rewardedAd;
+    private boolean adsInitialized=false, adLoading=false, rewardLoading=false, privacyOptionsRequired=false;
     private long lastAdShownAt=0;
 
     @Override public void onCreate(Bundle state) {
@@ -69,14 +73,37 @@ public class MainActivity extends Activity {
         UserMessagingPlatform.showPrivacyOptionsForm(this,error->{
             refreshPrivacyOption();
             if(consentInformation.canRequestAds())initializeAds();
-            else interstitial=null;
+            else {interstitial=null;rewardedAd=null;}
         });
     }
 
     private void initializeAds(){
         if(adsInitialized)return;
         adsInitialized=true;
-        MobileAds.initialize(this,status->runOnUiThread(this::loadNextAd));
+        MobileAds.initialize(this,status->runOnUiThread(()->{loadNextAd();loadRewardedAd();}));
+    }
+
+    private void loadRewardedAd(){
+        if(!adsInitialized||consentInformation==null||!consentInformation.canRequestAds()
+            ||rewardLoading||rewardedAd!=null)return;
+        rewardLoading=true;
+        RewardedAd.load(this,TEST_REWARDED_ID,new AdRequest.Builder().build(),
+            new RewardedAdLoadCallback(){
+                @Override public void onAdLoaded(RewardedAd ad){rewardLoading=false;rewardedAd=ad;}
+                @Override public void onAdFailedToLoad(LoadAdError error){rewardLoading=false;rewardedAd=null;}
+            });
+    }
+
+    void showRewardedMoves(Runnable earned,Runnable unavailable){
+        if(rewardedAd==null||consentInformation==null||!consentInformation.canRequestAds()){
+            loadRewardedAd();unavailable.run();return;
+        }
+        RewardedAd ad=rewardedAd;rewardedAd=null;
+        ad.setFullScreenContentCallback(new FullScreenContentCallback(){
+            @Override public void onAdDismissedFullScreenContent(){loadRewardedAd();}
+            @Override public void onAdFailedToShowFullScreenContent(AdError error){loadRewardedAd();unavailable.run();}
+        });
+        ad.show(this,rewardItem->earned.run());
     }
 
     private void loadNextAd(){
@@ -114,7 +141,7 @@ public class MainActivity extends Activity {
 }
 
 class GhostGameView extends View {
-    private static final int N=7, TYPES=3;
+    private static final int N=7, TYPES=4;
     private final int[][] board=new int[N][N];
     private final int[][] ice=new int[N][N];
     private final boolean[][] blocked=new boolean[N][N];
@@ -134,11 +161,11 @@ class GhostGameView extends View {
     private final Paint stroke=new Paint(3);
     private final Paint spritePaint=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);
     private Bitmap ghostSheet,ghostReactions,boosterSheet,hauntedBackground,magicItems,dancingSkeleton;
-    private final int[] colors={Color.rgb(245,245,255),Color.rgb(188,236,172),Color.rgb(161,77,227)};
+    private final int[] colors={Color.rgb(245,245,255),Color.rgb(188,236,172),Color.rgb(161,77,227),Color.rgb(255,143,55)};
     private final String[] boosterNames={"SWAP","HAMMER","ROW","COLUMN","BURST","RAINBOW","+5"};
-    private final int[] boosterCount={8,8,6,6,6,8,8};
+    private final int[] boosterCount={2,2,1,1,1,1,2};
     private final int[] collected=new int[TYPES];
-    private final int[] goals={10,10,10};
+    private final int[] goals={10,10,10,0};
     private int helperFirstR=-1,helperFirstC=-1;
     private boolean paused=false,missionBrief=false,worldMap=true;
     private int mapWorld=0;
@@ -150,7 +177,7 @@ class GhostGameView extends View {
     private float boardX,boardY,cell,boosterY;
     private float touchDownX, touchDownY;
     private int touchDownR=-1, touchDownC=-1;
-    private boolean won=false,lost=false,victoryAdvancing=false;
+    private boolean won=false,lost=false,victoryAdvancing=false,rewardAdPending=false;
     private long gameStart=System.currentTimeMillis(),victoryStart=0;
     private int victoryReward=-1,victoryBonus=-1,victoryBonusCount=0;
     private boolean worldClearReward=false;
@@ -200,14 +227,15 @@ class GhostGameView extends View {
         else if(level==3){moves=10;target=1550;}
         else if(level<=5){moves=11;target=1900+level*150;}
         else {moves=Math.min(26,12+level/8);target=Math.min(18000,2300+level*275);}
+        int excluded=level<=3?3:(level-1)%TYPES;
         for(int i=0;i<TYPES;i++){
-            goals[i]=level<=3?3+level:level<=7?7+level/2:Math.min(30,9+(level*2)/3);
-            if(level>=12&&i==(level-1)%TYPES)goals[i]+=Math.min(7,level/12);
+            goals[i]=i==excluded?0:(level<=3?4+level:level<=7?9+level/2:Math.min(38,11+(level*4)/5));
+            if(goals[i]>0&&level>=12&&i==(level+1)%TYPES)goals[i]+=Math.min(8,level/12);
             collected[i]=0;
         }
         for(int[] row:ice)Arrays.fill(row,0);
         iceLeft=0;
-        int iceCount=level<4?0:Math.min(30,3+(level-4)/3+(level/20)*2);
+        int iceCount=level<4?0:Math.min(36,4+(level-4)/3+(level/16)*2);
         int strength=level>=70?3:level>=18?2:1;
         ArrayList<Integer> open=new ArrayList<>();
         for(int r=0;r<N;r++)for(int c=0;c<N;c++)if(!blocked[r][c])open.add(r*N+c);
@@ -222,7 +250,7 @@ class GhostGameView extends View {
             if(blocked[r][c]){board[r][c]=WALL;continue;}
             int t,guard=0;
             do{
-                t=rng.nextInt(TYPES);guard++;
+                t=rng.nextInt(availableTypes());guard++;
             }while(guard<20&&((c>=2&&!blocked[r][c-1]&&!blocked[r][c-2]&&board[r][c-1]==t&&board[r][c-2]==t)
                 ||(r>=2&&!blocked[r-1][c]&&!blocked[r-2][c]&&board[r-1][c]==t&&board[r-2][c]==t)
                 ||(r>=1&&c>=1&&!blocked[r-1][c]&&!blocked[r][c-1]&&!blocked[r-1][c-1]
@@ -234,9 +262,17 @@ class GhostGameView extends View {
         String[] shapeNames={"สวนผี","ประตูโค้ง","ลานเวท","เพชรต้องสาป","ป้อมค้างคาว","นาฬิกาทราย",
             "ปราสาท","ห้องแฝด","จันทร์เสี้ยว","มงกุฎ","ประตูมิติ","ลานบอส"};
         String shape=shapeNames[(level-1)%shapeNames.length];
-        message(level<=3?"Easy start — "+shape:"Level "+level+" — "+shape);
+        message(level<=3?"เริ่มต้นฝึกฝน — "+shape:"ด่านท้าทาย "+level+" — "+shape);
         missionBrief=level>1;missionBriefStart=System.currentTimeMillis();
         invalidate();
+    }
+
+    private int availableTypes(){return level<4?3:TYPES;}
+
+    private int[] activeGoalTypes(){
+        int[] active=new int[3];int n=0;
+        for(int i=0;i<TYPES&&n<active.length;i++)if(goals[i]>0)active[n++]=i;
+        return active;
     }
 
     private void configureLayout(){
@@ -406,17 +442,19 @@ class GhostGameView extends View {
         panel(c,w*.235f,top,w*.675f,h*.147f,Color.rgb(51,32,107));
         p.setTextSize(w*.037f);p.setColor(Color.WHITE);c.drawText("เป้าหมาย",w*.455f,h*.052f,p);
         boolean fourGoals=iceInitial>0;
+        int[] activeGoals=activeGoalTypes();
         for(int i=0;i<(fourGoals?4:3);i++){
             float gx=fourGoals?w*(.285f+.11f*i):w*(.316f+.148f*i);
-            if(i<3)drawGhost(c,gx,h*.098f,w*(fourGoals?.033f:.038f),colors[i],i,false);
+            int ghostType=i<3?activeGoals[i]:-1;
+            if(i<3)drawGhost(c,gx,h*.098f,w*(fourGoals?.033f:.038f),colors[ghostType],ghostType,false);
             else{
                 p.setTextSize(w*.050f);p.setColor(Color.rgb(179,235,255));
                 c.drawText("❄",gx,h*.108f,p);
             }
-            boolean complete=i<3?collected[i]>=goals[i]:iceLeft==0;
+            boolean complete=i<3?collected[ghostType]>=goals[ghostType]:iceLeft==0;
             p.setColor(complete?Color.rgb(107,236,94):Color.WHITE);
             p.setTextSize(w*(fourGoals?.020f:.024f));p.setTextAlign(Paint.Align.CENTER);
-            String count=i<3?(complete?"✓ "+goals[i]+"/"+goals[i]:collected[i]+"/"+goals[i]):
+            String count=i<3?(complete?"✓ "+goals[ghostType]+"/"+goals[ghostType]:collected[ghostType]+"/"+goals[ghostType]):
                 (complete?"✓ 0/"+iceInitial:iceLeft+"/"+iceInitial);
             c.drawText(count,gx,h*.145f,p);
         }
@@ -454,7 +492,7 @@ class GhostGameView extends View {
         for(int i=0;i<7;i++)drawBooster(c,i,margin+w*.018f+i*(bw+gap),by,bw,h*.087f,w);
         drawRound(c,margin+w*.11f,h*.881f,w-margin-w*.02f,h*.963f,Color.rgb(67,156,35),w*.09f);
         p.setColor(Color.WHITE);p.setTextAlign(Paint.Align.CENTER);p.setTextSize(w*.052f);
-        c.drawText("ผ่านง่าย! สนุกได้ทุกคน ♥",w*.52f,h*.934f,p);
+        c.drawText("ท้าทายขึ้น! วางแผนให้ดี ♥",w*.52f,h*.934f,p);
         drawGhost(c,w*.16f,h*.91f,w*.07f,colors[0],0,false);
 
         if(System.currentTimeMillis()<toastUntil){
@@ -488,12 +526,14 @@ class GhostGameView extends View {
         c.drawText("ภารกิจด่าน "+level,w/2,top+h*.058f,p);
         p.setColor(Color.WHITE);p.setTextSize(w*.056f);
         c.drawText("ทำให้ครบเพื่อผ่านด่าน",w/2,top+h*.118f,p);
-        for(int i=0;i<TYPES;i++){
+        int[] activeGoals=activeGoalTypes();
+        for(int i=0;i<activeGoals.length;i++){
+            int type=activeGoals[i];
             float gx=w*(.27f+.23f*i),gy=top+h*.215f;
             int save=c.save();c.scale(pulse,pulse,gx,gy);
-            drawGhost(c,gx,gy,w*.063f,colors[i],i,false);c.restoreToCount(save);
+            drawGhost(c,gx,gy,w*.063f,colors[type],type,false);c.restoreToCount(save);
             p.setColor(Color.WHITE);p.setTextSize(w*.037f);
-            c.drawText("เก็บ "+goals[i]+" ตัว",gx,gy+h*.075f,p);
+            c.drawText("เก็บ "+goals[type]+" ตัว",gx,gy+h*.075f,p);
         }
         drawRound(c,w*.15f,top+h*.32f,w*.85f,top+h*.385f,Color.rgb(43,31,91),w*.025f);
         p.setColor(Color.rgb(255,209,84));p.setTextSize(w*.041f);
@@ -902,7 +942,8 @@ class GhostGameView extends View {
         if(ghostReactions!=null&&!ghostReactions.isRecycled()){
             int frame=reacting?Math.min(3,1+(int)((now-reactionStart)/320L)):0;
             int sw=ghostReactions.getWidth()/3,sh=ghostReactions.getHeight()/4;
-            Rect source=new Rect(type*sw,frame*sh,(type+1)*sw,(frame+1)*sh);
+            int spriteType=type%3;
+            Rect source=new Rect(spriteType*sw,frame*sh,(spriteType+1)*sw,(frame+1)*sh);
             float wiggle=reacting?(float)Math.sin((now-reactionStart)/55f)*9f:0f;
             float squash=reacting?1f+.07f*(float)Math.sin((now-reactionStart)/70f):1f;
             int save=c.save();
@@ -910,8 +951,11 @@ class GhostGameView extends View {
             c.scale(2f-squash,squash,cx,cy);
             RectF dest=new RectF(cx-rad*1.27f,cy-rad*1.29f,cx+rad*1.27f,cy+rad*1.29f);
             spritePaint.setAlpha(255);
+            if(type==3)spritePaint.setColorFilter(new PorterDuffColorFilter(Color.rgb(255,146,63),PorterDuff.Mode.MULTIPLY));
             c.drawBitmap(ghostReactions,source,dest,spritePaint);
+            spritePaint.setColorFilter(null);
             c.restoreToCount(save);
+            if(type==3)drawFireGhostAccents(c,cx,cy,rad);
             if(selected){
                 stroke.setColor(Color.rgb(255,221,78));stroke.setStrokeWidth(rad*.10f);
                 stroke.setShadowLayer(18,0,0,Color.rgb(255,232,122));
@@ -931,19 +975,23 @@ class GhostGameView extends View {
 
     private void drawGhost(Canvas c,float cx,float cy,float rad,int color,int face,boolean selected){
         if(ghostReactions!=null&&!ghostReactions.isRecycled()){
-            int type=Math.max(0,Math.min(2,face));
+            int type=Math.max(0,face)%3;
             int sw=ghostReactions.getWidth()/3,sh=ghostReactions.getHeight()/4;
             Rect source=new Rect(type*sw,0,(type+1)*sw,sh);
             RectF dest=new RectF(cx-rad*1.24f,cy-rad*1.25f,cx+rad*1.24f,cy+rad*1.25f);
-            c.drawBitmap(ghostReactions,source,dest,spritePaint);
+            if(face==3)spritePaint.setColorFilter(new PorterDuffColorFilter(Color.rgb(255,146,63),PorterDuff.Mode.MULTIPLY));
+            c.drawBitmap(ghostReactions,source,dest,spritePaint);spritePaint.setColorFilter(null);
+            if(face==3)drawFireGhostAccents(c,cx,cy,rad);
             return;
         }
         if(ghostSheet!=null&&!ghostSheet.isRecycled()){
-            int type=Math.max(0,Math.min(2,face));
+            int type=Math.max(0,face)%3;
             float sheetCell=ghostSheet.getWidth()/3f;
             Rect source=new Rect((int)(type*sheetCell),0,(int)((type+1)*sheetCell),ghostSheet.getHeight());
             RectF dest=new RectF(cx-rad*1.24f,cy-rad*1.22f,cx+rad*1.24f,cy+rad*1.22f);
-            c.drawBitmap(ghostSheet,source,dest,spritePaint);
+            if(face==3)spritePaint.setColorFilter(new PorterDuffColorFilter(Color.rgb(255,146,63),PorterDuff.Mode.MULTIPLY));
+            c.drawBitmap(ghostSheet,source,dest,spritePaint);spritePaint.setColorFilter(null);
+            if(face==3)drawFireGhostAccents(c,cx,cy,rad);
             if(selected){
                 stroke.setColor(Color.rgb(255,221,78));stroke.setStrokeWidth(rad*.10f);
                 stroke.setShadowLayer(15,0,0,Color.rgb(255,232,122));
@@ -1018,6 +1066,19 @@ class GhostGameView extends View {
         }
     }
 
+    private void drawFireGhostAccents(Canvas c,float cx,float cy,float rad){
+        p.setShader(new LinearGradient(cx,cy-rad*1.45f,cx,cy-rad*.78f,
+            Color.rgb(255,238,92),Color.rgb(255,64,35),Shader.TileMode.CLAMP));
+        p.setShadowLayer(rad*.24f,0,0,Color.rgb(255,92,24));
+        Path flame=new Path();
+        flame.moveTo(cx-rad*.58f,cy-rad*.72f);flame.quadTo(cx-rad*.48f,cy-rad*1.35f,cx-rad*.16f,cy-rad*.94f);
+        flame.quadTo(cx,cy-rad*1.58f,cx+rad*.18f,cy-rad*.94f);
+        flame.quadTo(cx+rad*.50f,cy-rad*1.35f,cx+rad*.58f,cy-rad*.72f);flame.close();
+        c.drawPath(flame,p);p.clearShadowLayer();p.setShader(null);
+        p.setColor(Color.rgb(91,245,255));p.setShadowLayer(rad*.18f,0,0,Color.CYAN);
+        c.drawCircle(cx,cy-rad*.92f,rad*.10f,p);p.clearShadowLayer();
+    }
+
     private int lighten(int color,int amount){
         return Color.rgb(Math.min(255,Color.red(color)+amount),Math.min(255,Color.green(color)+amount),Math.min(255,Color.blue(color)+amount));
     }
@@ -1061,11 +1122,11 @@ class GhostGameView extends View {
             drawVictoryDance(c,w,h,System.currentTimeMillis()-victoryStart);return;
         }
         p.setColor(Color.argb(218,10,5,30));c.drawRect(0,0,w,h,p);
-        float l=w*.08f,r=w*.92f,t=won?h*.20f:h*.30f,b=won?h*.79f:
+        float l=w*.08f,r=w*.92f,t=won?h*.20f:lost?h*.20f:h*.30f,b=won?h*.79f:lost?h*.88f:
             paused&&getContext() instanceof MainActivity&&((MainActivity)getContext()).needsPrivacyOptions()?h*.79f:h*.68f;
         panel(c,l,t,r,b,Color.rgb(68,35,112));
         p.setTextAlign(Paint.Align.CENTER);p.setColor(Color.WHITE);p.setTextSize(w*.075f);
-        c.drawText(paused?"PAUSED":won?"รางวัลผ่านด่าน":"SO CLOSE!",w/2,t+h*.068f,p);
+        c.drawText(paused?"PAUSED":won?"รางวัลผ่านด่าน":"ยังไม่ผ่านด่าน",w/2,t+h*.068f,p);
         if(won){
             p.setColor(Color.rgb(255,216,91));p.setTextSize(w*.083f);
             int stars=starsEarned();
@@ -1088,18 +1149,30 @@ class GhostGameView extends View {
             p.setColor(Color.rgb(55,25,70));p.setTextSize(w*.043f);
             c.drawText(victoryAdvancing?"กำลังโหลด...":"ไปด่านต่อไป",w/2,t+h*.512f,p);
             c.restoreToCount(save);
-        }else{
+        }else if(paused){
             p.setTextSize(w*.12f);c.drawText("♥",w/2,t+h*.17f,p);
             p.setTextSize(w*.044f);p.setColor(Color.rgb(233,220,255));
-            c.drawText(paused?"Tap continue to play":"Try this level again.",w/2,t+h*.23f,p);
+            c.drawText("Tap continue to play",w/2,t+h*.23f,p);
             drawRound(c,w*.22f,t+h*.27f,w*.78f,t+h*.35f,Color.rgb(255,188,64),50);
             p.setColor(Color.rgb(55,25,70));p.setTextSize(w*.045f);
-            c.drawText(paused?"CONTINUE":"RETRY",w/2,t+h*.325f,p);
-            if(paused&&getContext() instanceof MainActivity&&((MainActivity)getContext()).needsPrivacyOptions()){
+            c.drawText("CONTINUE",w/2,t+h*.325f,p);
+            if(getContext() instanceof MainActivity&&((MainActivity)getContext()).needsPrivacyOptions()){
                 drawRound(c,w*.22f,h*.70f,w*.78f,h*.765f,Color.rgb(105,73,162),40);
                 p.setColor(Color.WHITE);p.setTextSize(w*.036f);
                 c.drawText("PRIVACY OPTIONS",w/2,h*.745f,p);
             }
+        }else{
+            p.setColor(Color.rgb(233,220,255));p.setTextSize(w*.038f);
+            c.drawText("เลือกเล่นต่อ หรือเริ่มด่านใหม่",w/2,t+h*.125f,p);
+            drawRound(c,w*.18f,h*.42f,w*.82f,h*.50f,Color.rgb(255,188,64),45);
+            p.setColor(Color.rgb(55,25,70));p.setTextSize(w*.043f);c.drawText("เริ่มด่านใหม่",w/2,h*.473f,p);
+            drawRound(c,w*.18f,h*.54f,w*.82f,h*.63f,boosterCount[6]>0?Color.rgb(112,202,57):Color.rgb(92,78,112),45);
+            p.setColor(Color.WHITE);p.setTextSize(w*.038f);c.drawText("ใช้ไอเท็ม +5 การย้าย  (เหลือ "+boosterCount[6]+")",w/2,h*.597f,p);
+            drawRound(c,w*.18f,h*.67f,w*.82f,h*.76f,Color.rgb(96,79,214),45);
+            p.setColor(Color.WHITE);p.setTextSize(w*.038f);
+            c.drawText(rewardAdPending?"กำลังเตรียมโฆษณา...":"ดูโฆษณา รับ +5 การย้าย",w/2,h*.727f,p);
+            p.setColor(Color.rgb(205,192,235));p.setTextSize(w*.026f);
+            c.drawText("โฆษณาทดสอบ • รับรางวัลเมื่อดูจบ",w/2,h*.815f,p);
         }
     }
 
@@ -1227,11 +1300,24 @@ class GhostGameView extends View {
                &&getContext() instanceof MainActivity){
                 ((MainActivity)getContext()).openPrivacyOptions();return true;
             }
+            if(lost){
+                if(y>getHeight()*.42f&&y<getHeight()*.50f)newLevel();
+                else if(y>getHeight()*.54f&&y<getHeight()*.63f){
+                    if(boosterCount[6]>0){boosterCount[6]--;continueWithMoves(5);}
+                    else message("ไอเท็มเพิ่มการย้ายหมดแล้ว");
+                }else if(y>getHeight()*.67f&&y<getHeight()*.76f&&!rewardAdPending){
+                    rewardAdPending=true;invalidate();
+                    if(getContext() instanceof MainActivity){
+                        ((MainActivity)getContext()).showRewardedMoves(
+                            ()->post(()->{rewardAdPending=false;continueWithMoves(5);}),
+                            ()->post(()->{rewardAdPending=false;message("โฆษณายังไม่พร้อม กรุณาลองใหม่");invalidate();}));
+                    }else{rewardAdPending=false;message("โฆษณายังไม่พร้อม");}
+                }
+                invalidate();return true;
+            }
             boolean danceFinished=!won||System.currentTimeMillis()-victoryStart>=VICTORY_DANCE_MS;
             if(danceFinished&&y>(won?getHeight()*.64f:getHeight()*.57f)&&y<(won?getHeight()*.76f:getHeight()*.68f)){
-                if(paused)paused=false;
-                else if(won)goToNextLevel();
-                else newLevel();
+                if(paused)paused=false; else if(won)goToNextLevel();
                 invalidate();
             }
             return true;
@@ -1270,6 +1356,11 @@ class GhostGameView extends View {
             if(i>=0&&i<7)boosterTap(i);
         }
         return true;
+    }
+
+    private void continueWithMoves(int amount){
+        lost=false;moves+=amount;rewardAdPending=false;
+        message("ได้รับ +"+amount+" การย้าย สู้ต่อได้เลย!");invalidate();
     }
 
     private void attemptSwipe(int r1,int c1,int r2,int c2){
@@ -1596,7 +1687,7 @@ class GhostGameView extends View {
         }
         int spawn=start-1;
         while(write>=start){
-            board[write][c]=rng.nextInt(TYPES);
+            board[write][c]=rng.nextInt(availableTypes());
             if(animated)fallFrom[write][c]=spawn-write;
             write--;spawn--;
         }
@@ -1615,7 +1706,7 @@ class GhostGameView extends View {
     }
     private void shuffle(){
         ArrayList<Integer> list=new ArrayList<>();
-        for(int r=0;r<N;r++)for(int c=0;c<N;c++)if(!blocked[r][c])list.add(board[r][c]<0?rng.nextInt(TYPES):board[r][c]);
+        for(int r=0;r<N;r++)for(int c=0;c<N;c++)if(!blocked[r][c])list.add(board[r][c]<0?rng.nextInt(availableTypes()):board[r][c]);
         do{
             Collections.shuffle(list,rng);int k=0;
             for(int r=0;r<N;r++)for(int c=0;c<N;c++)board[r][c]=blocked[r][c]?WALL:list.get(k++);
@@ -1639,7 +1730,9 @@ class GhostGameView extends View {
     }
 
     private void checkEnd(){
-        if(!won&&iceLeft==0&&collected[0]>=goals[0]&&collected[1]>=goals[1]&&collected[2]>=goals[2]){
+        boolean objectivesMet=iceLeft==0;
+        for(int i=0;i<TYPES;i++)if(goals[i]>0&&collected[i]<goals[i])objectivesMet=false;
+        if(!won&&objectivesMet){
             won=true;victoryStart=System.currentTimeMillis();
             victoryReward=rng.nextInt(7);victoryBonus=-1;victoryBonusCount=0;worldClearReward=level%12==0;
             boosterCount[victoryReward]++;
