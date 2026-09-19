@@ -208,7 +208,7 @@ class GhostGameView extends View {
         ghostReactions=BitmapFactory.decodeResource(getResources(),R.drawable.ghost_reactions);
         boosterSheet=BitmapFactory.decodeResource(getResources(),R.drawable.booster_sprites);
         magicItems=BitmapFactory.decodeResource(getResources(),R.drawable.magic_items);
-        dancingSkeleton=BitmapFactory.decodeResource(getResources(),R.drawable.skeleton_dance_v2);
+        dancingSkeleton=BitmapFactory.decodeResource(getResources(),R.drawable.skeleton_dance_v3);
         laughingSkull=BitmapFactory.decodeResource(getResources(),R.drawable.laughing_skull);
         hauntedBackground=BitmapFactory.decodeResource(getResources(),R.drawable.haunted_background);
         progress=c.getSharedPreferences("ghostmatch_progress",Context.MODE_PRIVATE);
@@ -1169,7 +1169,7 @@ class GhostGameView extends View {
         }else{
             p.setColor(Color.rgb(233,220,255));p.setTextSize(w*.038f);
             c.drawText("เลือกเล่นต่อ หรือเริ่มด่านใหม่",w/2,t+h*.125f,p);
-            drawLaughingSkullSprite(c,w/2,h*.355f,h*.135f,0f);
+            drawLaughingSkullSprite(c,w/2,h*.355f,h*.205f,0f);
             drawRound(c,w*.18f,h*.47f,w*.82f,h*.55f,Color.rgb(255,188,64),45);
             p.setColor(Color.rgb(55,25,70));p.setTextSize(w*.043f);c.drawText("เริ่มด่านใหม่",w/2,h*.523f,p);
             drawRound(c,w*.18f,h*.59f,w*.82f,h*.68f,boosterCount[6]>0?Color.rgb(112,202,57):Color.rgb(92,78,112),45);
@@ -1188,7 +1188,7 @@ class GhostGameView extends View {
         float tilt=(float)Math.sin(elapsed/105f)*5.5f;
         float centerX=w/2+(float)Math.sin(elapsed/90f)*w*.018f;
         float centerY=boardY+cell*N*.48f;
-        float size=Math.min(w*.92f,h*.50f)*entrance*bounce;
+        float size=Math.min(w*1.28f,h*.68f)*entrance*bounce;
         drawLaughingSkullSprite(c,centerX,centerY,size,tilt);
         float textPulse=1f+.06f*(float)Math.sin(elapsed/115f);
         int save=c.save();c.scale(textPulse,textPulse,w/2,h*.79f);
@@ -1225,17 +1225,28 @@ class GhostGameView extends View {
         c.drawText("ยินดีด้วย",w/2,h*.125f,p);
         p.setColor(Color.rgb(255,220,79));p.setTextSize(w*.048f);
         c.drawText("คุณผ่านด่าน "+level+" แล้ว!",w/2,h*.172f,p);p.clearShadowLayer();
-        int frame=Math.min(7,(int)((elapsed/155)%8));
         if(dancingSkeleton!=null&&!dancingSkeleton.isRecycled()){
+            float frameProgress=(elapsed%5200L)/650f;
+            int frame=(int)frameProgress%8,next=(frame+1)%8;
+            float blend=frameProgress-(int)frameProgress;
+            blend=blend*blend*(3f-2f*blend);
             float sw=dancingSkeleton.getWidth()/8f;
             Rect source=new Rect((int)(frame*sw),0,(int)((frame+1)*sw),dancingSkeleton.getHeight());
-            float size=Math.min(w*.66f,h*.48f),phase=elapsed/310f;
+            Rect sourceNext=new Rect((int)(next*sw),0,(int)((next+1)*sw),dancingSkeleton.getHeight());
+            float size=Math.min(w*1.25f,h*.62f),phase=elapsed/420f;
             float centerY=boardY+cell*N*.50f;
             int saved=c.save();
-            c.translate((float)Math.sin(elapsed/720f)*w*.12f,Math.abs((float)Math.sin(phase))*h*.009f);
-            c.rotate((float)Math.sin(phase*.65f)*4.2f,w/2,centerY);
-            c.scale(1f+(float)Math.sin(phase)*.035f,1f-(float)Math.sin(phase)*.025f,w/2,centerY);
-            c.drawBitmap(dancingSkeleton,source,new RectF(w/2-size*.53f,centerY-size*.54f,w/2+size*.53f,centerY+size*.54f),spritePaint);
+            float sway=(float)Math.sin(phase*.72f),settle=(float)Math.sin(phase*1.45f);
+            c.translate(sway*w*.10f,Math.abs(settle)*h*.008f);
+            c.rotate(sway*5.5f,w/2,centerY);
+            c.skew(sway*.035f,0f);
+            c.scale(1f-settle*.035f,1f+settle*.055f,w/2,centerY);
+            RectF dest=new RectF(w/2-size*.42f,centerY-size*.52f,w/2+size*.42f,centerY+size*.52f);
+            spritePaint.setAlpha((int)(255*(1f-blend)));
+            c.drawBitmap(dancingSkeleton,source,dest,spritePaint);
+            spritePaint.setAlpha((int)(255*blend));
+            c.drawBitmap(dancingSkeleton,sourceNext,dest,spritePaint);
+            spritePaint.setAlpha(255);
             c.restoreToCount(saved);
         }
         p.setColor(Color.WHITE);p.setTextSize(w*.035f);p.setShadowLayer(10,0,0,Color.rgb(91,36,161));
