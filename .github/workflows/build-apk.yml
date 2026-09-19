@@ -34,22 +34,22 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs app/build/outputs/apk/debug/app-debug.apk
 
       - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk GhostMatch3-v0.23.0.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk GhostMatch3-v0.24.0.apk
 
       - name: Upload test APK
         uses: actions/upload-artifact@v4
         with:
           name: GhostMatch3-Android-APK
-          path: GhostMatch3-v0.23.0.apk
+          path: GhostMatch3-v0.24.0.apk
 
       - name: Publish test release
         uses: ncipollo/release-action@v1
         with:
-          tag: v0.23.0
-          name: Ghost Match 3 - Test Version 0.23.0
-          artifacts: GhostMatch3-v0.23.0.apk
+          tag: v0.24.0
+          name: Ghost Match 3 - Test Version 0.24.0
+          artifacts: GhostMatch3-v0.24.0.apk
           allowUpdates: true
           replacesArtifacts: true
           body: |
-            Living stage-map update: ordinary stages now show procedurally varied ghost guardians with crowns, horns, wizard hats, halos, wings and magical jewels. Every third stage is a hand-drawn glowing treasure chest, every twelfth stage is a crowned world guardian, and locked stages hide their identity behind a mystery silhouette. Includes Thai kanok board frames and real milestone booster rewards. Test-only Google AdMob interstitials use SAMPLE IDs and generate no revenue.
-            Download GhostMatch3-v0.23.0.apk and install it on an Android phone.
+            Challenge update: introduces a fourth fire ghost from level 4, approximately 30% tougher goals and obstacles without reducing moves, and a smaller starter-booster inventory. Failed stages now offer retry, a +5-moves booster, or an optional rewarded test ad for +5 moves. Google SAMPLE ad IDs are used and generate no revenue.
+            Download GhostMatch3-v0.24.0.apk and install it on an Android phone.
