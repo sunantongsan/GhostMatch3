@@ -153,6 +153,7 @@ class GhostGameView extends View {
     private boolean won=false,lost=false,victoryAdvancing=false;
     private long gameStart=System.currentTimeMillis(),victoryStart=0;
     private int victoryReward=-1,victoryBonus=-1,victoryBonusCount=0;
+    private boolean worldClearReward=false;
     private static final long VICTORY_DANCE_MS=4800L;
     private final ArrayList<Spark> sparks=new ArrayList<>();
     private String comboText="";
@@ -289,7 +290,8 @@ class GhostGameView extends View {
             int stage=mapWorld*12+i+1;boolean unlocked=stage<=highestLevel;boolean cleared=stage<highestLevel;
             float x=mapNodeX(i,w),y=mapNodeY(i,h),rad=w*.067f;
             p.setColor(unlocked?Color.rgb(111,55,178):Color.rgb(48,40,69));
-            if(stage%12==0)p.setColor(unlocked?Color.rgb(174,63,120):Color.rgb(63,40,58));
+            if(stage%12==0)p.setColor(unlocked?Color.rgb(196,63,105):Color.rgb(63,40,58));
+            else if(stage%3==0)p.setColor(unlocked?Color.rgb(157,94,38):Color.rgb(58,47,38));
             p.setShadowLayer(unlocked?18:5,0,0,unlocked?Color.rgb(177,100,255):Color.BLACK);
             c.drawCircle(x,y,rad,p);p.clearShadowLayer();
             stroke.setStyle(Paint.Style.STROKE);stroke.setStrokeWidth(w*.009f);
@@ -299,6 +301,8 @@ class GhostGameView extends View {
             c.drawText(unlocked?"🚪":"🔒",x,y-w*.005f,p);
             p.setTextSize(w*.027f);c.drawText(""+stage,x,y+w*.043f,p);
             if(cleared){p.setColor(Color.rgb(104,239,87));p.setTextSize(w*.030f);c.drawText("✓",x+rad*.78f,y-rad*.62f,p);}
+            if(stage%12==0){p.setColor(Color.rgb(255,205,72));p.setTextSize(w*.016f);c.drawText("ประตูใหญ่",x,y+rad*1.35f,p);}
+            else if(stage%3==0){p.setColor(Color.rgb(255,218,112));p.setTextSize(w*.016f);c.drawText("หีบลับ",x,y+rad*1.35f,p);}
         }
         drawRound(c,w*.06f,h*.91f,w*.30f,h*.965f,mapWorld>0?Color.rgb(91,58,145):Color.rgb(53,44,71),w*.03f);
         drawRound(c,w*.70f,h*.91f,w*.94f,h*.965f,mapWorld<9?Color.rgb(91,58,145):Color.rgb(53,44,71),w*.03f);
@@ -382,7 +386,7 @@ class GhostGameView extends View {
             p.setTextSize(w*.037f);c.drawText("★",progL+(progR-progL)*i/3f,progY+w*.03f,p);
         }
         boardX=w*.025f; boardY=h*.208f; cell=(w-2*boardX)/N;
-        panel(c,boardX-w*.017f,boardY-w*.017f,w-boardX+w*.017f,boardY+cell*N+w*.017f,Color.rgb(37,39,83));
+        drawThaiBoardFrame(c);
         int boardClip=c.save();
         c.clipRect(boardX,boardY,boardX+N*cell,boardY+N*cell);
         for(int r=0;r<N;r++)for(int col=0;col<N;col++)drawCell(c,r,col);
@@ -680,17 +684,51 @@ class GhostGameView extends View {
         c.drawText(value,x,y+w*.043f,p);
     }
 
+    private void drawThaiBoardFrame(Canvas c){
+        int world=((level-1)/12)%5;
+        int[] inner={Color.rgb(39,27,79),Color.rgb(22,55,76),Color.rgb(72,27,62),Color.rgb(28,66,55),Color.rgb(64,44,25)};
+        int[] jewel={Color.rgb(190,89,255),Color.rgb(53,205,255),Color.rgb(255,83,180),Color.rgb(67,230,160),Color.rgb(255,153,54)};
+        // Build the backdrop from active cells, so every board has its own true silhouette.
+        for(int r=0;r<N;r++)for(int col=0;col<N;col++)if(!blocked[r][col]){
+            float x=boardX+col*cell,y=boardY+r*cell;
+            p.setColor(inner[world]);p.setShadowLayer(cell*.20f,0,cell*.05f,Color.argb(210,8,3,25));
+            c.drawRoundRect(x-cell*.015f,y-cell*.015f,x+cell*1.015f,y+cell*1.015f,cell*.12f,cell*.12f,p);p.clearShadowLayer();
+        }
+        Paint gold=new Paint(Paint.ANTI_ALIAS_FLAG);gold.setStyle(Paint.Style.STROKE);gold.setStrokeCap(Paint.Cap.ROUND);
+        gold.setStrokeWidth(cell*.065f);gold.setShader(new LinearGradient(boardX,boardY,boardX+N*cell,boardY+N*cell,
+            Color.rgb(255,239,145),Color.rgb(177,83,255),Shader.TileMode.MIRROR));
+        gold.setShadowLayer(cell*.15f,0,0,jewel[world]);
+        for(int r=0;r<N;r++)for(int col=0;col<N;col++)if(!blocked[r][col]){
+            float x=boardX+col*cell,y=boardY+r*cell,in=cell*.015f;
+            if(r==0||blocked[r-1][col])c.drawLine(x+in,y+in,x+cell-in,y+in,gold);
+            if(r==N-1||blocked[r+1][col])c.drawLine(x+in,y+cell-in,x+cell-in,y+cell-in,gold);
+            if(col==0||blocked[r][col-1])c.drawLine(x+in,y+in,x+in,y+cell-in,gold);
+            if(col==N-1||blocked[r][col+1])c.drawLine(x+cell-in,y+in,x+cell-in,y+cell-in,gold);
+        }
+        gold.clearShadowLayer();gold.setShader(null);
+        // Thai kanok flames crown the exposed upper rim instead of marking unused cells.
+        for(int col=0;col<N;col++){
+            int first=-1;for(int r=0;r<N;r++)if(!blocked[r][col]){first=r;break;}
+            if(first>=0&&(col%2==0||col==N-1))drawKanok(c,boardX+(col+.5f)*cell,boardY+first*cell,cell*.25f,jewel[world]);
+        }
+    }
+
+    private void drawKanok(Canvas c,float cx,float base,float size,int glow){
+        Path flame=new Path();
+        flame.moveTo(cx,base+size*.18f);flame.cubicTo(cx-size*.62f,base-size*.10f,cx-size*.42f,base-size*.74f,cx,base-size);
+        flame.cubicTo(cx+size*.06f,base-size*.52f,cx+size*.58f,base-size*.38f,cx+size*.36f,base+size*.12f);
+        flame.cubicTo(cx+size*.18f,base-size*.04f,cx+size*.02f,base-size*.10f,cx,base+size*.18f);flame.close();
+        p.setColor(Color.rgb(255,214,89));p.setShadowLayer(size*.42f,0,0,glow);c.drawPath(flame,p);p.clearShadowLayer();
+        Path inner=new Path();inner.moveTo(cx,base-size*.02f);inner.cubicTo(cx-size*.18f,base-size*.28f,cx-size*.05f,base-size*.55f,cx,base-size*.70f);
+        inner.cubicTo(cx+size*.22f,base-size*.38f,cx+size*.16f,base-size*.17f,cx,base-size*.02f);inner.close();
+        p.setColor(Color.rgb(101,35,142));c.drawPath(inner,p);
+    }
+
     private void drawCell(Canvas c,int r,int col){
         float x=boardX+col*cell, y=boardY+r*cell, pad=cell*.075f;
-        if(blocked[r][col]){
-            drawRound(c,x+pad,y+pad,x+cell-pad,y+cell-pad,Color.argb(135,19,13,43),cell*.22f);
-            stroke.setColor(Color.argb(120,123,94,165));stroke.setStrokeWidth(cell*.025f);
-            c.drawLine(x+cell*.28f,y+cell*.30f,x+cell*.72f,y+cell*.70f,stroke);
-            c.drawLine(x+cell*.72f,y+cell*.30f,x+cell*.28f,y+cell*.70f,stroke);
-            return;
-        }
+        if(blocked[r][col])return;
         float bob=(float)Math.sin((System.currentTimeMillis()-gameStart)/420.0+r*.8+col*.65)*cell*.025f;
-        int theme=(level/5)%4;
+        int theme=((level-1)/12)%4;
         int[] light={Color.argb(82,118,79,173),Color.argb(82,52,125,165),Color.argb(82,145,69,126),Color.argb(82,66,133,104)};
         int[] dark={Color.argb(58,78,52,132),Color.argb(58,30,75,126),Color.argb(58,91,39,105),Color.argb(58,38,82,74)};
         int back=((r+col)&1)==0?light[theme]:dark[theme];
@@ -985,7 +1023,8 @@ class GhostGameView extends View {
             p.setColor(Color.rgb(231,219,251));p.setTextSize(w*.034f);
             c.drawText("ด่าน "+level+" สำเร็จ • คะแนน "+score,w/2,t+h*.165f,p);
             drawRewardItem(c,victoryReward,1,w*.16f,t+h*.205f,w*.68f,h*.105f);
-            if(victoryBonusCount>0)drawRewardItem(c,victoryBonus,victoryBonusCount,w*.16f,t+h*.325f,w*.68f,h*.105f);
+            if(worldClearReward)drawWorldBundle(c,w*.16f,t+h*.325f,w*.68f,h*.105f);
+            else if(victoryBonusCount>0)drawRewardItem(c,victoryBonus,victoryBonusCount,w*.16f,t+h*.325f,w*.68f,h*.105f);
             else{
                 drawRound(c,w*.16f,t+h*.325f,w*.84f,t+h*.43f,Color.argb(100,44,29,83),w*.025f);
                 p.setColor(Color.rgb(203,188,229));p.setTextSize(w*.030f);
@@ -1033,7 +1072,9 @@ class GhostGameView extends View {
             c.restoreToCount(saved);
         }
         p.setColor(Color.WHITE);p.setTextSize(w*.035f);p.setShadowLayer(10,0,0,Color.rgb(91,36,161));
-        c.drawText(elapsed<1700?"ฉลองชัยชนะ!":elapsed<3300?"เต้นบนกระดานเลย!":"กำลังเตรียมรางวัล...",w/2,h*.80f,p);p.clearShadowLayer();
+        String victoryLine=worldClearReward?(elapsed<2600?"พิชิตประตูใหญ่!":"โลกใหม่กำลังเปิด..."):
+            elapsed<1700?"ฉลองชัยชนะ!":elapsed<3300?"เต้นบนกระดานเลย!":"กำลังเตรียมรางวัล...";
+        c.drawText(victoryLine,w/2,h*.80f,p);p.clearShadowLayer();
     }
 
     private void drawRewardItem(Canvas c,int item,int amount,float x,float y,float width,float height){
@@ -1049,6 +1090,16 @@ class GhostGameView extends View {
         c.drawText(item>=0?thai[item]:"ไอเท็มช่วยเหลือ",x+height*1.02f,y+height*.48f,p);
         p.setColor(Color.rgb(148,31,47));p.setTextSize(getWidth()*.040f);
         c.drawText("ได้รับ  +"+amount,x+height*1.02f,y+height*.79f,p);p.setTextAlign(Paint.Align.CENTER);
+    }
+
+    private void drawWorldBundle(Canvas c,float x,float y,float width,float height){
+        drawRound(c,x,y,x+width,y+height,Color.rgb(255,213,91),wSafe(width*.06f));
+        p.setTextAlign(Paint.Align.CENTER);p.setColor(Color.rgb(91,35,118));p.setTextSize(getWidth()*.043f);
+        c.drawText("♛  สมบัติโลกใหม่  ♛",x+width/2,y+height*.43f,p);
+        p.setColor(Color.rgb(137,38,65));p.setTextSize(getWidth()*.029f);
+        String bundle="ระเบิดแถว • คอลัมน์ • วิญญาณ • สายรุ้ง อย่างละ 1";
+        if(victoryBonusCount>0)bundle+="  + โบนัส 3 ดาว";
+        c.drawText(bundle,x+width/2,y+height*.76f,p);
     }
 
     private float wSafe(float value){return Math.max(8f,value);}
@@ -1538,7 +1589,7 @@ class GhostGameView extends View {
     private void checkEnd(){
         if(!won&&iceLeft==0&&collected[0]>=goals[0]&&collected[1]>=goals[1]&&collected[2]>=goals[2]){
             won=true;victoryStart=System.currentTimeMillis();
-            victoryReward=rng.nextInt(7);victoryBonus=-1;victoryBonusCount=0;
+            victoryReward=rng.nextInt(7);victoryBonus=-1;victoryBonusCount=0;worldClearReward=level%12==0;
             boosterCount[victoryReward]++;
             int earnedStars=starsEarned();
             boolean firstThreeStar=earnedStars==3&&!progress.getBoolean("three_star_"+level,false);
@@ -1546,6 +1597,12 @@ class GhostGameView extends View {
                 victoryBonus=2+rng.nextInt(4);victoryBonusCount=2;
                 boosterCount[victoryBonus]+=victoryBonusCount;
                 progress.edit().putBoolean("three_star_"+level,true).apply();
+            }
+            if(worldClearReward){
+                for(int item=2;item<=5;item++)boosterCount[item]++;
+            }else if(level%3==0){
+                if(victoryBonus<0)victoryBonus=2+rng.nextInt(4);
+                boosterCount[victoryBonus]++;victoryBonusCount++;
             }
             if(getContext() instanceof MainActivity)((MainActivity)getContext()).onLevelCompleted(level);
             highestLevel=Math.min(120,Math.max(highestLevel,level+1));
