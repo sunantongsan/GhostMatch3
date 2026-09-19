@@ -160,7 +160,7 @@ class GhostGameView extends View {
     private final Paint p=new Paint(3);
     private final Paint stroke=new Paint(3);
     private final Paint spritePaint=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);
-    private Bitmap ghostSheet,ghostReactions,boosterSheet,hauntedBackground,magicItems,dancingSkeleton;
+    private Bitmap ghostSheet,ghostReactions,boosterSheet,hauntedBackground,magicItems,dancingSkeleton,laughingSkull;
     private final int[] colors={Color.rgb(245,245,255),Color.rgb(188,236,172),Color.rgb(161,77,227),Color.rgb(255,143,55)};
     private final String[] boosterNames={"SWAP","HAMMER","ROW","COLUMN","BURST","RAINBOW","+5"};
     private final int[] boosterCount={2,2,1,1,1,1,2};
@@ -178,10 +178,11 @@ class GhostGameView extends View {
     private float touchDownX, touchDownY;
     private int touchDownR=-1, touchDownC=-1;
     private boolean won=false,lost=false,victoryAdvancing=false,rewardAdPending=false;
-    private long gameStart=System.currentTimeMillis(),victoryStart=0;
+    private long gameStart=System.currentTimeMillis(),victoryStart=0,lostStart=0;
     private int victoryReward=-1,victoryBonus=-1,victoryBonusCount=0;
     private boolean worldClearReward=false;
     private static final long VICTORY_DANCE_MS=4800L;
+    private static final long FAILURE_LAUGH_MS=2800L;
     private final ArrayList<Spark> sparks=new ArrayList<>();
     private String comboText="";
     private long comboUntil=0;
@@ -208,6 +209,7 @@ class GhostGameView extends View {
         boosterSheet=BitmapFactory.decodeResource(getResources(),R.drawable.booster_sprites);
         magicItems=BitmapFactory.decodeResource(getResources(),R.drawable.magic_items);
         dancingSkeleton=BitmapFactory.decodeResource(getResources(),R.drawable.skeleton_dance_v2);
+        laughingSkull=BitmapFactory.decodeResource(getResources(),R.drawable.laughing_skull);
         hauntedBackground=BitmapFactory.decodeResource(getResources(),R.drawable.haunted_background);
         progress=c.getSharedPreferences("ghostmatch_progress",Context.MODE_PRIVATE);
         highestLevel=Math.max(1,progress.getInt("highest_level",1));
@@ -1121,6 +1123,9 @@ class GhostGameView extends View {
         if(won&&System.currentTimeMillis()-victoryStart<VICTORY_DANCE_MS){
             drawVictoryDance(c,w,h,System.currentTimeMillis()-victoryStart);return;
         }
+        if(lost&&System.currentTimeMillis()-lostStart<FAILURE_LAUGH_MS){
+            drawFailureLaugh(c,w,h,System.currentTimeMillis()-lostStart);return;
+        }
         p.setColor(Color.argb(218,10,5,30));c.drawRect(0,0,w,h,p);
         float l=w*.08f,r=w*.92f,t=won?h*.20f:lost?h*.20f:h*.30f,b=won?h*.79f:lost?h*.88f:
             paused&&getContext() instanceof MainActivity&&((MainActivity)getContext()).needsPrivacyOptions()?h*.79f:h*.68f;
@@ -1174,6 +1179,29 @@ class GhostGameView extends View {
             p.setColor(Color.rgb(205,192,235));p.setTextSize(w*.026f);
             c.drawText("โฆษณาทดสอบ • รับรางวัลเมื่อดูจบ",w/2,h*.815f,p);
         }
+    }
+
+    private void drawFailureLaugh(Canvas c,float w,float h,long elapsed){
+        float entrance=Math.min(1f,elapsed/360f);
+        float bounce=1f+.055f*(float)Math.sin(elapsed/72f);
+        float tilt=(float)Math.sin(elapsed/105f)*5.5f;
+        float centerX=w/2+(float)Math.sin(elapsed/90f)*w*.018f;
+        float centerY=boardY+cell*N*.48f;
+        float size=Math.min(w*.92f,h*.50f)*entrance*bounce;
+        if(laughingSkull!=null&&!laughingSkull.isRecycled()){
+            int save=c.save();c.rotate(tilt,centerX,centerY);
+            spritePaint.setAlpha(255);
+            float aspect=laughingSkull.getWidth()/(float)laughingSkull.getHeight();
+            c.drawBitmap(laughingSkull,null,new RectF(centerX-size*.50f*aspect,centerY-size*.50f,
+                centerX+size*.50f*aspect,centerY+size*.50f),spritePaint);
+            c.restoreToCount(save);
+        }
+        float textPulse=1f+.06f*(float)Math.sin(elapsed/115f);
+        int save=c.save();c.scale(textPulse,textPulse,w/2,h*.79f);
+        p.setTextAlign(Paint.Align.CENTER);p.setTypeface(Typeface.create("sans",Typeface.BOLD));
+        p.setColor(Color.rgb(255,222,83));p.setTextSize(w*.058f);p.setShadowLayer(16,0,0,Color.rgb(104,34,183));
+        c.drawText(elapsed<1250?"ฮ่า ฮ่า ฮ่า!":"เกือบผ่านแล้ว!",w/2,h*.79f,p);p.clearShadowLayer();
+        c.restoreToCount(save);
     }
 
     private void drawVictoryDance(Canvas c,float w,float h,long elapsed){
@@ -1296,6 +1324,7 @@ class GhostGameView extends View {
             invalidate();return true;
         }
         if(won||lost||paused){
+            if(lost&&System.currentTimeMillis()-lostStart<FAILURE_LAUGH_MS)return true;
             if(paused&&y>getHeight()*.70f&&y<getHeight()*.77f
                &&getContext() instanceof MainActivity){
                 ((MainActivity)getContext()).openPrivacyOptions();return true;
@@ -1757,7 +1786,7 @@ class GhostGameView extends View {
             performHapticFeedback(HapticFeedbackConstants.CONFIRM);
             message(firstThreeStar?"3 STARS! +2 magic boosters!":"Level complete! Free booster earned.");
         }
-        else if(moves<=0)lost=true;
+        else if(moves<=0&&!lost){lost=true;lostStart=System.currentTimeMillis();performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);}
     }
 
     private void message(String s){toast=s;toastUntil=System.currentTimeMillis()+2300;}

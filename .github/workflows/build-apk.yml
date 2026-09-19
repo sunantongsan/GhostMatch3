@@ -40,22 +40,22 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs app/build/outputs/apk/debug/app-debug.apk
 
       - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk GhostMatch3-v0.24.0.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk GhostMatch3-v0.25.0.apk
 
       - name: Upload test APK
         uses: actions/upload-artifact@v4
         with:
           name: GhostMatch3-Android-APK
-          path: GhostMatch3-v0.24.0.apk
+          path: GhostMatch3-v0.25.0.apk
 
       - name: Publish test release
         uses: ncipollo/release-action@v1
         with:
-          tag: v0.24.0
-          name: Ghost Match 3 - Test Version 0.24.0
-          artifacts: GhostMatch3-v0.24.0.apk
+          tag: v0.25.0
+          name: Ghost Match 3 - Test Version 0.25.0
+          artifacts: GhostMatch3-v0.25.0.apk
           allowUpdates: true
           replacesArtifacts: true
           body: |
-            Challenge update: introduces a fourth fire ghost from level 4, approximately 30% tougher goals and obstacles without reducing moves, and a smaller starter-booster inventory. Failed stages now offer retry, a +5-moves booster, or an optional rewarded test ad for +5 moves. Google SAMPLE ad IDs are used and generate no revenue.
-            Download GhostMatch3-v0.24.0.apk and install it on an Android phone.
+            Failure-character update: when a stage is not completed, an original transparent laughing skull head appears over the live game board with a wide theatrical grin, playful shake-and-bounce animation, and floating 5 numerals. No background and no confetti. Continue options appear after the short animation.
+            Download GhostMatch3-v0.25.0.apk and install it on an Android phone.
