@@ -160,7 +160,7 @@ class GhostGameView extends View {
     private final Paint p=new Paint(3);
     private final Paint stroke=new Paint(3);
     private final Paint spritePaint=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);
-    private Bitmap ghostSheet,ghostReactions,boosterSheet,hauntedBackground,magicItems,dancingSkeleton,laughingSkull;
+    private Bitmap ghostSheet,ghostReactions,boosterSheet,hauntedBackground,magicItems,dancingSkeleton,dancingSkeletonFallback,laughingSkull;
     private final int[] colors={Color.rgb(245,245,255),Color.rgb(188,236,172),Color.rgb(161,77,227),Color.rgb(255,143,55)};
     private final String[] boosterNames={"SWAP","HAMMER","ROW","COLUMN","BURST","RAINBOW","+5"};
     private final int[] boosterCount={2,2,1,1,1,1,2};
@@ -204,12 +204,14 @@ class GhostGameView extends View {
         super(c);
         setLayerType(View.LAYER_TYPE_SOFTWARE,null);
         stroke.setStyle(Paint.Style.STROKE);
-        ghostSheet=BitmapFactory.decodeResource(getResources(),R.drawable.ghost_sprites);
+        // ghost_reactions already contains every playable ghost; avoid decoding a duplicate 6 MB sheet.
+        ghostSheet=null;
         ghostReactions=BitmapFactory.decodeResource(getResources(),R.drawable.ghost_reactions);
         boosterSheet=BitmapFactory.decodeResource(getResources(),R.drawable.booster_sprites);
         magicItems=BitmapFactory.decodeResource(getResources(),R.drawable.magic_items);
-        dancingSkeleton=BitmapFactory.decodeResource(getResources(),R.drawable.skeleton_dance_v3);
-        laughingSkull=BitmapFactory.decodeResource(getResources(),R.drawable.laughing_skull);
+        dancingSkeleton=BitmapFactory.decodeResource(getResources(),R.drawable.skeleton_dance_v4);
+        if(dancingSkeleton==null)dancingSkeletonFallback=BitmapFactory.decodeResource(getResources(),R.drawable.skeleton_dance_v2);
+        laughingSkull=BitmapFactory.decodeResource(getResources(),R.drawable.laughing_skull_v2);
         hauntedBackground=BitmapFactory.decodeResource(getResources(),R.drawable.haunted_background);
         progress=c.getSharedPreferences("ghostmatch_progress",Context.MODE_PRIVATE);
         highestLevel=Math.max(1,progress.getInt("highest_level",1));
@@ -1225,14 +1227,15 @@ class GhostGameView extends View {
         c.drawText("ยินดีด้วย",w/2,h*.125f,p);
         p.setColor(Color.rgb(255,220,79));p.setTextSize(w*.048f);
         c.drawText("คุณผ่านด่าน "+level+" แล้ว!",w/2,h*.172f,p);p.clearShadowLayer();
-        if(dancingSkeleton!=null&&!dancingSkeleton.isRecycled()){
+        Bitmap skeleton=dancingSkeleton!=null&&!dancingSkeleton.isRecycled()?dancingSkeleton:dancingSkeletonFallback;
+        if(skeleton!=null&&!skeleton.isRecycled()){
             float frameProgress=(elapsed%5200L)/650f;
             int frame=(int)frameProgress%8,next=(frame+1)%8;
             float blend=frameProgress-(int)frameProgress;
             blend=blend*blend*(3f-2f*blend);
-            float sw=dancingSkeleton.getWidth()/8f;
-            Rect source=new Rect((int)(frame*sw),0,(int)((frame+1)*sw),dancingSkeleton.getHeight());
-            Rect sourceNext=new Rect((int)(next*sw),0,(int)((next+1)*sw),dancingSkeleton.getHeight());
+            float sw=skeleton.getWidth()/8f;
+            Rect source=new Rect((int)(frame*sw),0,(int)((frame+1)*sw),skeleton.getHeight());
+            Rect sourceNext=new Rect((int)(next*sw),0,(int)((next+1)*sw),skeleton.getHeight());
             float size=Math.min(w*1.25f,h*.62f),phase=elapsed/420f;
             float centerY=boardY+cell*N*.50f;
             int saved=c.save();
@@ -1243,9 +1246,9 @@ class GhostGameView extends View {
             c.scale(1f-settle*.035f,1f+settle*.055f,w/2,centerY);
             RectF dest=new RectF(w/2-size*.42f,centerY-size*.52f,w/2+size*.42f,centerY+size*.52f);
             spritePaint.setAlpha((int)(255*(1f-blend)));
-            c.drawBitmap(dancingSkeleton,source,dest,spritePaint);
+            c.drawBitmap(skeleton,source,dest,spritePaint);
             spritePaint.setAlpha((int)(255*blend));
-            c.drawBitmap(dancingSkeleton,sourceNext,dest,spritePaint);
+            c.drawBitmap(skeleton,sourceNext,dest,spritePaint);
             spritePaint.setAlpha(255);
             c.restoreToCount(saved);
         }
