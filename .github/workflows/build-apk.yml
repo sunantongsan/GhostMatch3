@@ -34,22 +34,22 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs app/build/outputs/apk/debug/app-debug.apk
 
       - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk GhostMatch3-v0.21.0.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk GhostMatch3-v0.22.0.apk
 
       - name: Upload test APK
         uses: actions/upload-artifact@v4
         with:
           name: GhostMatch3-Android-APK
-          path: GhostMatch3-v0.21.0.apk
+          path: GhostMatch3-v0.22.0.apk
 
       - name: Publish test release
         uses: ncipollo/release-action@v1
         with:
-          tag: v0.21.0
-          name: Ghost Match 3 - Test Version 0.21.0
-          artifacts: GhostMatch3-v0.21.0.apk
+          tag: v0.22.0
+          name: Ghost Match 3 - Test Version 0.22.0
+          artifacts: GhostMatch3-v0.22.0.apk
           allowUpdates: true
           replacesArtifacts: true
           body: |
-            Victory presentation redesign: the transparent dancing skeleton now celebrates directly over the live game board with Thai congratulations, then transitions to a separate reward summary showing the exact booster and quantity earned before the next-level button appears. Includes the 120-stage adventure map and varied board layouts. Test-only Google AdMob interstitials use SAMPLE IDs and generate no revenue.
-            Download GhostMatch3-v0.21.0.apk and install it on an Android phone.
+            Grand Thai-board update: active areas now form true silhouettes with no blocked-cell crosses, surrounded by luminous gold-purple Thai kanok borders that change color by world. The 120-stage map adds real treasure gates every 3 stages and grand world gates every 12 stages. World gates grant four magic boosters and unlock a new visual theme. Test-only Google AdMob interstitials use SAMPLE IDs and generate no revenue.
+            Download GhostMatch3-v0.22.0.apk and install it on an Android phone.
