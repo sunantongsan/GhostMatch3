@@ -17,6 +17,8 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
+            // Artwork is already compressed; avoid AAPT2 re-crunching sprite sheets.
+            isCrunchPngs = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
