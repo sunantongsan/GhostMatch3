@@ -1,0 +1,35 @@
+name: Build Play App Bundle
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - '*.gradle.kts'
+      - '.github/workflows/build-play-bundle.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+      - name: Build release bundle and run lint
+        run: gradle :app:bundleRelease :app:lintRelease --stacktrace
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GhostMatch3-unsigned-release-bundle
+          path: app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: GhostMatch3-lint-report
+          path: app/build/reports/lint-results-release.*
