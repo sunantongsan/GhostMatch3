@@ -30,7 +30,7 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: "8.9"
+          gradle-version: "8.11.1"
 
       - name: Build debug APK
         run: gradle :app:assembleDebug --stacktrace
@@ -40,22 +40,22 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs app/build/outputs/apk/debug/app-debug.apk
 
       - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk GhostMatch3-v0.28.0.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk GhostMatch3-v0.29.0.apk
 
       - name: Upload test APK
         uses: actions/upload-artifact@v4
         with:
           name: GhostMatch3-Android-APK
-          path: GhostMatch3-v0.28.0.apk
+          path: GhostMatch3-v0.29.0.apk
 
       - name: Publish test release
         uses: ncipollo/release-action@v1
         with:
-          tag: v0.28.0
-          name: Ghost Match 3 - Test Version 0.28.0
-          artifacts: GhostMatch3-v0.28.0.apk
+          tag: v0.29.0
+          name: Ghost Match 3 - Test Version 0.29.0
+          artifacts: GhostMatch3-v0.29.0.apk
           allowUpdates: true
           replacesArtifacts: true
           body: |
             Mobile-memory fix: optimized skull and skeleton textures retain their original generated appearance while using less than half the decoded memory. Removed a redundant ghost sheet and restored the known-working skeleton as an automatic fallback, preventing both celebration characters from disappearing on lower-memory phones.
-            Download GhostMatch3-v0.28.0.apk and install it on an Android phone.
+            Download GhostMatch3-v0.29.0.apk and install it on an Android phone.

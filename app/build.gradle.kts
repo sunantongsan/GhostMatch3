@@ -4,14 +4,14 @@ plugins {
 
 android {
     namespace = "com.sunantongsan.ghostmatch3"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.sunantongsan.ghostmatch3"
         minSdk = 24
-        targetSdk = 35
-        versionCode = 28
-        versionName = "0.28.0"
+        targetSdk = 36
+        versionCode = 29
+        versionName = "0.29.0"
     }
 
     buildTypes {
