@@ -31,6 +31,7 @@ public class MainActivity extends Activity {
     private RewardedAd rewardedAd;
     private boolean adsInitialized=false, adLoading=false, rewardLoading=false, privacyOptionsRequired=false;
     private long lastAdShownAt=0;
+    private boolean underAgeOfConsent=true;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -38,19 +39,60 @@ public class MainActivity extends Activity {
         getWindow().setNavigationBarColor(Color.rgb(18,10,46));
         gameView=new GhostGameView(this);
         setContentView(gameView);
-        requestAdConsent();
+        requestPlayerAge();
+    }
+
+    private void requestPlayerAge(){
+        // Store only an age band locally, never a birth date or exact age.
+        android.content.SharedPreferences prefs=getSharedPreferences("ad_age",MODE_PRIVATE);
+        String band=prefs.getString("band","");
+        if("teen".equals(band)||"adult".equals(band)){
+            underAgeOfConsent=!"adult".equals(band);
+            requestAdConsent();
+            return;
+        }
+        android.widget.EditText input=new android.widget.EditText(this);
+        input.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        input.setHint("อายุ (ปี)");
+        input.setFilters(new android.text.InputFilter[]{new android.text.InputFilter.LengthFilter(3)});
+        android.app.AlertDialog dialog=new android.app.AlertDialog.Builder(this)
+            .setTitle("อายุของคุณ")
+            .setMessage("กรุณาระบุอายุตามจริง เพื่อจัดการความเป็นส่วนตัวและโฆษณาให้เหมาะสม เก็บเฉพาะกลุ่มอายุไว้บนเครื่อง")
+            .setView(input).setCancelable(false)
+            .setNegativeButton("ออก",(d,w)->finish())
+            .setPositiveButton("ต่อไป",null).create();
+        dialog.setOnShowListener(d->dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{
+            int age;
+            try{age=Integer.parseInt(input.getText().toString().trim());}
+            catch(NumberFormatException e){input.setError("กรุณาระบุอายุ");return;}
+            if(age<1||age>120){input.setError("กรุณาตรวจสอบอายุ");return;}
+            if(age<13){
+                dialog.dismiss();
+                new android.app.AlertDialog.Builder(this).setTitle("ยังไม่สามารถเข้าเล่นได้")
+                    .setMessage("เกมนี้เปิดให้ผู้เล่นอายุ 13 ปีขึ้นไป")
+                    .setCancelable(false).setPositiveButton("ปิดเกม",(a,b)->finish()).show();
+                return;
+            }
+            underAgeOfConsent=age<18;
+            prefs.edit().putString("band",underAgeOfConsent?"teen":"adult").apply();
+            dialog.dismiss();
+            requestAdConsent();
+        }));
+        dialog.show();
     }
 
     private void requestAdConsent(){
-        // Apply child protections to every player; do not infer or collect age.
+        // Target audience is 13+. Treat all minors conservatively; adults use UMP consent.
         MobileAds.setRequestConfiguration(new com.google.android.gms.ads.RequestConfiguration.Builder()
-            .setTagForChildDirectedTreatment(com.google.android.gms.ads.RequestConfiguration.TAG_FOR_CHILD_DIRECTED_TREATMENT_TRUE)
-            .setTagForUnderAgeOfConsent(com.google.android.gms.ads.RequestConfiguration.TAG_FOR_UNDER_AGE_OF_CONSENT_TRUE)
+            .setTagForChildDirectedTreatment(com.google.android.gms.ads.RequestConfiguration.TAG_FOR_CHILD_DIRECTED_TREATMENT_FALSE)
+            .setTagForUnderAgeOfConsent(underAgeOfConsent
+                ?com.google.android.gms.ads.RequestConfiguration.TAG_FOR_UNDER_AGE_OF_CONSENT_TRUE
+                :com.google.android.gms.ads.RequestConfiguration.TAG_FOR_UNDER_AGE_OF_CONSENT_FALSE)
             .setMaxAdContentRating(com.google.android.gms.ads.RequestConfiguration.MAX_AD_CONTENT_RATING_G)
             .build());
         consentInformation=UserMessagingPlatform.getConsentInformation(this);
         consentInformation.requestConsentInfoUpdate(this,
-            new ConsentRequestParameters.Builder().setTagForUnderAgeOfConsent(true).build(),
+            new ConsentRequestParameters.Builder().setTagForUnderAgeOfConsent(underAgeOfConsent).build(),
             ()->{
                 refreshPrivacyOption();
                 UserMessagingPlatform.loadAndShowConsentFormIfRequired(this,error->{
