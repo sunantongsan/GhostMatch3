@@ -26,6 +26,7 @@ public class MainActivity extends Activity {
     private static final String TEST_REWARDED_ID="ca-app-pub-3940256099942544/5224354917";
     private static final String TEST_BANNER_ID="ca-app-pub-3940256099942544/6300978111";
     private GhostGameView gameView;
+    private GameAudio gameAudio;
     private ConsentInformation consentInformation;
     private InterstitialAd interstitial;
     private RewardedAd rewardedAd;
@@ -41,6 +42,8 @@ public class MainActivity extends Activity {
         super.onCreate(state);
         getWindow().setStatusBarColor(Color.rgb(18,10,46));
         getWindow().setNavigationBarColor(Color.rgb(18,10,46));
+        setVolumeControlStream(android.media.AudioManager.STREAM_MUSIC);
+        gameAudio=new GameAudio(this);
         gameView=new GhostGameView(this);
         rootLayout=new android.widget.FrameLayout(this);
         rootLayout.addView(gameView,new android.widget.FrameLayout.LayoutParams(-1,-1));
@@ -138,6 +141,10 @@ public class MainActivity extends Activity {
         MobileAds.initialize(this,status->runOnUiThread(()->{if(isDestroyed()||isFinishing())return;loadNextAd();loadRewardedAd();loadBanner();}));
     }
 
+    void playSound(int kind){if(gameAudio!=null)gameAudio.play(kind);}
+    boolean soundEnabled(){return gameAudio!=null&&gameAudio.isEnabled();}
+    void toggleSound(){if(gameAudio!=null){gameAudio.toggle();gameAudio.play(GameAudio.GHOST);}}
+
     private int dp(float value){return Math.round(value*getResources().getDisplayMetrics().density);}
 
     private void loadBanner(){
@@ -184,9 +191,9 @@ public class MainActivity extends Activity {
         if(bannerSlot!=null){rootLayout.removeView(bannerSlot);bannerSlot=null;}
     }
 
-    @Override protected void onResume(){super.onResume();activityResumed=true;if(bannerAd!=null)bannerAd.resume();if(gameView!=null)gameView.invalidate();}
-    @Override protected void onPause(){activityResumed=false;if(bannerAd!=null)bannerAd.pause();if(bannerSlot!=null)bannerSlot.setVisibility(View.GONE);super.onPause();}
-    @Override protected void onDestroy(){destroyBanner();super.onDestroy();}
+    @Override protected void onResume(){super.onResume();activityResumed=true;if(gameAudio!=null)gameAudio.setActive(true);if(bannerAd!=null)bannerAd.resume();if(gameView!=null)gameView.invalidate();}
+    @Override protected void onPause(){activityResumed=false;if(gameAudio!=null)gameAudio.setActive(false);if(bannerAd!=null)bannerAd.pause();if(bannerSlot!=null)bannerSlot.setVisibility(View.GONE);super.onPause();}
+    @Override protected void onDestroy(){if(gameAudio!=null)gameAudio.release();destroyBanner();super.onDestroy();}
 
     private void loadRewardedAd(){
         if(!adsInitialized||consentInformation==null||!consentInformation.canRequestAds()
@@ -1268,9 +1275,10 @@ class GhostGameView extends View {
             c.drawText(victoryAdvancing?"กำลังโหลด...":"ไปด่านต่อไป",w/2,t+h*.512f,p);
             c.restoreToCount(save);
         }else if(paused){
-            p.setTextSize(w*.12f);c.drawText("♥",w/2,t+h*.17f,p);
-            p.setTextSize(w*.044f);p.setColor(Color.rgb(233,220,255));
-            c.drawText("Tap continue to play",w/2,t+h*.23f,p);
+            drawRound(c,w*.22f,h*.44f,w*.78f,h*.53f,Color.rgb(105,73,162),40);
+            p.setTextSize(w*.042f);p.setColor(Color.WHITE);
+            boolean sound=getContext() instanceof MainActivity&&((MainActivity)getContext()).soundEnabled();
+            c.drawText(sound?"เสียง: เปิด":"เสียง: ปิด",w/2,h*.498f,p);
             drawRound(c,w*.22f,t+h*.27f,w*.78f,t+h*.35f,Color.rgb(255,188,64),50);
             p.setColor(Color.rgb(55,25,70));p.setTextSize(w*.045f);
             c.drawText("CONTINUE",w/2,t+h*.325f,p);
@@ -1438,6 +1446,7 @@ class GhostGameView extends View {
                 selectedR=touchDownR; selectedC=touchDownC;
                 reactionR=touchDownR;reactionC=touchDownC;
                 reactionStart=System.currentTimeMillis();reactionUntil=reactionStart+REACTION_MS;
+                sound(GameAudio.GHOST);
                 performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);
                 invalidate();
             } else {touchDownR=-1;touchDownC=-1;}
@@ -1464,6 +1473,10 @@ class GhostGameView extends View {
         }
         if(won||lost||paused){
             if(lost&&System.currentTimeMillis()-lostStart<FAILURE_LAUGH_MS)return true;
+            if(paused&&y>getHeight()*.44f&&y<getHeight()*.53f&&x>getWidth()*.22f&&x<getWidth()*.78f
+               &&getContext() instanceof MainActivity){
+                ((MainActivity)getContext()).toggleSound();invalidate();return true;
+            }
             if(paused&&y>getHeight()*.70f&&y<getHeight()*.77f
                &&getContext() instanceof MainActivity){
                 ((MainActivity)getContext()).openPrivacyOptions();return true;
@@ -1542,9 +1555,11 @@ class GhostGameView extends View {
         swap(r1,c1,r2,c2);
         if(a<TYPES&&b<TYPES&&!hasAnyMatch()){
             swap(r1,c1,r2,c2);
+            sound(GameAudio.INVALID);
             message("Try another pair!");
             return;
         }
+        sound(GameAudio.SWAP);
         moves--;cascadeDepth=0;
         swapR1=r1;swapC1=c1;swapR2=r2;swapC2=c2;
         animationPhase=3;phaseStart=System.currentTimeMillis();
@@ -1623,7 +1638,7 @@ class GhostGameView extends View {
         }return null;
     }
 
-    private void useBooster(int i,String msg){boosterCount[i]--;mode=-1;message(msg);}
+    private void useBooster(int i,String msg){sound(GameAudio.MAGIC);boosterCount[i]--;mode=-1;message(msg);}
     private void clearAt(int r,int c){board[r][c]=-1;}
     private void swap(int r1,int c1,int r2,int c2){int t=board[r1][c1];board[r1][c1]=board[r2][c2];board[r2][c2]=t;}
 
@@ -1786,6 +1801,7 @@ class GhostGameView extends View {
             }
         }
         if(expanded.isEmpty()){ensureMove();checkEnd();return;}
+        sound(!player||reward!=null||expanded.size()>hits.size()?GameAudio.MAGIC:GameAudio.MATCH);
         exploding.clear();exploding.addAll(expanded);animationPhase=1;phaseStart=System.currentTimeMillis();
         activeMultiplier=powerMultiplier;powerMultiplier=1;
         combo=Math.min(12,cascadeDepth);score+=expanded.size()*90*combo*activeMultiplier;
@@ -1901,6 +1917,7 @@ class GhostGameView extends View {
         boolean objectivesMet=iceLeft==0;
         for(int i=0;i<TYPES;i++)if(goals[i]>0&&collected[i]<goals[i])objectivesMet=false;
         if(!won&&objectivesMet){
+            sound(GameAudio.WIN);
             won=true;victoryStart=System.currentTimeMillis();
             victoryReward=rng.nextInt(7);victoryBonus=-1;victoryBonusCount=0;worldClearReward=level%12==0;
             boosterCount[victoryReward]++;
@@ -1925,8 +1942,10 @@ class GhostGameView extends View {
             performHapticFeedback(HapticFeedbackConstants.CONFIRM);
             message(firstThreeStar?"3 STARS! +2 magic boosters!":"Level complete! Free booster earned.");
         }
-        else if(moves<=0&&!lost){lost=true;lostStart=System.currentTimeMillis();performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);}
+        else if(moves<=0&&!lost){sound(GameAudio.LOSE);lost=true;lostStart=System.currentTimeMillis();performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);}
     }
+
+    private void sound(int kind){if(getContext() instanceof MainActivity)((MainActivity)getContext()).playSound(kind);}
 
     private void message(String s){toast=s;toastUntil=System.currentTimeMillis()+2300;}
     private void drawRound(Canvas c,float l,float t,float r,float b,int color,float rad){
