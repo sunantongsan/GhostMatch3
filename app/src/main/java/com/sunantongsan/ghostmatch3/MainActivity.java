@@ -42,9 +42,15 @@ public class MainActivity extends Activity {
     }
 
     private void requestAdConsent(){
+        // Apply child protections to every player; do not infer or collect age.
+        MobileAds.setRequestConfiguration(new com.google.android.gms.ads.RequestConfiguration.Builder()
+            .setTagForChildDirectedTreatment(com.google.android.gms.ads.RequestConfiguration.TAG_FOR_CHILD_DIRECTED_TREATMENT_TRUE)
+            .setTagForUnderAgeOfConsent(com.google.android.gms.ads.RequestConfiguration.TAG_FOR_UNDER_AGE_OF_CONSENT_TRUE)
+            .setMaxAdContentRating(com.google.android.gms.ads.RequestConfiguration.MAX_AD_CONTENT_RATING_G)
+            .build());
         consentInformation=UserMessagingPlatform.getConsentInformation(this);
         consentInformation.requestConsentInfoUpdate(this,
-            new ConsentRequestParameters.Builder().build(),
+            new ConsentRequestParameters.Builder().setTagForUnderAgeOfConsent(true).build(),
             ()->{
                 refreshPrivacyOption();
                 UserMessagingPlatform.loadAndShowConsentFormIfRequired(this,error->{
