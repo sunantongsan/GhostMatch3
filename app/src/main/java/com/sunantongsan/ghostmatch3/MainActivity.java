@@ -70,8 +70,11 @@ public class MainActivity extends Activity {
             .setMessage("กรุณาระบุอายุตามจริง เพื่อจัดการความเป็นส่วนตัวและโฆษณาให้เหมาะสม เก็บเฉพาะกลุ่มอายุไว้บนเครื่อง")
             .setView(input).setCancelable(false)
             .setNegativeButton("ออก",(d,w)->finish())
+            .setNeutralButton("ความเป็นส่วนตัว",null)
             .setPositiveButton("ต่อไป",null).create();
-        dialog.setOnShowListener(d->dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{
+        dialog.setOnShowListener(d->{
+            dialog.getButton(android.app.AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v->openPrivacyPolicy());
+            dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{
             int age;
             try{age=Integer.parseInt(input.getText().toString().trim());}
             catch(NumberFormatException e){input.setError("กรุณาระบุอายุ");return;}
@@ -87,7 +90,7 @@ public class MainActivity extends Activity {
             prefs.edit().putString("band",underAgeOfConsent?"teen":"adult").apply();
             dialog.dismiss();
             requestAdConsent();
-        }));
+        });});
         dialog.show();
     }
 
@@ -139,6 +142,22 @@ public class MainActivity extends Activity {
         if(adsInitialized){loadBanner();return;}
         adsInitialized=true;
         MobileAds.initialize(this,status->runOnUiThread(()->{if(isDestroyed()||isFinishing())return;loadNextAd();loadRewardedAd();loadBanner();}));
+    }
+
+    void openPrivacyPolicy(){
+        String text;
+        try(java.io.InputStream input=getAssets().open("privacy_policy.txt")){
+            java.io.ByteArrayOutputStream bytes=new java.io.ByteArrayOutputStream();
+            byte[] buffer=new byte[4096];int count;
+            while((count=input.read(buffer))!=-1)bytes.write(buffer,0,count);
+            text=new String(bytes.toByteArray(),java.nio.charset.StandardCharsets.UTF_8);
+        }catch(java.io.IOException e){text="นโยบายความเป็นส่วนตัว: https://raw.githubusercontent.com/sunantongsan/GhostMatch3/main/PRIVACY.txt\nติดต่อ sunan.tongsan@gmail.com";}
+        android.widget.TextView content=new android.widget.TextView(this);
+        content.setText(text);content.setTextSize(15);content.setPadding(dp(20),dp(12),dp(20),dp(12));
+        android.text.util.Linkify.addLinks(content,android.text.util.Linkify.WEB_URLS|android.text.util.Linkify.EMAIL_ADDRESSES);
+        content.setMovementMethod(android.text.method.LinkMovementMethod.getInstance());
+        android.widget.ScrollView scroll=new android.widget.ScrollView(this);scroll.addView(content);
+        new android.app.AlertDialog.Builder(this).setTitle("ความเป็นส่วนตัว").setView(scroll).setPositiveButton("ปิด",null).show();
     }
 
     void playSound(int kind){if(gameAudio!=null)gameAudio.play(kind);}
@@ -470,6 +489,7 @@ class GhostGameView extends View {
         p.setColor(Color.WHITE);p.setTextSize(w*.031f);c.drawText("‹ โลกก่อน",w*.18f,h*.948f,p);c.drawText("โลกถัดไป ›",w*.82f,h*.948f,p);
         p.setColor(Color.rgb(225,211,243));p.setTextSize(w*.027f);
         c.drawText("แตะประตูที่เปิดเพื่อเริ่มด่าน • รวมทั้งหมด 120 ด่าน",w/2,h*.885f,p);
+        p.setTextSize(w*.026f);c.drawText("ความเป็นส่วนตัว",w/2,h*.948f,p);
     }
 
     private void drawMapGhost(Canvas c,float x,float y,float rad,int stage,boolean guardian){
@@ -526,6 +546,7 @@ class GhostGameView extends View {
         if(y>h*.89f){
             if(x<w*.38f&&mapWorld>0)mapWorld--;
             else if(x>w*.62f&&mapWorld<9)mapWorld++;
+            else if(x>=w*.38f&&x<=w*.62f&&getContext() instanceof MainActivity)((MainActivity)getContext()).openPrivacyPolicy();
             invalidate();return;
         }
         for(int i=0;i<12;i++){
@@ -1248,7 +1269,7 @@ class GhostGameView extends View {
         }
         p.setColor(Color.argb(218,10,5,30));c.drawRect(0,0,w,h,p);
         float l=w*.08f,r=w*.92f,t=won?h*.20f:lost?h*.13f:h*.30f,b=won?h*.79f:lost?h*.93f:
-            paused&&getContext() instanceof MainActivity&&((MainActivity)getContext()).needsPrivacyOptions()?h*.79f:h*.68f;
+            paused?h*.89f:h*.68f;
         panel(c,l,t,r,b,Color.rgb(68,35,112));
         p.setTextAlign(Paint.Align.CENTER);p.setColor(Color.WHITE);p.setTextSize(w*.075f);
         c.drawText(paused?"PAUSED":won?"รางวัลผ่านด่าน":"ยังไม่ผ่านด่าน",w/2,t+h*.068f,p);
@@ -1287,6 +1308,8 @@ class GhostGameView extends View {
                 p.setColor(Color.WHITE);p.setTextSize(w*.036f);
                 c.drawText("PRIVACY OPTIONS",w/2,h*.745f,p);
             }
+            drawRound(c,w*.22f,h*.80f,w*.78f,h*.865f,Color.rgb(105,73,162),40);
+            p.setColor(Color.WHITE);p.setTextSize(w*.034f);c.drawText("นโยบายความเป็นส่วนตัว",w/2,h*.844f,p);
         }else{
             p.setColor(Color.rgb(233,220,255));p.setTextSize(w*.038f);
             c.drawText("เลือกเล่นต่อ หรือเริ่มด่านใหม่",w/2,t+h*.125f,p);
@@ -1477,6 +1500,8 @@ class GhostGameView extends View {
                &&getContext() instanceof MainActivity){
                 ((MainActivity)getContext()).toggleSound();invalidate();return true;
             }
+            if(paused&&y>getHeight()*.80f&&y<getHeight()*.865f&&x>getWidth()*.22f&&x<getWidth()*.78f
+               &&getContext() instanceof MainActivity){((MainActivity)getContext()).openPrivacyPolicy();return true;}
             if(paused&&y>getHeight()*.70f&&y<getHeight()*.77f
                &&getContext() instanceof MainActivity){
                 ((MainActivity)getContext()).openPrivacyOptions();return true;

@@ -40,22 +40,22 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs app/build/outputs/apk/debug/app-debug.apk
 
       - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk GhostMatch3-v0.33.0.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk GhostMatch3-v0.34.0.apk
 
       - name: Upload test APK
         uses: actions/upload-artifact@v4
         with:
           name: GhostMatch3-Android-APK
-          path: GhostMatch3-v0.33.0.apk
+          path: GhostMatch3-v0.34.0.apk
 
       - name: Publish test release
         uses: ncipollo/release-action@v1
         with:
-          tag: v0.33.0
-          name: Ghost Match 3 - Test Version 0.33.0
-          artifacts: GhostMatch3-v0.33.0.apk
+          tag: v0.34.0
+          name: Ghost Match 3 - Test Version 0.34.0
+          artifacts: GhostMatch3-v0.34.0.apk
           allowUpdates: true
           replacesArtifacts: true
           body: |
-            Version 0.33.0: original ghost voices and effect sounds with mute control, bottom gameplay banner with clear separation from controls, interstitial after every two successful clears, and 13+ age-screen privacy settings.
-            Uses Google test ads; no advertising revenue yet. Download GhostMatch3-v0.33.0.apk for direct testing. The Google Play build is distributed separately.
+            Version 0.34.0: in-app privacy policy, original ghost voices and effect sounds with mute control, bottom gameplay banner with clear separation from controls, interstitial after every two successful clears, and 13+ age-screen privacy settings.
+            Uses Google test ads; no advertising revenue yet. Download GhostMatch3-v0.34.0.apk for direct testing. The Google Play build is distributed separately.
