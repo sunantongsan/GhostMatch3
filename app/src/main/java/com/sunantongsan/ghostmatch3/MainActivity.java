@@ -24,13 +24,17 @@ public class MainActivity extends Activity {
     // Google's official SAMPLE identifiers: test impressions never earn money.
     private static final String TEST_INTERSTITIAL_ID="ca-app-pub-3940256099942544/1033173712";
     private static final String TEST_REWARDED_ID="ca-app-pub-3940256099942544/5224354917";
-    private static final long MIN_AD_INTERVAL_MS=90000L;
+    private static final String TEST_BANNER_ID="ca-app-pub-3940256099942544/6300978111";
     private GhostGameView gameView;
     private ConsentInformation consentInformation;
     private InterstitialAd interstitial;
     private RewardedAd rewardedAd;
     private boolean adsInitialized=false, adLoading=false, rewardLoading=false, privacyOptionsRequired=false;
-    private long lastAdShownAt=0;
+    private android.widget.FrameLayout rootLayout;
+    private android.widget.LinearLayout bannerSlot;
+    private com.google.android.gms.ads.AdView bannerAd;
+    private boolean bannerLoaded=false, activityResumed=false, interstitialDue=false;
+    private int completedSinceAd=0;
     private boolean underAgeOfConsent=true;
 
     @Override public void onCreate(Bundle state) {
@@ -38,7 +42,10 @@ public class MainActivity extends Activity {
         getWindow().setStatusBarColor(Color.rgb(18,10,46));
         getWindow().setNavigationBarColor(Color.rgb(18,10,46));
         gameView=new GhostGameView(this);
-        setContentView(gameView);
+        rootLayout=new android.widget.FrameLayout(this);
+        rootLayout.addView(gameView,new android.widget.FrameLayout.LayoutParams(-1,-1));
+        setContentView(rootLayout);
+        completedSinceAd=getSharedPreferences("ad_frequency",MODE_PRIVATE).getInt("completed",0)%2;
         requestPlayerAge();
     }
 
@@ -121,15 +128,65 @@ public class MainActivity extends Activity {
         UserMessagingPlatform.showPrivacyOptionsForm(this,error->{
             refreshPrivacyOption();
             if(consentInformation.canRequestAds())initializeAds();
-            else {interstitial=null;rewardedAd=null;}
+            else {interstitial=null;rewardedAd=null;destroyBanner();}
         });
     }
 
     private void initializeAds(){
-        if(adsInitialized)return;
+        if(adsInitialized){loadBanner();return;}
         adsInitialized=true;
-        MobileAds.initialize(this,status->runOnUiThread(()->{loadNextAd();loadRewardedAd();}));
+        MobileAds.initialize(this,status->runOnUiThread(()->{if(isDestroyed()||isFinishing())return;loadNextAd();loadRewardedAd();loadBanner();}));
     }
+
+    private int dp(float value){return Math.round(value*getResources().getDisplayMetrics().density);}
+
+    private void loadBanner(){
+        if(bannerAd!=null||!adsInitialized||consentInformation==null||!consentInformation.canRequestAds())return;
+        bannerSlot=new android.widget.LinearLayout(this);
+        bannerSlot.setOrientation(android.widget.LinearLayout.VERTICAL);
+        bannerSlot.setGravity(Gravity.CENTER);
+        bannerSlot.setBackgroundColor(Color.rgb(22,10,46));
+        bannerSlot.setVisibility(View.GONE);
+        android.widget.TextView label=new android.widget.TextView(this);
+        label.setText("โฆษณา");label.setTextSize(10);label.setTextColor(Color.LTGRAY);
+        label.setGravity(Gravity.CENTER);
+        bannerSlot.addView(label,new android.widget.LinearLayout.LayoutParams(-1,dp(16)));
+        bannerAd=new com.google.android.gms.ads.AdView(this);
+        bannerAd.setAdSize(com.google.android.gms.ads.AdSize.BANNER);
+        bannerAd.setAdUnitId(TEST_BANNER_ID);
+        bannerSlot.addView(bannerAd,new android.widget.LinearLayout.LayoutParams(dp(320),dp(50)));
+        android.widget.FrameLayout.LayoutParams params=new android.widget.FrameLayout.LayoutParams(-1,dp(66),Gravity.BOTTOM|Gravity.CENTER_HORIZONTAL);
+        params.bottomMargin=dp(8);
+        rootLayout.addView(bannerSlot,params);
+        bannerAd.setAdListener(new com.google.android.gms.ads.AdListener(){
+            @Override public void onAdLoaded(){bannerLoaded=true;gameView.invalidate();}
+            @Override public void onAdFailedToLoad(LoadAdError error){
+                bannerLoaded=false;if(bannerSlot!=null)bannerSlot.setVisibility(View.GONE);
+            }
+        });
+        bannerAd.loadAd(new AdRequest.Builder().build());
+    }
+
+    void updateBannerVisibility(boolean gameplay,float controlsBottom){
+        if(bannerSlot==null)return;
+        // Keep 16dp clear of controls; omit the banner on screens too short or narrow.
+        boolean fits=gameView.getWidth()>=dp(320)&&controlsBottom+dp(16)<=gameView.getHeight()-dp(74);
+        boolean allowed=consentInformation!=null&&consentInformation.canRequestAds();
+        int visibility=gameplay&&fits&&allowed&&bannerLoaded&&activityResumed?View.VISIBLE:View.GONE;
+        if(bannerSlot.getVisibility()!=visibility)bannerSlot.post(()->{
+            if(bannerSlot!=null)bannerSlot.setVisibility(visibility);
+        });
+    }
+
+    private void destroyBanner(){
+        bannerLoaded=false;
+        if(bannerAd!=null){bannerAd.destroy();bannerAd=null;}
+        if(bannerSlot!=null){rootLayout.removeView(bannerSlot);bannerSlot=null;}
+    }
+
+    @Override protected void onResume(){super.onResume();activityResumed=true;if(bannerAd!=null)bannerAd.resume();if(gameView!=null)gameView.invalidate();}
+    @Override protected void onPause(){activityResumed=false;if(bannerAd!=null)bannerAd.pause();if(bannerSlot!=null)bannerSlot.setVisibility(View.GONE);super.onPause();}
+    @Override protected void onDestroy(){destroyBanner();super.onDestroy();}
 
     private void loadRewardedAd(){
         if(!adsInitialized||consentInformation==null||!consentInformation.canRequestAds()
@@ -169,11 +226,17 @@ public class MainActivity extends Activity {
     }
 
     void onLevelCompleted(int completedLevel){
-        // Keep the celebration uninterrupted; the ad belongs to the NEXT LEVEL transition.
+        // Count successful clears, not level numbers or failed attempts. Persist across sessions.
+        completedSinceAd=(completedSinceAd+1)%2;
+        getSharedPreferences("ad_frequency",MODE_PRIVATE).edit().putInt("completed",completedSinceAd).apply();
+        interstitialDue=completedSinceAd==0;
+        // Leave the celebration uninterrupted; show only on the next-level transition.
         loadNextAd();
     }
 
     void showAdBeforeNextLevel(Runnable continueToLevel){
+        if(!interstitialDue){continueToLevel.run();return;}
+        interstitialDue=false; // Never queue a backlog if an ad is unavailable.
         if(interstitial==null||consentInformation==null||!consentInformation.canRequestAds()){
             loadNextAd();continueToLevel.run();return;
         }
@@ -472,6 +535,10 @@ class GhostGameView extends View {
     @Override protected void onDraw(Canvas c){
         super.onDraw(c);
         float w=getWidth(), h=getHeight();
+        if(getContext() instanceof MainActivity){
+            float controlsBottom=h*.342f+w*.95f;
+            ((MainActivity)getContext()).updateBannerVisibility(!worldMap&&!missionBrief&&!paused&&!won&&!lost&&tutorialStage<0,controlsBottom);
+        }
         Paint bg=new Paint();
         bg.setShader(new LinearGradient(0,0,w,h,Color.rgb(22,10,54),Color.rgb(49,19,84),Shader.TileMode.CLAMP));
         c.drawRect(0,0,w,h,bg);
@@ -542,13 +609,9 @@ class GhostGameView extends View {
         c.drawText("ไอเท็มช่วยเหลือ",margin+w*.024f,boosterY+h*.004f,p);
         float gap=w*.008f, bw=(w-2*margin-w*.035f-gap*6)/7f, by=boosterY+h*.014f;
         for(int i=0;i<7;i++)drawBooster(c,i,margin+w*.018f+i*(bw+gap),by,bw,h*.087f,w);
-        drawRound(c,margin+w*.11f,h*.881f,w-margin-w*.02f,h*.963f,Color.rgb(67,156,35),w*.09f);
-        p.setColor(Color.WHITE);p.setTextAlign(Paint.Align.CENTER);p.setTextSize(w*.052f);
-        c.drawText("ท้าทายขึ้น! วางแผนให้ดี ♥",w*.52f,h*.934f,p);
-        drawGhost(c,w*.16f,h*.91f,w*.07f,colors[0],0,false);
 
         if(System.currentTimeMillis()<toastUntil){
-            float ty=h*.925f;
+            float ty=h*.855f;
             drawRound(c,margin,ty-h*.043f,w-margin,ty+h*.018f,Color.argb(230,70,36,112),30);
             p.setTextAlign(Paint.Align.CENTER);p.setColor(Color.WHITE);p.setTextSize(w*.035f);
             c.drawText(toast,w/2,ty,p);
