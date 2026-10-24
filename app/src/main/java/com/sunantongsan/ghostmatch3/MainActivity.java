@@ -69,7 +69,7 @@ public class MainActivity extends Activity {
         android.widget.FrameLayout.LayoutParams titleLayout=new android.widget.FrameLayout.LayoutParams(-1,-2,Gravity.TOP);
         titleLayout.topMargin=dp(36);screen.addView(title,titleLayout);
         android.widget.LinearLayout panel=new android.widget.LinearLayout(this);
-        panel.setOrientation(1);panel.setGravity(Gravity.CENTER);
+        panel.setOrientation(android.widget.LinearLayout.VERTICAL);panel.setGravity(Gravity.CENTER);
         panel.setPadding(dp(20),dp(16),dp(20),dp(12));
         android.graphics.drawable.GradientDrawable panelBackground=new android.graphics.drawable.GradientDrawable(
             android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,new int[]{0xE528123F,0xF0120826});
