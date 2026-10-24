@@ -43,6 +43,10 @@ public class MainActivity extends Activity {
         getWindow().setStatusBarColor(Color.rgb(18,10,46));
         getWindow().setNavigationBarColor(Color.rgb(18,10,46));
         setVolumeControlStream(android.media.AudioManager.STREAM_MUSIC);
+        showWelcome();
+    }
+
+    private void startGame(){
         gameAudio=new GameAudio(this);
         gameView=new GhostGameView(this);
         rootLayout=new android.widget.FrameLayout(this);
@@ -50,6 +54,59 @@ public class MainActivity extends Activity {
         setContentView(rootLayout);
         completedSinceAd=getSharedPreferences("ad_frequency",MODE_PRIVATE).getInt("completed",0)%2;
         requestPlayerAge();
+    }
+
+    private void showWelcome(){
+        android.widget.FrameLayout screen=new android.widget.FrameLayout(this);
+        android.widget.ImageView background=new android.widget.ImageView(this);
+        background.setImageResource(R.drawable.realm_castle);
+        background.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+        screen.addView(background,new android.widget.FrameLayout.LayoutParams(-1,-1));
+        android.widget.TextView title=new android.widget.TextView(this);
+        title.setText("GHOST\nMATCH 3");title.setTextSize(42);title.setTextColor(0xFFFFD775);
+        title.setGravity(Gravity.CENTER);title.setTypeface(Typeface.create("sans-serif-black",Typeface.BOLD));
+        title.setShadowLayer(dp(8),0,dp(3),0xFF24083F);
+        android.widget.FrameLayout.LayoutParams titleLayout=new android.widget.FrameLayout.LayoutParams(-1,-2,Gravity.TOP);
+        titleLayout.topMargin=dp(36);screen.addView(title,titleLayout);
+        android.widget.LinearLayout panel=new android.widget.LinearLayout(this);
+        panel.setOrientation(1);panel.setGravity(Gravity.CENTER);
+        panel.setPadding(dp(20),dp(16),dp(20),dp(12));
+        android.graphics.drawable.GradientDrawable panelBackground=new android.graphics.drawable.GradientDrawable(
+            android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,new int[]{0xE528123F,0xF0120826});
+        panelBackground.setCornerRadius(dp(24));panelBackground.setStroke(dp(1),0xFFBA8CDA);panel.setBackground(panelBackground);
+        android.widget.FrameLayout.LayoutParams panelLayout=new android.widget.FrameLayout.LayoutParams(-1,-2,Gravity.BOTTOM);
+        panelLayout.setMargins(dp(24),0,dp(24),dp(24));screen.addView(panel,panelLayout);
+        screen.setOnApplyWindowInsetsListener((v,insets)->{
+            titleLayout.topMargin=dp(24)+insets.getSystemWindowInsetTop();title.setLayoutParams(titleLayout);
+            panelLayout.bottomMargin=dp(16)+insets.getSystemWindowInsetBottom();panel.setLayoutParams(panelLayout);
+            return insets;
+        });
+        android.widget.TextView status=new android.widget.TextView(this);
+        status.setTextColor(Color.WHITE);status.setGravity(Gravity.CENTER);panel.addView(status);
+        android.widget.ProgressBar bar=new android.widget.ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);
+        bar.setMax(100);bar.setProgressTintList(android.content.res.ColorStateList.valueOf(0xFFCA7BFF));
+        bar.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFF503167));
+        panel.addView(bar,new android.widget.LinearLayout.LayoutParams(-1,dp(20)));
+        android.widget.Button play=new android.widget.Button(this);play.setText("เข้าเกม");play.setTextSize(22);play.setTextColor(0xFF35154E);
+        play.setTypeface(null,Typeface.BOLD);play.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFFFFCD69));play.setEnabled(false);
+        panel.addView(play,new android.widget.LinearLayout.LayoutParams(-1,dp(56)));
+        android.widget.Button retry=new android.widget.Button(this);retry.setText("ตรวจสอบอีกครั้ง");retry.setTextColor(0xFFE8D1FF);retry.setBackgroundColor(Color.TRANSPARENT);retry.setVisibility(View.GONE);panel.addView(retry);
+        Runnable check=()->{
+            play.setEnabled(false);retry.setVisibility(View.GONE);bar.setIndeterminate(true);
+            status.setText("กำลังตรวจสอบแพตช์…");
+            new Thread(()->{
+                String result=ContentPatch.update(this,percent->runOnUiThread(()->{
+                    if(isDestroyed()||isFinishing())return;
+                    bar.setIndeterminate(false);bar.setProgress(percent);status.setText("กำลังโหลดแพตช์ "+percent+"%");
+                }));
+                runOnUiThread(()->{if(isDestroyed()||isFinishing())return;
+                    bar.setIndeterminate(false);bar.setProgress(100);status.setText(result);
+                    play.setEnabled(true);retry.setVisibility(View.VISIBLE);
+                });
+            },"ghost-content-update").start();
+        };
+        play.setOnClickListener(v->{play.setEnabled(false);startGame();});
+        retry.setOnClickListener(v->check.run());setContentView(screen);check.run();
     }
 
     private void requestPlayerAge(){
@@ -297,6 +354,9 @@ class GhostGameView extends View {
     private final Paint p=new Paint(3);
     private final Paint stroke=new Paint(3);
     private final Paint spritePaint=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);
+    private Bitmap realmBackground;
+    private int loadedRealm=-1;
+    private final Paint realmPaint=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);
     private Bitmap ghostSheet,ghostReactions,boosterSheet,hauntedBackground,magicItems,dancingSkeleton,dancingSkeletonFallback,laughingSkull;
     private final int[] colors={Color.rgb(245,245,255),Color.rgb(188,236,172),Color.rgb(161,77,227),Color.rgb(255,143,55)};
     private final String[] boosterNames={"SWAP","HAMMER","ROW","COLUMN","BURST","RAINBOW","+5"};
@@ -368,6 +428,8 @@ class GhostGameView extends View {
         else if(level==3){moves=10;target=1550;}
         else if(level<=5){moves=11;target=1900+level*150;}
         else {moves=Math.min(26,12+level/8);target=Math.min(18000,2300+level*275);}
+        org.json.JSONObject patchLevel=ContentPatch.level(getContext(),level);
+        if(patchLevel!=null){moves=patchLevel.optInt("moves",moves);target=patchLevel.optInt("target",target);}
         int excluded=level<=3?3:(level-1)%TYPES;
         for(int i=0;i<TYPES;i++){
             goals[i]=i==excluded?0:(level<=3?4+level:level<=7?9+level/2:Math.min(38,11+(level*4)/5));
@@ -446,16 +508,33 @@ class GhostGameView extends View {
     private float mapNodeY(int index,float h){return h*(.245f+.165f*(index/3));}
 
     private void drawWorldMap(Canvas c,float w,float h){
+        // A soft 30% background keeps level gates and the route in the foreground.
+        int theme=mapWorld<=3?0:mapWorld<=6?1:2;
+        if(theme!=loadedRealm){
+            int[] art={R.drawable.realm_castle,R.drawable.realm_forest,R.drawable.realm_carnival};
+            BitmapFactory.Options options=new BitmapFactory.Options();options.inSampleSize=2;
+            Bitmap next=BitmapFactory.decodeResource(getResources(),art[theme],options);
+            // Let Android release the old bitmap after any queued render finishes.
+            realmBackground=next;loadedRealm=theme;
+        }
+        c.drawColor(Color.rgb(22,12,43));
+        if(realmBackground!=null){
+            float scale=Math.max(w/realmBackground.getWidth(),h/realmBackground.getHeight());
+            float bw=realmBackground.getWidth()*scale,bh=realmBackground.getHeight()*scale;
+            realmPaint.setAlpha(77);
+            c.drawBitmap(realmBackground,null,new RectF((w-bw)/2,(h-bh)/2,(w+bw)/2,(h+bh)/2),realmPaint);
+        }
+
         p.setTypeface(Typeface.create("sans",Typeface.BOLD));p.setTextAlign(Paint.Align.CENTER);
-        p.setColor(Color.argb(105,7,3,25));c.drawRect(0,0,w,h,p);
+        p.setColor(Color.argb(15,7,3,25));c.drawRect(0,0,w,h,p);
         Paint mist=new Paint(Paint.ANTI_ALIAS_FLAG);
-        mist.setShader(new RadialGradient(w*.5f,h*.50f,w*.72f,Color.argb(95,118,54,191),Color.TRANSPARENT,Shader.TileMode.CLAMP));
+        mist.setShader(new RadialGradient(w*.5f,h*.50f,w*.72f,Color.argb(30,118,54,191),Color.TRANSPARENT,Shader.TileMode.CLAMP));
         c.drawRect(0,0,w,h,mist);
         panel(c,w*.055f,h*.025f,w*.945f,h*.17f,Color.rgb(61,30,111));
         p.setColor(Color.rgb(255,217,80));p.setTextSize(w*.055f);
         c.drawText("เส้นทางอาณาจักรผี",w/2,h*.082f,p);
         p.setColor(Color.WHITE);p.setTextSize(w*.034f);
-        c.drawText("โลก "+(mapWorld+1)+" / 10  •  ด่าน "+(mapWorld*12+1)+"–"+(mapWorld*12+12),w/2,h*.13f,p);
+        c.drawText(new String[]{"ปราสาทจันทรา","ป่าเวทมนตร์","เทศกาลผี"}[theme]+" • "+(mapWorld+1)+"/10 • ด่าน "+(mapWorld*12+1)+"–"+(mapWorld*12+12),w/2,h*.13f,p);
         stroke.setStrokeWidth(w*.024f);stroke.setStrokeCap(Paint.Cap.ROUND);
         for(int i=0;i<11;i++){
             float x1=mapNodeX(i,w),y1=mapNodeY(i,h),x2=mapNodeX(i+1,w),y2=mapNodeY(i+1,h);
@@ -570,6 +649,7 @@ class GhostGameView extends View {
         Paint bg=new Paint();
         bg.setShader(new LinearGradient(0,0,w,h,Color.rgb(22,10,54),Color.rgb(49,19,84),Shader.TileMode.CLAMP));
         c.drawRect(0,0,w,h,bg);
+        if(worldMap){drawWorldMap(c,w,h);postInvalidateOnAnimation();return;}
         if(hauntedBackground!=null&&!hauntedBackground.isRecycled()){
             c.drawBitmap(hauntedBackground,null,new RectF(0,0,w,h),spritePaint);
             p.setColor(Color.argb(28,12,4,36));c.drawRect(0,0,w,h,p);
@@ -577,7 +657,6 @@ class GhostGameView extends View {
             drawStars(c,w,h);
             drawHauntedScene(c,w,h);
         }
-        if(worldMap){drawWorldMap(c,w,h);postInvalidateOnAnimation();return;}
         p.setTypeface(Typeface.create("sans",Typeface.BOLD));
         p.setTextAlign(Paint.Align.CENTER);
         float margin=w*.055f;

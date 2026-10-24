@@ -26,3 +26,15 @@ This is a debug test APK, not a Play Store build. Visual and gameplay tuning rem
 ## Build
 
 GitHub Actions builds and signature-verifies each push to main and publishes its test APK to a versioned release.
+
+### Content patches (Android 0.35.0+)
+Startup checks `https://sunantongsan.github.io/GhostMatch3/patches/manifest.json`.
+Publish immutable `docs/patches/content-N.json` first, then update the manifest
+version, filename and SHA-256. GitHub Pages must publish the main branch /docs folder.
+Payload schema: `{"schema":1,"version":2,"levels":{"4":{"moves":14,"target":2500}}}`.
+Only moves (1–100) and score target (100–100000) for levels 1–120 are supported.
+Omitted levels retain bundled defaults. Use an empty levels object in a higher
+version to reset overrides. Never modify an already published payload version.
+Downloads are HTTPS, size/time bounded, checksum checked, validated and atomically
+saved. Offline or invalid updates retain the previous patch and player progress.
+Code, ads SDK and other native changes still require a Play Store app update.
