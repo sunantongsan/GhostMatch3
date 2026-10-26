@@ -1,0 +1,11 @@
+{
+  "schema": 2,
+  "version": 1,
+  "levels": {
+    "1": {
+      "moves": 36,
+      "goal": 10,
+      "reward": 60
+    }
+  }
+}

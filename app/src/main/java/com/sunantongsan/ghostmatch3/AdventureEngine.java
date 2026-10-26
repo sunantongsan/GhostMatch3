@@ -10,14 +10,16 @@ final class AdventureEngine {
     static final String[] JOKES={"หนีสำเร็จ! อ้าว…ลืมขนม","ขอบคุณนะ! คราวหน้าจะไม่กดปุ่มมั่วแล้ว","น่ากลัวจัง…อ้าว เงาตัวเอง!","หีบนี้เก็บทอง ส่วนขนมกินหมดแล้ว","ข้าหายโกรธแล้ว…มีขนมอีกไหม?","ลอยได้ แต่กลัวความสูงนิดหน่อย!"};
     static final class Level {
         final int number,world,kind,variant,moves,goal,color,reward; final boolean bonus;
-        Level(int n){
+        Level(int n){this(n,null);}
+        Level(int n,int[] balance){
             if(n<1||n>120)throw new IllegalArgumentException("level");
             number=n;world=(n-1)/10;bonus=n%10==0;
             kind=n%6==0?BOSS:bonus?BONUS:n%2==0?RESCUE:CLEAR;
             variant=(n/2+world)%4;color=(n+world)%COLORS;
-            moves=kind==BONUS?28:kind==BOSS?40:kind==RESCUE?38:36;
-            goal=kind==BOSS?26+world*2:kind==BONUS?20+world:kind==RESCUE?12+world:10+world;
-            reward=60+world*10+(kind==RESCUE?30:kind==BOSS?100:0)+(bonus?220:0);
+            if(balance!=null&&(balance.length!=3||balance[0]<1||balance[0]>100||balance[1]<1||balance[1]>500||balance[2]<0||balance[2]>10000))throw new IllegalArgumentException("balance");
+            moves=balance!=null?balance[0]:kind==BONUS?28:kind==BOSS?40:kind==RESCUE?38:36;
+            goal=balance!=null?balance[1]:kind==BOSS?26+world*2:kind==BONUS?20+world:kind==RESCUE?12+world:10+world;
+            reward=balance!=null?balance[2]:60+world*10+(kind==RESCUE?30:kind==BOSS?100:0)+(bonus?220:0);
         }
         String name(){return kind==BOSS?"บอสจอมป่วน":kind==BONUS?"ห้องสมบัติ":kind==RESCUE?"ช่วยผีน้อย":"เคลียร์อาคม";}
         String objective(){
@@ -34,8 +36,9 @@ final class AdventureEngine {
     int moves,progress,remaining,initialObstacles,turns,danger,freeze,shield,score,chains,lastCollected;
     boolean won,lost;
     final Set<Integer> changed=new HashSet<>();
-    AdventureEngine(int n,long seed){
-        level=new Level(n);random=new Random(seed);moves=level.moves+(level.kind==RESCUE?8:0);
+    AdventureEngine(int n,long seed){this(n,seed,null);}
+    AdventureEngine(int n,long seed,int[] balance){
+        level=new Level(n,balance);random=new Random(seed);moves=level.moves+(level.kind==RESCUE?8:0);
         // Distinct masks and obstacle placements: seeded per level, pieces vary per attempt.
         Random layout=new Random(n*7919L);
         for(int r=0;r<SIZE;r++)for(int c=0;c<SIZE;c++){

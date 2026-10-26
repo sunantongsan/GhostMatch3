@@ -9,6 +9,10 @@ public class AdventureEngineTest {
   if(!e.won&&!e.lost)check(e.hint()!=null,"no legal move");
  }
  public static void main(String[] args){
+  AdventureEngine patched=new AdventureEngine(1,123,new int[]{42,17,95});
+  check(patched.moves==42&&patched.level.goal==17&&patched.level.reward==95,"patch not applied");
+  boolean rejected=false;try{new AdventureEngine(1,123,new int[]{0,17,95});}catch(IllegalArgumentException expected){rejected=true;}
+  check(rejected,"invalid patch accepted");
   int boss=0,bonus=0,overlap=0,wins=0;
   for(int n=1;n<=120;n++){
    AdventureEngine.Level l=new AdventureEngine.Level(n);

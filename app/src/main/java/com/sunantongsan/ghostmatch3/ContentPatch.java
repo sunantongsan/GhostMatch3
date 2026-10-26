@@ -13,18 +13,18 @@ final class ContentPatch {
     private static final String BASE="https://sunantongsan.github.io/GhostMatch3/patches/";
     private static JSONObject cached;
     interface Progress { void update(int percent); }
-    private static AtomicFile file(Context context){return new AtomicFile(new File(context.getFilesDir(),"content-patch.json"));}
-    private static JSONObject validate(byte[] bytes) throws Exception {
+    private static AtomicFile file(Context context){return new AtomicFile(new File(context.getFilesDir(),"adventure-patch.json"));}
+    static JSONObject validate(byte[] bytes) throws Exception {
         JSONObject data=new JSONObject(new String(bytes,StandardCharsets.UTF_8));
-        if(data.getInt("schema")!=1||data.getInt("version")<1)throw new IOException("Unsupported data");
+        if(data.getInt("schema")!=2||data.getInt("version")<1)throw new IOException("Unsupported data");
         JSONObject levels=data.getJSONObject("levels");
         java.util.Iterator<String> keys=levels.keys();
         while(keys.hasNext()){
             String key=keys.next();int id=Integer.parseInt(key);
             if(id<1||id>120)throw new IOException("Invalid level");
             JSONObject level=levels.getJSONObject(key);
-            int moves=level.getInt("moves"),target=level.getInt("target");
-            if(moves<1||moves>100||target<100||target>100000)throw new IOException("Invalid balance");
+            int moves=level.getInt("moves"),goal=level.getInt("goal"),reward=level.getInt("reward");
+            if(moves<1||moves>100||goal<1||goal>500||reward<0||reward>10000)throw new IOException("Invalid balance");
         }
         return data;
     }
@@ -33,8 +33,13 @@ final class ContentPatch {
         return cached;
     }
     static JSONObject level(Context context,int number){
+        // The retired score-based board must not consume adventure goal data.
+        return null;
+    }
+    static int[] adventureLevel(Context context,int number){
         JSONObject data=local(context);
-        return data==null?null:data.optJSONObject("levels").optJSONObject(Integer.toString(number));
+        JSONObject value=data==null?null:data.optJSONObject("levels").optJSONObject(Integer.toString(number));
+        return value==null?null:new int[]{value.optInt("moves"),value.optInt("goal"),value.optInt("reward")};
     }
     private static byte[] fetch(String name,int limit,Progress progress) throws Exception {
         if(!name.matches("[a-zA-Z0-9._-]+\\.json"))throw new IOException("Invalid filename");
@@ -56,12 +61,13 @@ final class ContentPatch {
             }
         }finally{connection.disconnect();}
     }
-    static String update(Context context,Progress progress){
+    static synchronized String update(Context context,Progress progress){
         JSONObject previous=local(context);
         try{
-            JSONObject manifest=new JSONObject(new String(fetch("manifest.json",16384,null),StandardCharsets.UTF_8));
-            if(manifest.getInt("schema")!=1)throw new IOException("Unsupported schema");
-            if(manifest.getInt("minAppVersion")>35)return "มีเวอร์ชันใหม่ในสโตร์ • ยังเล่นเวอร์ชันปัจจุบันได้";
+            JSONObject manifest=new JSONObject(new String(fetch("adventure-manifest.json",16384,null),StandardCharsets.UTF_8));
+            if(manifest.getInt("schema")!=2)throw new IOException("Unsupported schema");
+            int appVersion=context.getPackageManager().getPackageInfo(context.getPackageName(),0).versionCode;
+            if(manifest.getInt("minAppVersion")>appVersion)return "มีเวอร์ชันใหม่ในสโตร์ • ยังเล่นเวอร์ชันปัจจุบันได้";
             int version=manifest.getInt("version");
             if(previous!=null&&previous.getInt("version")>=version)return "พร้อมเล่น • แพตช์ "+previous.getInt("version");
             byte[] bytes=fetch(manifest.getString("file"),262144,progress);
