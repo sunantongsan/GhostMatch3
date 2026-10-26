@@ -36,6 +36,7 @@ final class AdventureEngine {
     int moves,progress,remaining,initialObstacles,turns,danger,freeze,shield,score,chains,lastCollected;
     boolean won,lost;
     final Set<Integer> changed=new HashSet<>();
+    final List<int[]> casts=new ArrayList<>();
     AdventureEngine(int n,long seed){this(n,seed,null);}
     AdventureEngine(int n,long seed,int[] balance){
         level=new Level(n,balance);random=new Random(seed);moves=level.moves+(level.kind==RESCUE?8:0);
@@ -85,7 +86,7 @@ final class AdventureEngine {
     boolean move(int a,int b){
         if(won||lost||moves<=0||a<0||b<0||a>=64||b>=64)return false;
         if(Math.abs(a/8-b/8)+Math.abs(a%8-b%8)!=1||!movable(a/8,a%8)||!movable(b/8,b%8))return false;
-        changed.clear();lastCollected=0;chains=0;int pa=power[a/8][a%8],pb=power[b/8][b%8];swap(a,b);
+        changed.clear();casts.clear();lastCollected=0;chains=0;int pa=power[a/8][a%8],pb=power[b/8][b%8];swap(a,b);
         Set<Integer> hits=matches();
         if(pa>0||pb>0){hits.add(a);hits.add(b);}
         if(hits.isEmpty()){swap(a,b);return false;}
@@ -110,7 +111,7 @@ final class AdventureEngine {
             Set<Integer> fired=new HashSet<>();boolean expanded;
             do{expanded=false;for(int pos:new HashSet<>(hits)){
                 int r=pos/8,c=pos%8,p=power[r][c];if(p==0||!fired.add(pos))continue;
-                expanded=true;
+                expanded=true;casts.add(new int[]{pos,p});
                 for(int y=0;y<8;y++)for(int x=0;x<8;x++)if(inside(y,x)&&(
                     p==1&&y==r||p==2&&x==c||p==3&&Math.abs(y-r)<=1&&Math.abs(x-c)<=1||p==4&&tile[y][x]==tile[r][c]))hits.add(y*8+x);
             }}while(expanded);
@@ -154,18 +155,28 @@ final class AdventureEngine {
         }
     }
     boolean use(int item,int pos){
-        if(won||lost||item<0||item>5)return false;
+        if(won||lost||item<0||item>9||item==6)return false;
+        changed.clear();casts.clear();lastCollected=0;chains=0;
+        if(item==9){moves+=5;if(level.kind==RESCUE)danger=Math.max(0,danger-5);return true;}
         if(item==3){if(freeze>0||level.kind!=BOSS&&level.kind!=RESCUE)return false;freeze=3;return true;}
         if(item==4){if(shield>0||level.kind!=BOSS&&level.kind!=RESCUE)return false;shield=1;return true;}
         if(item==5){shuffle();return true;}
         if(pos<0||pos>=64||!inside(pos/8,pos%8))return false;
-        changed.clear();lastCollected=0;chains=0;Set<Integer> hits=new HashSet<>();
-        for(int r=0;r<8;r++)for(int c=0;c<8;c++)if(inside(r,c)&&(item==0&&pos==r*8+c||item==1&&Math.abs(r-pos/8)<=1&&Math.abs(c-pos%8)<=1||item==2&&tile[r][c]==tile[pos/8][pos%8]))hits.add(r*8+c);
+        changed.clear();casts.clear();lastCollected=0;chains=0;Set<Integer> hits=new HashSet<>();
+        for(int r=0;r<8;r++)for(int c=0;c<8;c++)if(inside(r,c)&&(item==0&&pos==r*8+c||item==1&&Math.abs(r-pos/8)<=1&&Math.abs(c-pos%8)<=1||item==2&&tile[r][c]==tile[pos/8][pos%8]||item==7&&r==pos/8||item==8&&c==pos%8))hits.add(r*8+c);
+        casts.add(new int[]{pos,item==7?1:item==8?2:item==1?3:item==2?4:0});
         resolve(hits,-1);finish();ensureMove();return true;
     }
     void finish(){
         won=level.kind==BOSS?progress>=level.goal:level.kind==BONUS?progress>=level.goal:remaining==0&&progress>=level.goal;
         if(!won&&(moves<=0||level.kind==RESCUE&&danger>=level.moves))lost=true;
+    }
+    boolean freeSwap(int a,int b){
+        if(won||lost||a<0||a>=64||b<0||b>=64||Math.abs(a/8-b/8)+Math.abs(a%8-b%8)!=1||!movable(a/8,a%8)||!movable(b/8,b%8))return false;
+        changed.clear();casts.clear();lastCollected=0;chains=0;
+        int pa=power[a/8][a%8],pb=power[b/8][b%8];swap(a,b);changed.add(a);changed.add(b);
+        Set<Integer> hits=matches();if(pa>0||pb>0){hits.add(a);hits.add(b);}
+        resolve(hits,pa==0&&pb==0?b:-1);finish();ensureMove();return true;
     }
     boolean possible(){
         for(int a=0;a<64;a++)if(movable(a/8,a%8)){
