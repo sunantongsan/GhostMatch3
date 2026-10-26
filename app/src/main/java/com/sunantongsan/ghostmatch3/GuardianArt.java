@@ -52,7 +52,8 @@ final class GuardianArt {
         float trainDanger=danger;
         danger*=1-safe;
         // Position changes only after the physical intervention has completed.
-        float actorX=86+safe*235;
+        float actorStart=story.mechanism==2?179:family==3?173:86;
+        float actorX=actorStart+safe*(321-actorStart);
         float ground=floor;
         if(family==0){
             float bridge=story.mechanism==4?Math.min(charge,open):charge;
@@ -79,7 +80,7 @@ final class GuardianArt {
             if(open<1)prop(c,1,319,floor+2,40,62,1-open);
         }else if(family==2){
             if(story.mechanism==2){
-                float y=18+danger*(floor-65)-charge*45;y=Math.max(-55,y);
+                float y=-30+danger*(floor-80)-charge*75;y=Math.max(-100,y);
                 line(c,179,0,179,y,0xffd5c5a8,3);prop(c,2,179,y+55,80,92,1);
                 if(charge>0){p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(3);p.setColor(0xffa5fff3);c.drawRoundRect(143,y-3,217,y+51,7,7,p);p.setStyle(Paint.Style.FILL);}
             }else{
@@ -97,7 +98,7 @@ final class GuardianArt {
             if(charge>0){p.setColor(0x668ef8ff);p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(4);c.drawOval(x-size*.5f,y-5,x+size*.5f,y+size*.9f,p);p.setStyle(Paint.Style.FILL);}
         }
         int pose=goodDeed?(family==0?0:5):win?(safe<.9f?3:6):danger>.72f?2:1;
-        if(movie&&intro<2.3f&&family!=0)actorX=70+intro*9;
+        if(movie&&intro<2.3f&&family!=0)actorX=70+(actorStart-70)*Math.min(1,intro/2.3f);
         if(win&&safe<.9f)ground+=(float)Math.sin(tick*18)*2;
         person(c,pose,actorX,ground,Math.min(floor-10,goodDeed&&family==0?h*.55f:h*.68f));
         if(!movie||intro>4.3f){float fade=movie?Math.min(1,(intro-4.3f)/1.2f):1;
