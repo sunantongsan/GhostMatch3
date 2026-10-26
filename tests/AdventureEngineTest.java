@@ -37,6 +37,16 @@ public class AdventureEngineTest {
   for(int i=0;i<3;i++){int[] h=e.hint();e.move(h[0],h[1]);check(e.danger==0,"freeze failed");}
   check(e.freeze==0,"freeze duration");int[] h=e.hint();e.move(h[0],h[1]);check(e.danger==1,"danger not resumed");
   e=new AdventureEngine(6,4);check(e.use(4,-1),"shield boss");for(int i=0;i<4;i++){h=e.hint();e.move(h[0],h[1]);}check(e.shield==0,"shield did not block boss");
+  for(int id:new int[]{0,1,2,5,7,8,9}){
+   e=new AdventureEngine(2,23);int moves=e.moves,turns=e.turns,danger=e.danger;
+   check(e.use(id,id==5||id==9?-1:27),"restored booster "+id);invariant(e);
+   check(e.moves==moves+(id==9?5:0)&&e.turns==turns&&e.danger==danger,"booster charged a turn "+id);
+   if(id==7||id==8)check(e.casts.stream().anyMatch(c->c[1]==(id==7?1:2)),"missing directional cast");
+  }
+  e=new AdventureEngine(2,42);h=e.hint();int m=e.moves,d=e.danger;
+  check(e.freeSwap(h[0],h[1]),"free swap rejected");check(e.moves==m&&e.danger==d&&e.turns==0,"free swap charged");invariant(e);
+  check(!e.freeSwap(7,8),"free swap wrapped row");
+  e=new AdventureEngine(2,1);e.danger=9;check(e.use(9,-1)&&e.danger==4,"extra moves must extend rescue clock");
   System.out.println("PASS: 120 levels; 600 full games; 20 bosses; 12 bonuses; 4 overlaps; obstacles, cascades, hints, freeze, shield and completion. First-hint wins="+wins+"/600 (not a difficulty acceptance test)");
  }
 }
