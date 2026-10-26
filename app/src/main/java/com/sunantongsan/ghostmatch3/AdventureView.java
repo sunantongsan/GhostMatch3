@@ -21,7 +21,47 @@ final class AdventureView extends View {
     private String screen="home",returnFromShop="home",notice="";
     private int coins,highest,mapPage=0,selected=-1,item=-1,down=-1;
     private int insetTop,insetBottom,insetLeft,insetRight;
-    private float scale=1,ox,oy;
+    private float scale=1,ox,oy,downX,downY;
+    private boolean swiped;
+    private long fxStart,resultAt;
+    private int[] beforeTiles=new int[64];
+    private int movingFrom=-1,movingTo=-1;
+    private int fxKind=-1,fxTarget=-1;
+    private final ArrayList<float[]> sparks=new ArrayList<>();
+    private final Random fxRandom=new Random();
+    private static final float BX=12,BY=237,CELL=47;
+    private boolean tryMove(int a,int b){
+        for(int n=0;n<64;n++)beforeTiles[n]=game.tile[n/8][n%8];
+        boolean powered=a>=0&&a<64&&b>=0&&b<64&&(game.power[a/8][a%8]>0||game.power[b/8][b%8]>0);
+        if(!game.move(a,b))return false;
+        movingFrom=a;movingTo=b;effects(powered?1:-1,b);return true;
+    }
+    private void effects(int kind,int target){
+        fxKind=kind;fxTarget=target;fxStart=System.currentTimeMillis();sparks.clear();
+        Collection<Integer> cells=game.changed;
+        if(kind>=3){ArrayList<Integer> all=new ArrayList<>();for(int n=0;n<64;n++)if(game.inside(n/8,n%8))all.add(n);cells=all;}
+        for(int pos:cells)for(int k=0;k<7;k++){
+            double a=fxRandom.nextDouble()*Math.PI*2;float speed=35+fxRandom.nextFloat()*95;
+            sparks.add(new float[]{BX+(pos%8+.5f)*CELL,BY+(pos/8+.5f)*CELL,(float)Math.cos(a)*speed,(float)Math.sin(a)*speed,3+fxRandom.nextFloat()*4,fxRandom.nextInt(6)});
+        }
+        if(kind>=0)movingFrom=-1;
+        if(kind==1)sound(GameAudio.EXPLOSION);else if(kind>=0)sound(GameAudio.MAGIC);
+    }
+    private void drawEffects(Canvas c){
+        float t=(System.currentTimeMillis()-fxStart)/1000f;if(t<0||t>1.15f)return;
+        int[] colors={0xffffd56a,0xff91f5ff,0xffff93d7,0xffb3ff98,0xffbf9cff,0xffffffff};
+        for(float[] p:sparks){paint.setColor(colors[(int)p[5]]);paint.setAlpha((int)(255*Math.max(0,1-t/1.15f)));float x=p[0]+p[2]*t,y=p[1]+p[3]*t+65*t*t;float r=p[4]*(1-t*.6f);c.drawCircle(x,y,r,paint);}
+        if(fxKind>=0){
+            float x=fxTarget>=0?BX+(fxTarget%8+.5f)*CELL:200,y=fxTarget>=0?BY+(fxTarget/8+.5f)*CELL:420;
+            paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(5*(1-t/1.15f));paint.setColor(fxKind==3?TEAL:GOLD);paint.setAlpha((int)(220*Math.max(0,1-t/1.15f)));
+            c.drawCircle(x,y,15+t*(fxKind==1?155:95),paint);paint.setStyle(Paint.Style.FILL);
+            if(fxKind==0){c.save();c.rotate(-35+Math.min(1,t*5)*65,x,y);icon(c,6,x,y-40*(1-Math.min(1,t*4)),80);c.restore();}
+            if(fxKind==2){paint.setColor(TEAL);paint.setAlpha((int)(180*Math.max(0,1-t)));paint.setStrokeWidth(2);for(int pos:game.changed)c.drawLine(x,y,BX+(pos%8+.5f)*CELL,BY+(pos/8+.5f)*CELL,paint);}
+            if(fxKind>=3){icon(c,fxKind+6,200,410,80+25*(float)Math.sin(t*Math.PI));text(c,ITEMS[fxKind],200,480,25,GOLD);}
+        }
+        if(game.chains>1&&t<1)text(c,"คอมโบ × "+game.chains,200,220-t*20,25,GOLD);
+        paint.setAlpha(255);
+    }
     private long noticeUntil,animationUntil,lastInteraction=System.currentTimeMillis();
     private boolean credited,brief=false,paused=false,active=true;
     private AdventureEngine game;
@@ -58,21 +98,22 @@ final class AdventureView extends View {
         for(int r=0;r<8;r++)for(int c=0;c<8;c++){restored.tile[r][c]=a.getInt(k++);restored.power[r][c]=a.getInt(k++);restored.hp[r][c]=a.getInt(k++);restored.obstacle[r][c]=a.getInt(k++);}
         restored.moves=j.getInt("moves");restored.progress=j.getInt("progress");restored.remaining=j.getInt("remaining");restored.initialObstacles=j.getInt("initial");restored.turns=j.getInt("turns");restored.danger=j.optInt("danger");restored.freeze=j.getInt("freeze");restored.shield=j.getInt("shield");restored.score=j.getInt("score");restored.won=j.getBoolean("won");restored.lost=j.getBoolean("lost");game=restored;credited=j.getBoolean("credited");lastReward=j.optInt("reward");
     }catch(Exception ignored){game=null;}}
-    private void start(int n){game=new AdventureEngine(n,System.nanoTime(),ContentPatch.adventureLevel(host,n));credited=false;lastReward=0;selected=-1;item=-1;brief=true;paused=false;screen="play";lastInteraction=System.currentTimeMillis();save();invalidate();}
+    private void start(int n){sparks.clear();fxStart=0;resultAt=0;fxKind=-1;movingFrom=-1;game=new AdventureEngine(n,System.nanoTime(),ContentPatch.adventureLevel(host,n));credited=false;lastReward=0;selected=-1;item=-1;brief=true;paused=false;screen="play";lastInteraction=System.currentTimeMillis();save();invalidate();}
     private void afterAction(){
         lastInteraction=System.currentTimeMillis();animationUntil=lastInteraction+480;
+        if(fxStart<lastInteraction-50)effects(-1,-1);
         if(game.won&&!credited){
             lastReward=game.reward();coins+=lastReward;credited=true;highest=Math.min(120,Math.max(highest,game.level.number+1));
             int stars=game.moves>=game.level.moves/3?3:game.moves>=3?2:1;
             prefs.edit().putInt("stars_"+game.level.number,Math.max(stars,prefs.getInt("stars_"+game.level.number,0))).apply();
-            sound(GameAudio.WIN);host.onLevelCompleted(game.level.number);
-        }else if(game.lost)sound(GameAudio.LOSE);else sound(game.chains>1?GameAudio.MAGIC:GameAudio.MATCH);
+            resultAt=lastInteraction+850;sound(GameAudio.WIN);host.onLevelCompleted(game.level.number);
+        }else if(game.lost){resultAt=lastInteraction+600;sound(GameAudio.LOSE);}else if(fxKind<0)sound(game.chains>1?GameAudio.MAGIC:GameAudio.MATCH);
         selected=-1;save();invalidate();
     }
     @Override protected void onDraw(Canvas canvas){
         super.onDraw(canvas);hits.clear();canvas.drawColor(0xff15132b);
         float width=getWidth()-insetLeft-insetRight,height=getHeight()-insetTop-insetBottom;
-        scale=Math.min(width/400f,height/820f);ox=insetLeft+(width-400*scale)/2;oy=insetTop+(height-820*scale)/2;
+        float designHeight=screen.equals("play")?740:820;scale=Math.min(width/400f,height/designHeight);ox=insetLeft+(width-400*scale)/2;oy=insetTop+(height-designHeight*scale)/2;
         if(scale<=0)return;
         // Full-bleed background extends beyond the safe interaction area.
         if(background!=null){paint.setAlpha(255);canvas.drawBitmap(background,null,new RectF(0,0,getWidth(),getHeight()),paint);}
@@ -142,31 +183,37 @@ final class AdventureView extends View {
         round(c,16,72,384,133,0xff38264e,18);
         icon(c,lv.color,47,103,41);text(c,Math.min(lv.goal,game.progress)+" / "+lv.goal,107,109,18,WHITE);
         text(c,"อุปสรรค "+game.remaining,217,109,15,TEAL);text(c,"ตา "+game.moves,333,110,23,GOLD);
-        drawScene(c);
-        text(c,item>=0?"แตะช่องเพื่อใช้ "+ITEMS[item]:lv.objective(),200,319,14,WHITE);
-        float bx=24,by=337,cell=44;
-        round(c,bx-7,by-7,bx+352+7,by+352+7,GOLD,17);
-        round(c,bx-4,by-4,bx+356,by+356,0xff15132b,15);
+        c.save();c.translate(0,55);c.scale(1,.55f);drawScene(c);c.restore();
+        text(c,item>=0?"แตะช่องเพื่อใช้ "+ITEMS[item]:lv.objective(),200,226,14,WHITE);
+        float bx=BX,by=BY,cell=CELL;
+        round(c,bx-7,by-7,bx+376+5,by+376+5,GOLD,17);
+        round(c,bx-4,by-4,bx+380,by+380,0xff15132b,15);
         float anim=Math.max(0,(animationUntil-System.currentTimeMillis())/480f);
         for(int r=0;r<8;r++)for(int col=0;col<8;col++)if(game.active[r][col]){
             int pos=r*8+col;float x=bx+col*cell,y=by+r*cell;
-            round(c,x+1,y+1,x+43,y+43,(r+col)%2==0?0xff25213d:0xff302944,6);
-            float size=41;if(game.changed.contains(pos))size*=1-.17f*anim;
-            icon(c,game.hp[r][col]>0?12+game.obstacle[r][col]:game.tile[r][col],x+22,y+22,size);
+            round(c,x+1,y+1,x+46,y+46,(r+col)%2==0?0xff25213d:0xff302944,6);
+            float size=46;if(game.changed.contains(pos))size*=1-.17f*anim;
+            float elapsed=(System.currentTimeMillis()-fxStart)/1000f;
+            float drop=game.changed.contains(pos)&&elapsed>=.16f&&elapsed<.48f?-CELL*(1-(elapsed-.16f)/.32f):0;
+            int image=game.hp[r][col]>0?12+game.obstacle[r][col]:game.tile[r][col];
+            float px=x+23.5f,py=y+23.5f+drop;
+            if(fxKind<0&&elapsed<.16f&&movingFrom>=0){image=beforeTiles[pos];float fraction=elapsed/.16f;if(pos==movingFrom){px+=(movingTo%8-movingFrom%8)*CELL*fraction;py+=(movingTo/8-movingFrom/8)*CELL*fraction;}else if(pos==movingTo){px+=(movingFrom%8-movingTo%8)*CELL*fraction;py+=(movingFrom/8-movingTo/8)*CELL*fraction;}}
+            c.save();c.clipRect(BX,BY,BX+376,BY+376);icon(c,image,px,py,size);c.restore();
             if(game.hp[r][col]>1)text(c,""+game.hp[r][col],x+34,y+38,13,GOLD);
             if(game.power[r][col]>0&&game.hp[r][col]==0){round(c,x+3,y+27,x+41,y+42,0xeeb48638,5);text(c,new String[]{"","↔","↕","✦","★"}[game.power[r][col]],x+22,y+40,17,WHITE);}
-            if(selected==pos){paint.setColor(GOLD);paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(3);c.drawRoundRect(x+1,y+1,x+43,y+43,7,7,paint);paint.setStyle(Paint.Style.FILL);}
+            if(selected==pos){paint.setColor(GOLD);paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(3);c.drawRoundRect(x+1,y+1,x+46,y+46,7,7,paint);paint.setStyle(Paint.Style.FILL);}
         }
-        if(System.currentTimeMillis()-lastInteraction>6000&&!game.won&&!game.lost&&!paused&&!brief){int[] hint=game.hint();if(hint!=null){for(int pos:hint){paint.setColor(TEAL);paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(2);float x=24+pos%8*44,y=337+pos/8*44;c.drawRoundRect(x+2,y+2,x+42,y+42,8,8,paint);paint.setStyle(Paint.Style.FILL);}}}
-        for(int i=0;i<6;i++){final int id=i;float x=14+i*63;round(c,x,711,x+58,773,item==i?0xff9a773c:0xff38264e,12);icon(c,i+6,x+29,737,42);text(c,""+inventory[i],x+47,730,13,GOLD);text(c,ITEMS[i],x+29,767,10,WHITE);hits.add(new Hit(new RectF(x,711,x+58,773),()->{
+        if(System.currentTimeMillis()-lastInteraction>6000&&!game.won&&!game.lost&&!paused&&!brief){int[] hint=game.hint();if(hint!=null){for(int pos:hint){paint.setColor(TEAL);paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(2);float x=BX+pos%8*CELL,y=BY+pos/8*CELL;c.drawRoundRect(x+2,y+2,x+45,y+45,8,8,paint);paint.setStyle(Paint.Style.FILL);}}}
+        for(int i=0;i<6;i++){final int id=i;float x=14+i*63;round(c,x,635,x+58,705,item==i?0xff9a705c:0xff38264e,12);icon(c,i+6,x+29,662,42);text(c,""+inventory[i],x+47,652,13,GOLD);text(c,ITEMS[i],x+29,697,10,WHITE);hits.add(new Hit(new RectF(x,635,x+58,705),()->{
             if(inventory[id]==0){message("ยังไม่มี "+ITEMS[id]+" • ซื้อได้ในร้านค้า");return;}
             if(id<3){item=item==id?-1:id;selected=-1;message(DETAILS[id]);}
-            else if(game.use(id,-1)){inventory[id]--;afterAction();}else message("ใช้ไม่ได้ในตอนนี้");
+            else if(game.use(id,-1)){inventory[id]--;effects(id,-1);afterAction();}else message("ใช้ไม่ได้ในตอนนี้");
         }));}
-        text(c,"ทอง "+coins+"   •   รางวัลผ่านด่าน "+lv.reward+"+",200,803,14,GOLD);
+        text(c,"ทอง "+coins+"   •   รางวัลผ่านด่าน "+lv.reward+"+",200,727,14,GOLD);
+        drawEffects(c);
         if(brief)drawBrief(c);
         else if(paused)drawPause(c);
-        else if(game.won||game.lost)drawResult(c);
+        else if((game.won||game.lost)&&System.currentTimeMillis()>=resultAt)drawResult(c);
     }
     private void drawScene(Canvas c){
         AdventureEngine.Level lv=game.level;float y=145;
@@ -213,32 +260,42 @@ final class AdventureView extends View {
     }
     private void drawResult(Canvas c){
         boolean win=game.won;overlay(c,win?"สำเร็จแล้ว!":"อีกนิดเดียว!");icon(c,win?15:0,200,307,95);
+        if(win){float t=(System.currentTimeMillis()-resultAt)/1000f;for(int i=0;i<(game.moves>=game.level.moves/3?3:game.moves>=3?2:1);i++){float pop=Math.min(1,Math.max(0,(t-i*.16f)*4));text(c,"★",128+i*72,340,46*pop,GOLD);}for(int i=0;i<36;i++){float x=(i*73)%380+10,y=190+((t*65+i*37)%440);paint.setColor(i%2==0?GOLD:TEAL);c.drawCircle(x,y,2+i%3,paint);}}
         text(c,win?"+ "+lastReward+" เหรียญทอง":"ลองวางแผนใหม่ได้ครับ",200,389,25,win?GOLD:WHITE);
         text(c,win?AdventureEngine.JOKES[game.level.number%6]:"ของช่วยเล่นเลือกใช้ได้จากด้านล่าง",200,431,13,TEAL);
         text(c,win?"เหรียญรวม "+coins:"เป้าหมายที่ทำได้ "+game.progress+" / "+game.level.goal,200,469,17,WHITE);
         button(c,67,505,333,559,win?(game.level.number==120?"ครบ 120 ด่าน!":"ด่านต่อไป"):"ลองอีกครั้ง",GOLD,()->{
             if(win&&game.level.number==120){screen="map";mapPage=5;invalidate();}
-            else if(win)host.showAdBeforeNextLevel(()->start(game.level.number+1));else start(game.level.number);
+            else if(win){sound(GameAudio.COMPLETE);host.showAdBeforeNextLevel(()->start(game.level.number+1));}else start(game.level.number);
         });
         button(c,67,577,194,620,"หน้าแรก",0xff604783,()->{screen="home";invalidate();});
         button(c,206,577,333,620,"ร้านค้า",0xff318e8c,()->openShop("play"));
     }
-    private int cellAt(float x,float y){int col=(int)((x-24)/44),r=(int)((y-337)/44);return x>=24&&x<376&&y>=337&&y<689&&game!=null&&game.inside(r,col)?r*8+col:-1;}
+    private int cellAt(float x,float y){int col=(int)((x-BX)/CELL),r=(int)((y-BY)/CELL);return x>=BX&&x<BX+8*CELL&&y>=BY&&y<BY+8*CELL&&game!=null&&game.inside(r,col)?r*8+col:-1;}
     private void tapCell(int pos){
-        if(pos<0)return;if(item>=0){if(game.use(item,pos)){inventory[item]--;item=-1;afterAction();}return;}
+        if(pos<0)return;if(item>=0){if(game.use(item,pos)){inventory[item]--;effects(item,pos);item=-1;afterAction();}return;}
         if(!game.movable(pos/8,pos%8)){message(AdventureEngine.OBSTACLES[game.obstacle[pos/8][pos%8]]+" • จับคู่ข้าง ๆ เพื่อทำลาย");return;}
-        if(selected>=0&&selected!=pos){if(game.move(selected,pos)){afterAction();return;}sound(GameAudio.INVALID);}
+        if(selected>=0&&selected!=pos){if(tryMove(selected,pos)){afterAction();return;}sound(GameAudio.INVALID);}
         selected=selected==pos?-1:pos;invalidate();
     }
     @Override public boolean onTouchEvent(android.view.MotionEvent e){
         if(scale<=0)return true;float x=(e.getX()-ox)/scale,y=(e.getY()-oy)/scale;
-        if(e.getAction()==MotionEvent.ACTION_DOWN){down=screen.equals("play")?cellAt(x,y):-1;return true;}
+        if(e.getAction()==MotionEvent.ACTION_DOWN){down=screen.equals("play")?cellAt(x,y):-1;downX=x;downY=y;swiped=false;return true;}
         if(e.getAction()==MotionEvent.ACTION_CANCEL){down=-1;return true;}
+        if(e.getAction()==MotionEvent.ACTION_MOVE&&down>=0&&!swiped&&item<0&&!brief&&!paused&&!game.won&&!game.lost&&System.currentTimeMillis()>=animationUntil){
+            float dx=x-downX,dy=y-downY;
+            if(Math.max(Math.abs(dx),Math.abs(dy))>=CELL*.22f){
+                int target=down+(Math.abs(dx)>Math.abs(dy)?(dx>0?1:-1):(dy>0?8:-8));swiped=true;
+                if(tryMove(down,target))afterAction();else sound(GameAudio.INVALID);
+                down=-1;return true;
+            }
+        }
         if(e.getAction()!=MotionEvent.ACTION_UP)return true;
+        if(swiped){swiped=false;down=-1;return true;}
         performClick();lastInteraction=System.currentTimeMillis();
         if(screen.equals("play")&&!brief&&!paused&&!game.won&&!game.lost&&System.currentTimeMillis()<animationUntil)return true;
         for(Hit hit:new ArrayList<>(hits))if(hit.box.contains(x,y)){sound(GameAudio.SWAP);hit.action.run();return true;}
-        if(screen.equals("play")&&!brief&&!paused&&!game.won&&!game.lost){int pos=cellAt(x,y);if(down>=0&&pos>=0&&pos!=down&&item<0){if(game.move(down,pos))afterAction();else sound(GameAudio.INVALID);}else tapCell(pos);}
+        if(screen.equals("play")&&!brief&&!paused&&!game.won&&!game.lost){int pos=cellAt(x,y);if(down>=0&&pos>=0&&pos!=down&&item<0){if(tryMove(down,pos))afterAction();else sound(GameAudio.INVALID);}else tapCell(pos);}
         down=-1;return true;
     }
     @Override public boolean performClick(){super.performClick();return true;}

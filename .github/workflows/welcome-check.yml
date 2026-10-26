@@ -1,7 +1,7 @@
 name: Welcome and patch checks
 on:
   push:
-    branches: [feature/ghost-wai-welcome]
+    branches: [feature/ghost-effects-038]
 permissions:
   contents: read
 jobs:

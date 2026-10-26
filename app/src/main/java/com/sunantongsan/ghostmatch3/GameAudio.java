@@ -12,12 +12,13 @@ import java.util.Set;
 
 /** Small original synthesized effects, decoded off the UI thread. No network or microphone. */
 final class GameAudio {
-    static final int GHOST=0, SWAP=1, MATCH=2, MAGIC=3, WIN=4, LOSE=5, INVALID=6;
+    static final int GHOST=0, SWAP=1, MATCH=2, MAGIC=3, WIN=4, LOSE=5, INVALID=6, EXPLOSION=7, COMPLETE=8;
     private final SoundPool pool;
-    private final int[] samples=new int[7];
-    private final long[] lastPlayed=new long[7];
+    private final int[] samples=new int[9];
+    private final long[] lastPlayed=new long[9];
     private final Set<Integer> ready=new HashSet<>();
     private final Set<Integer> streams=new HashSet<>();
+    private android.media.MediaPlayer music;
     private boolean released=false, active=false;
     private volatile boolean enabled;
     private final android.content.SharedPreferences preferences;
@@ -28,10 +29,14 @@ final class GameAudio {
         pool=new SoundPool.Builder().setMaxStreams(4).setAudioAttributes(new AudioAttributes.Builder()
             .setUsage(AudioAttributes.USAGE_GAME).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build()).build();
         pool.setOnLoadCompleteListener((p,id,status)->{synchronized(this){if(!released&&status==0)ready.add(id);}});
+        music=android.media.MediaPlayer.create(context,R.raw.music_adventure);
+        if(music!=null){music.setLooping(true);music.setVolume(.12f,.12f);}
         File directory=context.getCacheDir();
         new Thread(()->{
             for(int kind=0;kind<samples.length;kind++){
                 synchronized(this){if(released)return;}
+                int resource=kind==WIN?R.raw.fx_win:kind==MAGIC?R.raw.fx_magic:kind==EXPLOSION?R.raw.fx_explosion:kind==COMPLETE?R.raw.fx_complete:0;
+                if(resource!=0){synchronized(this){if(released)return;samples[kind]=pool.load(context,resource,1);}continue;}
                 File file=new File(directory,"ghost_sfx_v1_"+kind+".wav");
                 try{
                     if(!file.exists())writeWave(file,kind);
@@ -42,8 +47,9 @@ final class GameAudio {
     }
 
     boolean isEnabled(){return enabled;}
-    synchronized void toggle(){enabled=!enabled;preferences.edit().putBoolean("enabled",enabled).apply();if(!enabled)stop();}
-    synchronized void setActive(boolean value){active=value;if(!value)stop();}
+    synchronized void toggle(){enabled=!enabled;preferences.edit().putBoolean("enabled",enabled).apply();if(!enabled)stop();updateMusic();}
+    synchronized void setActive(boolean value){active=value;if(!value)stop();updateMusic();}
+    private void updateMusic(){if(music==null||released)return;if(active&&enabled){if(!music.isPlaying())music.start();}else if(music.isPlaying())music.pause();}
     private void stop(){for(int stream:streams)pool.stop(stream);streams.clear();}
     synchronized void play(int kind){
         if(released||!active||!enabled||kind<0||kind>=samples.length||!ready.contains(samples[kind]))return;
@@ -56,7 +62,7 @@ final class GameAudio {
         int stream=pool.play(samples[kind],volume,volume,1,0,rate);
         if(stream!=0){if(streams.size()>32)streams.clear();streams.add(stream);}
     }
-    synchronized void release(){if(released)return;stop();released=true;pool.release();ready.clear();}
+    synchronized void release(){if(released)return;stop();released=true;if(music!=null){music.release();music=null;}pool.release();ready.clear();}
 
     private static void le(FileOutputStream out,int value,int bytes)throws IOException{
         for(int n=0;n<bytes;n++)out.write((value>>>(8*n))&255);
