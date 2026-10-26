@@ -50,6 +50,7 @@ public class AdventureSmoke extends Instrumentation {
   tap(24+h[0]%8*44+22,337+h[0]/8*44+22);
   tap(24+h[1]%8*44+22,337+h[1]/8*44+22);
   check(game().moves==before-1,"touch move consumed exactly one turn");
+  SystemClock.sleep(550); // Allow the visible move animation to finish before the next control.
  }
  @Override public void onStart(){
   Bundle result=new Bundle();
