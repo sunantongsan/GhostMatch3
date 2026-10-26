@@ -343,7 +343,7 @@ final class AdventureView extends View {
         c.save();c.translate(x-width/2,y-size);layout.draw(c);c.restore();
     }
     private void drawGuardianIntro(Canvas c){
-        hits.clear();round(c,0,0,400,820,0xf313182b,0);
+        hits.clear();round(c,0,0,400,820,0xff13182b,0);
         text(c,"คนดีผีคุ้ม",200,112,32,GOLD);text(c,"ด่าน "+game.level.number+" • "+story.title,200,151,17,WHITE);
         float t=introElapsed/1000f;
         guardianArt.scene(c,story,game,new RectF(12,192,388,443),0,0,0,0,t,art);

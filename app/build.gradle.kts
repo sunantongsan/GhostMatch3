@@ -10,12 +10,19 @@ android {
         applicationId = "com.sunantongsan.ghostmatch3"
         minSdk = 24
         targetSdk = 36
+        manifestPlaceholders["appLabel"] = "Ghost Match 3"
         versionCode = 41
         versionName = "0.41.0"
         testInstrumentationRunner = "com.sunantongsan.ghostmatch3.AdventureSmoke"
     }
 
     buildTypes {
+        debug {
+            if (providers.gradleProperty("guardianPreview").isPresent) {
+                applicationIdSuffix = ".guardianpreview"
+                manifestPlaceholders["appLabel"] = "คนดีผีคุ้ม Preview"
+            }
+        }
         release {
             isMinifyEnabled = false
             // Artwork is already compressed; avoid AAPT2 re-crunching sprite sheets.

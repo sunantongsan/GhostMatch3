@@ -4,12 +4,20 @@ import android.graphics.*;
 
 /** Scene objects are driven by real objective and clock state, never a baked outcome. */
 final class GuardianArt {
-    private final Bitmap worlds,people;
-    private final Rect[] poses=new Rect[8];
+    private final Bitmap worlds,people,props;
+    private final Rect[] poses=new Rect[8],propRects=new Rect[8];
     private final Paint p=new Paint(3);
     GuardianArt(Resources r){
         worlds=BitmapFactory.decodeResource(r,R.drawable.guardian_worlds);
         people=BitmapFactory.decodeResource(r,R.drawable.guardian_people);
+        props=BitmapFactory.decodeResource(r,R.drawable.guardian_props);
+        int[][] areas={{0,0,412,470},{420,0,768,490},{776,0,1152,490},{1152,0,1536,490},{0,470,384,1024},{390,512,768,1024},{768,512,1152,1024},{1152,512,1536,1024}};
+        for(int i=0;i<8;i++){
+            int[] a=areas[i];int x0=a[0]*props.getWidth()/1536,y0=a[1]*props.getHeight()/1024,x1=a[2]*props.getWidth()/1536,y1=a[3]*props.getHeight()/1024;
+            int l=x1,t=y1,right=x0,bottom=y0;
+            for(int y=y0;y<y1;y++)for(int x=x0;x<x1;x++)if(Color.alpha(props.getPixel(x,y))>40){l=Math.min(l,x);t=Math.min(t,y);right=Math.max(right,x+1);bottom=Math.max(bottom,y+1);}
+            propRects[i]=new Rect(l,t,right,bottom);
+        }
         int w=people.getWidth()/4,h=people.getHeight()/2;
         for(int i=0;i<8;i++){
             int x0=i%4*w,y0=i/4*h,l=x0+w,t=y0+h,right=x0,bottom=y0;
@@ -19,6 +27,10 @@ final class GuardianArt {
     }
     private void line(Canvas c,float x,float y,float xx,float yy,int color,float width){p.setShader(null);p.setColor(color);p.setStrokeWidth(width);p.setStrokeCap(Paint.Cap.ROUND);c.drawLine(x,y,xx,yy,p);}
     private void rect(Canvas c,float l,float t,float r,float b,int color,float radius){p.setShader(null);p.setColor(color);c.drawRoundRect(l,t,r,b,radius,radius,p);}
+    private void prop(Canvas c,int index,float x,float bottom,float width,float height,float alpha){
+        Rect src=propRects[index];float ratio=Math.min(width/src.width(),height/src.height()),w=src.width()*ratio,h=src.height()*ratio;
+        p.setShader(null);p.setAlpha((int)(255*Math.max(0,Math.min(1,alpha))));c.drawBitmap(props,src,new RectF(x-w/2,bottom-h,x+w/2,bottom),p);p.setAlpha(255);
+    }
     private void person(Canvas c,int pose,float x,float feet,float height){
         Rect src=poses[pose];float w=height*src.width()/src.height();p.setShader(null);p.setAlpha(255);c.drawBitmap(people,src,new RectF(x-w/2,feet-height,x+w/2,feet),p);
     }
@@ -45,16 +57,13 @@ final class GuardianArt {
         if(family==0){
             float bridge=story.mechanism==4?Math.min(charge,open):charge;
             if(movie)bridge=intro<2.3f?1:Math.max(0,1-(intro-2.3f));
-            for(int i=0;i<8;i++)if(i<bridge*8+.05f){float x=116+i*21;
-                line(c,x,floor+3,x+18,floor+3,0xff5b4a33,7);line(c,x,floor,x+18,floor,0xffffdca0,3);
-                if(i==Math.min(7,(int)(bridge*8)))line(c,x,floor-3,x+18,floor-3,0xffb6ffff,2);
-            }
+            c.save();c.clipRect(113,floor-45,113+173*bridge,floor+28);prop(c,0,199,floor+24,176,75,1);c.restore();
+            if(bridge>0&&bridge<1)line(c,113+173*bridge,floor-5,113+173*bridge,floor+6,0xffc9fff4,3);
             if(story.mechanism==4&&charge>0){p.setColor(0x8060e7ff);p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(4);c.drawArc(47,15,145,floor+12,-110,220,false,p);p.setStyle(Paint.Style.FILL);}
             // Rain and wind strengthen toward the real deadline, then settle after rescue.
             for(int i=0;i<28;i++){float x=(i*43+tick*(35+danger*90))%400-20,y=(i*29+tick*80)%h;
                 line(c,x,y,x-6-danger*10,y+13,0x77b5e2f7,1);}
-            rect(c,294,floor-55,309,floor,0xff684f35,3);
-            if(open<1){for(int i=0;i<3;i++)if(open<(i+1)/3f)line(c,281,floor-12-i*14,323,floor-12-i*14,0xffa77c43,5);}
+            if(open<1)prop(c,1,305,floor+2,45,67,1-open);
             if(danger>.65f&&!win){c.save();c.rotate((float)Math.sin(tick*8)*danger*4,70,floor);line(c,40,floor+4,107,floor+4,0xff706157,5);c.restore();}
         }else if(family==1){
             float drainage=story.mechanism==5?Math.min(charge,open):charge;
@@ -65,31 +74,26 @@ final class GuardianArt {
             p.setShader(new LinearGradient(0,waterTop,0,h,0xaa61dfff,0xee154b84,Shader.TileMode.CLAMP));c.drawPath(water,p);p.setShader(null);
             if(charge>0)for(int i=0;i<18;i++){float u=(tick*.6f+i/18f)%1,x=195+(1-u)*95,y=waterTop+u*(h-waterTop);line(c,x,y,x-7,y+4,0xaaddffff,2);}
             // Drain grille and valve visibly open with the collected ghost power.
-            for(int i=0;i<5;i++)line(c,182+i*7,h-22-charge*30,182+i*7,h-charge*30,0xffbdc9c7,3);
-            c.save();c.rotate(charge*270,274,floor-44);p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(4);p.setColor(0xffffce7d);c.drawCircle(274,floor-44,15,p);p.setStyle(Paint.Style.FILL);line(c,259,floor-44,289,floor-44,0xffeec17a,3);c.restore();
-            if(open<1)for(int i=0;i<3;i++)if(open<(i+1)/3f)rect(c,303,floor-18-i*17,331,floor-i*17,0xff856446,3);
+            prop(c,7,199,h+10-charge*28,57,55,1);
+            c.save();c.rotate(charge*270,274,floor-44);prop(c,5,274,floor-27,34,34,1);c.restore();
+            if(open<1)prop(c,1,319,floor+2,40,62,1-open);
         }else if(family==2){
             if(story.mechanism==2){
                 float y=18+danger*(floor-65)-charge*45;y=Math.max(-55,y);
-                line(c,179,0,179,y,0xffd5c5a8,3);rect(c,146,y,214,y+48,0xff62401f,4);rect(c,150,y+4,210,y+44,0xffbb8c4d,2);
-                line(c,151,y+5,209,y+43,0xff694a2f,5);line(c,151,y+43,209,y+5,0xff694a2f,5);
+                line(c,179,0,179,y,0xffd5c5a8,3);prop(c,2,179,y+55,80,92,1);
                 if(charge>0){p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(3);p.setColor(0xffa5fff3);c.drawRoundRect(143,y-3,217,y+51,7,7,p);p.setStyle(Paint.Style.FILL);}
             }else{
                 float x=302-danger*190+charge*90;
-                rect(c,x-32,floor-38,x+32,floor-6,0xffa77c43,4);line(c,x-36,floor-5,x+36,floor-5,0xff54687d,5);
-                p.setColor(0xff17293a);c.drawCircle(x-23,floor,7,p);c.drawCircle(x+23,floor,7,p);
+                prop(c,3,x,floor+5,78,72,1);
                 if(charge>0){line(c,135,floor-50,135,floor+3,0xff84ffec,7);line(c,127,floor-50,143,floor-50,0xffe8ffff,3);}
             }
-            if(open<1)for(int i=0;i<3;i++)if(open<(i+1)/3f)line(c,286,floor-14-i*15,330,floor-14-i*15,0xff95704d,6);
+            if(open<1)prop(c,1,309,floor+2,45,67,1-open);
         }else{
             float approach=trainDanger*(1-charge*.35f),size=23+approach*105;
             float x=story.mechanism==7?192+charge*100:192;
             float y=20+approach*(floor-70);
-            rect(c,x-size*.38f,y,x+size*.38f,y+size*.8f,0xff254a68,6);
-            rect(c,x-size*.3f,y+4,x+size*.3f,y+size*.3f,0xffaadbe7,3);
-            rect(c,x-size*.38f,y+size*.48f,x+size*.38f,y+size*.7f,0xffd6a947,2);
-            for(int sign:new int[]{-1,1}){p.setColor(0xfffff2b2);c.drawCircle(x+sign*size*.22f,y+size*.43f,size*.06f,p);}
-            c.save();c.rotate(-open*85,293,floor-10);line(c,293,floor-10,349,floor-10,0xffefebe2,6);line(c,310,floor-10,321,floor-10,0xffb44343,6);c.restore();
+            prop(c,4,x,y+size,Math.max(23,size),Math.max(30,size*1.3f),1);
+            c.save();c.rotate(-open*70,293,floor-10);prop(c,6,320,floor+3,70,65,1);c.restore();
             if(charge>0){p.setColor(0x668ef8ff);p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(4);c.drawOval(x-size*.5f,y-5,x+size*.5f,y+size*.9f,p);p.setStyle(Paint.Style.FILL);}
         }
         int pose=goodDeed?(family==0?0:5):win?(safe<.9f?3:6):danger>.72f?2:1;
