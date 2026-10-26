@@ -25,16 +25,19 @@ final class GuardianArt {
     void portrait(Canvas c,float x,float y,float height){person(c,6,x,y+height/2,height);}
     void scene(Canvas c,GuardianStory story,AdventureEngine game,RectF box,float energy,float cleared,float danger,float outcome,float intro,RescueArt ghosts){
         c.save();c.clipRect(box);c.translate(box.left,box.top);float scale=box.width()/376f;c.scale(scale,scale);
-        float h=box.height()/scale,floor=h*.84f;int family=story.mechanism%4;
+        float h=box.height()/scale;int family=story.mechanism%4;
         int sw=worlds.getWidth()/2,sh=worlds.getHeight()/2;
         int cropH=Math.min(sh,Math.round(sw*h/376f)),top=(sh-cropH)/2;
+        float floor=Math.min(h-10,(new int[]{330,330,400,405}[family]-top)*h/cropH);
         Rect src=new Rect(family%2*sw,family/2*sh+top,(family%2+1)*sw,family/2*sh+top+cropH);
         p.setColor(Color.WHITE);p.setShader(null);c.drawBitmap(worlds,src,new RectF(0,0,376,h),p);
         float tick=android.os.SystemClock.uptimeMillis()/1000f;
         boolean movie=intro>=0,goodDeed=movie&&intro<2.3f,win=game.won;
         float safe=win?Math.min(1,Math.max(0,outcome)/2.2f):0;
         float charge=movie?0:Math.min(1,energy),open=movie?0:Math.min(1,cleared);
-        if(movie)danger=intro<2.3f?0:Math.min(.5f,(intro-2.3f)/6);
+        if(movie)danger=intro<2.3f?0:Math.min(.25f,(intro-2.3f)/12);
+        else danger=.25f+.75f*danger;
+        float trainDanger=danger;
         danger*=1-safe;
         // Position changes only after the physical intervention has completed.
         float actorX=86+safe*235;
@@ -55,8 +58,8 @@ final class GuardianArt {
             if(danger>.65f&&!win){c.save();c.rotate((float)Math.sin(tick*8)*danger*4,70,floor);line(c,40,floor+4,107,floor+4,0xff706157,5);c.restore();}
         }else if(family==1){
             float drainage=story.mechanism==5?Math.min(charge,open):charge;
-            float waterTop=floor+14-danger*h*.47f+drainage*h*.42f;
-            waterTop=Math.min(h+4,waterTop+safe*h*.3f);
+            float waterTop=floor+14-danger*h*.72f+drainage*h*.24f;
+            waterTop=Math.min(h+4,waterTop+safe*h*.8f);
             Path water=new Path();water.moveTo(0,h);water.lineTo(0,waterTop);
             for(int x=0;x<=376;x+=4)water.lineTo(x,waterTop+2*(float)Math.sin(x*.09+tick*3));water.lineTo(376,h);water.close();
             p.setShader(new LinearGradient(0,waterTop,0,h,0xaa61dfff,0xee154b84,Shader.TileMode.CLAMP));c.drawPath(water,p);p.setShader(null);
@@ -67,7 +70,7 @@ final class GuardianArt {
             if(open<1)for(int i=0;i<3;i++)if(open<(i+1)/3f)rect(c,303,floor-18-i*17,331,floor-i*17,0xff856446,3);
         }else if(family==2){
             if(story.mechanism==2){
-                float y=18+danger*(floor-65)-charge*65;y=Math.max(-55,y);
+                float y=18+danger*(floor-65)-charge*45;y=Math.max(-55,y);
                 line(c,179,0,179,y,0xffd5c5a8,3);rect(c,146,y,214,y+48,0xff62401f,4);rect(c,150,y+4,210,y+44,0xffbb8c4d,2);
                 line(c,151,y+5,209,y+43,0xff694a2f,5);line(c,151,y+43,209,y+5,0xff694a2f,5);
                 if(charge>0){p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(3);p.setColor(0xffa5fff3);c.drawRoundRect(143,y-3,217,y+51,7,7,p);p.setStyle(Paint.Style.FILL);}
@@ -79,7 +82,7 @@ final class GuardianArt {
             }
             if(open<1)for(int i=0;i<3;i++)if(open<(i+1)/3f)line(c,286,floor-14-i*15,330,floor-14-i*15,0xff95704d,6);
         }else{
-            float approach=danger*(1-charge*.9f),size=23+approach*105;
+            float approach=trainDanger*(1-charge*.35f),size=23+approach*105;
             float x=story.mechanism==7?192+charge*100:192;
             float y=20+approach*(floor-70);
             rect(c,x-size*.38f,y,x+size*.38f,y+size*.8f,0xff254a68,6);
@@ -92,7 +95,7 @@ final class GuardianArt {
         int pose=goodDeed?(family==0?0:5):win?(safe<.9f?3:6):danger>.72f?2:1;
         if(movie&&intro<2.3f&&family!=0)actorX=70+intro*9;
         if(win&&safe<.9f)ground+=(float)Math.sin(tick*18)*2;
-        person(c,pose,actorX,ground,goodDeed&&family==0?h*.55f:h*.68f);
+        person(c,pose,actorX,ground,Math.min(floor-10,goodDeed&&family==0?h*.55f:h*.68f));
         if(!movie||intro>4.3f){float fade=movie?Math.min(1,(intro-4.3f)/1.2f):1;
             c.save();c.scale(fade,fade,40,h*.3f);ghosts.ghost(c,0,win?1:0,40,h*.3f+(float)Math.sin(tick*3)*3,h*.28f);c.restore();}
         if(charge>0&&!win)for(int i=0;i<8;i++){float u=(tick*.4f+i/8f)%1,x=40+u*150,y=h*.3f+(floor-h*.3f)*u;
