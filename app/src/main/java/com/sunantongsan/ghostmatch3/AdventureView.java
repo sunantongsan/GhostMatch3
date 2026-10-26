@@ -133,7 +133,7 @@ final class AdventureView extends View {
         if(background!=null){paint.setAlpha(255);canvas.drawBitmap(background,null,new RectF(0,0,getWidth(),getHeight()),paint);}
         canvas.save();canvas.translate(ox,oy);canvas.scale(scale,scale);
         if(screen.equals("home"))drawHome(canvas);else if(screen.equals("shop"))drawShop(canvas);else if(screen.equals("map"))drawMap(canvas);else drawGame(canvas);
-        if(System.currentTimeMillis()<noticeUntil){round(canvas,10,391,390,436,0xf5231738,16);text(canvas,notice,200,419,12,WHITE);}
+        if(System.currentTimeMillis()<noticeUntil&&!(screen.equals("play")&&game!=null&&(game.won||game.lost))){round(canvas,10,391,390,436,0xf5231738,16);text(canvas,notice,200,419,12,WHITE);}
         canvas.restore();
         host.updateBannerVisibility(false,0);
         if(active&&isShown()&&(screen.equals("play")||System.currentTimeMillis()<noticeUntil))postInvalidateDelayed(33);
