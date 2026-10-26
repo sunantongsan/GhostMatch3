@@ -125,7 +125,7 @@ final class AdventureView extends View {
         if(active&&isShown()&&(screen.equals("play")||System.currentTimeMillis()<noticeUntil))postInvalidateDelayed(33);
     }
     private void text(Canvas c,String s,float x,float y,float size,int color){paint.setShader(null);paint.setColor(color);paint.setAlpha(255);paint.setTextSize(size);paint.setTypeface(Typeface.create("sans-serif",Typeface.BOLD));paint.setTextAlign(Paint.Align.CENTER);c.drawText(s,x,y,paint);}
-    private void round(Canvas c,float l,float t,float r,float b,int color,float radius){paint.setShader(null);paint.setColor(color);paint.setAlpha(255);c.drawRoundRect(l,t,r,b,radius,radius,paint);}
+    private void round(Canvas c,float l,float t,float r,float b,int color,float radius){paint.setShader(null);paint.setColor(color);c.drawRoundRect(l,t,r,b,radius,radius,paint);}
     private void gradient(Canvas c,RectF box,int a,int b,float radius){paint.setShader(new LinearGradient(0,box.top,0,box.bottom,a,b,Shader.TileMode.CLAMP));paint.setAlpha(255);c.drawRoundRect(box,radius,radius,paint);paint.setShader(null);}
     private void button(Canvas c,float l,float t,float r,float b,String label,int color,Runnable action){
         round(c,l,t+4,r,b+4,0xff251530,18);gradient(c,new RectF(l,t,r,b),color,darken(color),18);text(c,label,(l+r)/2,(t+b)/2+6,18,color==GOLD?INK:WHITE);hits.add(new Hit(new RectF(l,t,r,b),action));
@@ -183,7 +183,7 @@ final class AdventureView extends View {
         round(c,16,72,384,133,0xff38264e,18);
         icon(c,lv.color,47,103,41);text(c,Math.min(lv.goal,game.progress)+" / "+lv.goal,107,109,18,WHITE);
         text(c,"อุปสรรค "+game.remaining,217,109,15,TEAL);text(c,"ตา "+game.moves,333,110,23,GOLD);
-        c.save();c.translate(0,55);c.scale(1,.55f);drawScene(c);c.restore();
+        drawCompactScene(c);
         text(c,item>=0?"แตะช่องเพื่อใช้ "+ITEMS[item]:lv.objective(),200,226,14,WHITE);
         float bx=BX,by=BY,cell=CELL;
         round(c,bx-7,by-7,bx+376+5,by+376+5,GOLD,17);
@@ -214,6 +214,21 @@ final class AdventureView extends View {
         if(brief)drawBrief(c);
         else if(paused)drawPause(c);
         else if((game.won||game.lost)&&System.currentTimeMillis()>=resultAt)drawResult(c);
+    }
+    private void drawCompactScene(Canvas c){
+        AdventureEngine.Level lv=game.level;
+        gradient(c,new RectF(16,143,384,207),0xff305b6a,0xff272043,16);
+        float bob=2*(float)Math.sin(System.currentTimeMillis()/260.0);
+        icon(c,0,49,176+bob,51);
+        text(c,AdventureEngine.WORLDS[lv.world],200,162,12,TEAL);
+        if(lv.kind==AdventureEngine.BOSS){
+            icon(c,4,348,175-bob,53);text(c,game.freeze>0?"หยุดบอส "+game.freeze+" ตา":"บอส • ระวังน้ำแข็ง",200,183,14,GOLD);
+            round(c,105,191,295,198,0xff15132b,4);round(c,105,191,105+190*Math.max(0,1-game.progress/(float)lv.goal),198,0xfff071a6,4);
+        }else if(lv.kind==AdventureEngine.RESCUE){
+            icon(c,15,348,176,49);text(c,game.freeze>0?"หยุดภัย "+game.freeze+" ตา":"เหลือ "+Math.max(0,lv.moves-game.danger)+" ตา",200,183,14,GOLD);
+            round(c,105,191,295,198,0xff15132b,4);round(c,105,191,105+190*(1-game.remaining/(float)Math.max(1,game.initialObstacles)),198,TEAL,4);
+        }else{icon(c,lv.kind==AdventureEngine.BONUS?15:12,348,176,49);text(c,lv.kind==AdventureEngine.BONUS?"ล่าสมบัติ • ทองโบนัส":"จับคู่เปิดทางผจญภัย",200,188,14,GOLD);}
+        if(game.shield>0)icon(c,10,86,178,30);
     }
     private void drawScene(Canvas c){
         AdventureEngine.Level lv=game.level;float y=145;
