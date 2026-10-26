@@ -63,6 +63,13 @@ final class AdventureView extends View {
         float t=(System.currentTimeMillis()-fxStart)/1000f;if(t<0||t>1.15f)return;
         int[] colors={0xffffd56a,0xff91f5ff,0xffff93d7,0xffb3ff98,0xffbf9cff,0xffffffff};
         for(float[] p:sparks){paint.setColor(colors[(int)p[5]]);paint.setAlpha((int)(255*Math.max(0,1-t/1.15f)));float x=p[0]+p[2]*t,y=p[1]+p[3]*t+65*t*t;float r=p[4]*(1-t*.6f);c.drawCircle(x,y,r,paint);}
+        if(story!=null&&game.lastCollected>0&&t<1){
+            float sx=fxTarget>=0?BX+(fxTarget%8+.5f)*CELL:200,sy=fxTarget>=0?BY+(fxTarget/8+.5f)*CELL:470;
+            for(int i=0;i<9;i++){float u=Math.max(0,Math.min(1,t*1.25f-i*.035f)),v=1-u;
+                float x=v*v*sx+2*v*u*345+u*u*205,y=v*v*sy+2*v*u*215+u*u*175;
+                paint.setColor(i<3?0xffe5fff8:0xff70eada);paint.setAlpha((int)(210*(1-i/10f)*(1-t)));c.drawCircle(x,y,3.5f-i*.25f,paint);
+            }
+        }
         for(int[] cast:game.casts)art.spell(c,cast[1],cast[0],t,BX,BY,CELL);
         if(fxKind>=0){
             float x=fxTarget>=0?BX+(fxTarget%8+.5f)*CELL:200,y=fxTarget>=0?BY+(fxTarget/8+.5f)*CELL:420;
@@ -329,9 +336,11 @@ final class AdventureView extends View {
     }
     private void beginGuardian(){brief=false;introElapsed=7000;frameAt=android.os.SystemClock.elapsedRealtime();lastInteraction=System.currentTimeMillis();sound(GameAudio.MAGIC);save();}
     private void wrapped(Canvas c,String value,float x,float y,float size,int color,float width){
-        paint.setTextSize(size);String line="";float yy=y;
-        for(int i=0;i<value.length();i++){String next=line+value.charAt(i);if(paint.measureText(next)>width&&!line.isEmpty()){text(c,line,x,yy,size,color);yy+=size*1.45f;line="";}line+=value.charAt(i);}
-        if(!line.isEmpty())text(c,line,x,yy,size,color);
+        android.text.TextPaint tp=new android.text.TextPaint(Paint.ANTI_ALIAS_FLAG);
+        tp.setTextSize(size);tp.setColor(color);tp.setTypeface(Typeface.create("sans-serif",Typeface.BOLD));
+        android.text.StaticLayout layout=android.text.StaticLayout.Builder.obtain(value,0,value.length(),tp,(int)width)
+            .setAlignment(android.text.Layout.Alignment.ALIGN_CENTER).setIncludePad(false).setLineSpacing(2,1).build();
+        c.save();c.translate(x-width/2,y-size);layout.draw(c);c.restore();
     }
     private void drawGuardianIntro(Canvas c){
         hits.clear();round(c,0,0,400,820,0xf313182b,0);
