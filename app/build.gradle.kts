@@ -10,8 +10,8 @@ android {
         applicationId = "com.sunantongsan.ghostmatch3"
         minSdk = 24
         targetSdk = 36
-        versionCode = 37
-        versionName = "0.37.0"
+        versionCode = 38
+        versionName = "0.38.0"
         testInstrumentationRunner = "com.sunantongsan.ghostmatch3.AdventureSmoke"
     }
 

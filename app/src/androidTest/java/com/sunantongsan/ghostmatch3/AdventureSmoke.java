@@ -49,9 +49,13 @@ public class AdventureSmoke extends Instrumentation {
  private void move(){
   SystemClock.sleep(550);int[] h=game().hint();check(h!=null,"hint");
   int before=game().moves;
-  tap(24+h[0]%8*44+22,337+h[0]/8*44+22);
-  tap(24+h[1]%8*44+22,337+h[1]/8*44+22);
-  check(game().moves==before-1,"touch move consumed exactly one turn");
+  float x=12+h[0]%8*47+23.5f,y=237+h[0]/8*47+23.5f;
+  final float[] xy=new float[3];main(()->{int[] loc=new int[2];view.getLocationOnScreen(loc);xy[2]=(Float)field(view,"scale");xy[0]=loc[0]+(Float)field(view,"ox")+x*xy[2];xy[1]=loc[1]+(Float)field(view,"oy")+y*xy[2];});
+  float dx=(h[1]%8-h[0]%8)*15*xy[2],dy=(h[1]/8-h[0]/8)*15*xy[2];long at=SystemClock.uptimeMillis();
+  for(int action:new int[]{MotionEvent.ACTION_DOWN,MotionEvent.ACTION_MOVE,MotionEvent.ACTION_UP}){MotionEvent e=MotionEvent.obtain(at,SystemClock.uptimeMillis(),action,xy[0]+(action==0?0:dx),xy[1]+(action==0?0:dy),0);sendPointerSync(e);e.recycle();}
+  settle();
+  check(game().moves==before-1,"short swipe consumed exactly one turn");
+  check(!((java.util.List)field(view,"sparks")).isEmpty(),"match particles emitted");
   SystemClock.sleep(550); // Allow the visible move animation to finish before the next control.
  }
  @Override public void onStart(){
@@ -80,13 +84,13 @@ public class AdventureSmoke extends Instrumentation {
     tap(200,578);check(!(Boolean)field(view,"brief"),"dismiss instructions");
     check(game().moves==42&&game().level.goal==17&&game().level.reward==95,"downloaded balance wired into new game");
     move();
-    SystemClock.sleep(550);tap(43,740);
+    SystemClock.sleep(550);tap(43,665);
     int p=-1;for(int r=0;r<8;r++)for(int c=0;c<8;c++)if(game().hp[r][c]>0)p=r*8+c;
     check(p>=0,"obstacle for hammer");int hp=game().hp[p/8][p%8];
-    tap(24+p%8*44+22,337+p/8*44+22);
+    tap(12+p%8*47+23.5f,237+p/8*47+23.5f);
     check(((int[])field(view,"inventory"))[0]==0&&game().hp[p/8][p%8]<hp,"hammer touch consumed and damaged");
     for(int n=0;n<60&&!game().won&&!game().lost;n++)move();
-    check(game().won||game().lost,"full real-touch game ended");shot(game().won?"victory":"loss");
+    check(game().won||game().lost,"full real-touch game ended");SystemClock.sleep(1100);shot(game().won?"victory":"loss");
     tap(200,530);check(!game().won&&!game().lost,"next or retry");tap(200,578);move();
     tap(40,35);check((Boolean)field(view,"paused"),"pause");
     tap(200,375);check(field(view,"screen").equals("shop"),"shop while paused");
