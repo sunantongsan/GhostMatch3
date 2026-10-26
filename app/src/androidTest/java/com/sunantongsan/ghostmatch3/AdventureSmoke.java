@@ -83,7 +83,7 @@ public class AdventureSmoke extends Instrumentation {
    tap(12+pos%8*47+23.5f,280+pos/8*47+23.5f);
    if(i==2)shot("rescue-progress");
   }
-  check(game().won,"rescue completed with real booster touches");SystemClock.sleep(2600);shot("rescue-victory");
+  check(game().won,"rescue completed with real booster touches");SystemClock.sleep(1700);shot("rescue-celebration");SystemClock.sleep(3000);shot("rescue-victory");
   int rewarded=(Integer)field(view,"rewardItem");check(rewarded>=0,"win grants booster");int count=inv[rewarded];
   SystemClock.sleep(300);check(inv[rewarded]==count,"win reward credited once");
   startLevel(2);move();tap(40,35);tap(200,528);
@@ -120,7 +120,7 @@ public class AdventureSmoke extends Instrumentation {
     tap(12+p%8*47+23.5f,280+p/8*47+23.5f);
     check(((int[])field(view,"inventory"))[0]==2&&game().hp[p/8][p%8]<hp,"hammer touch consumed and damaged");shot("hammer-effect");
     for(int n=0;n<60&&!game().won&&!game().lost;n++)move();
-    check(game().won||game().lost,"full real-touch game ended");SystemClock.sleep(2500);shot(game().won?"victory":"loss");
+    check(game().won||game().lost,"full real-touch game ended");SystemClock.sleep(4500);shot(game().won?"victory":"loss");
     tap(200,530);check(!game().won&&!game().lost,"next or retry");tap(200,578);move();
     tap(40,35);check((Boolean)field(view,"paused"),"pause");
     tap(200,375);check(field(view,"screen").equals("shop"),"shop while paused");

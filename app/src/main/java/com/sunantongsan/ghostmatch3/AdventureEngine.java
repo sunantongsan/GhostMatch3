@@ -17,8 +17,8 @@ final class AdventureEngine {
             kind=n%6==0?BOSS:bonus?BONUS:n%2==0?RESCUE:CLEAR;
             variant=(n/2+world)%4;color=(n+world)%COLORS;
             if(balance!=null&&(balance.length!=3||balance[0]<1||balance[0]>100||balance[1]<1||balance[1]>500||balance[2]<0||balance[2]>10000))throw new IllegalArgumentException("balance");
-            moves=balance!=null?balance[0]:kind==BONUS?28:kind==BOSS?40:kind==RESCUE?38:36;
-            goal=balance!=null?balance[1]:kind==BOSS?26+world*2:kind==BONUS?20+world:kind==RESCUE?12+world:10+world;
+            moves=balance!=null?balance[0]:n<=10?48:n<=20?44:kind==BONUS?28:kind==BOSS?40:kind==RESCUE?38:36;
+            goal=balance!=null?balance[1]:n<=5?6:n<=10?(kind==BOSS?16:10):kind==BOSS?26+world*2:kind==BONUS?20+world:kind==RESCUE?12+world:10+world;
             reward=balance!=null?balance[2]:60+world*10+(kind==RESCUE?30:kind==BOSS?100:0)+(bonus?220:0);
         }
         String name(){return kind==BOSS?"บอสจอมป่วน":kind==BONUS?"ห้องสมบัติ":kind==RESCUE?"ช่วยผีน้อย":"เคลียร์อาคม";}
@@ -53,7 +53,7 @@ final class AdventureEngine {
         List<Integer> spots=new ArrayList<>();
         for(int r=1;r<7;r++)for(int c=0;c<8;c++)if(active[r][c])spots.add(r*8+c);
         Collections.shuffle(spots,layout);
-        int count=n==1?4:Math.min(14,4+level.world/2+(n%3));
+        int count=n<=3?2:n<=5?3:n<=10?4:Math.min(14,4+level.world/2+(n%3));
         for(int i=0;i<count;i++){
             int p=spots.get(i),r=p/8,c=p%8;
             obstacle[r][c]=n<5?0:(i+level.world+level.variant)%Math.min(4,2+level.world);

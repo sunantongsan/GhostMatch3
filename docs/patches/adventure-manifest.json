@@ -1,7 +1,7 @@
 {
   "schema": 2,
-  "version": 1,
+  "version": 2,
   "minAppVersion": 37,
-  "file": "adventure-1.json",
-  "sha256": "10c89a482e54dd9bcfe072311308ae8ff49641ad7495d007c816c6ae954f39f5"
+  "file": "adventure-2.json",
+  "sha256": "2f465225ed9a0cfcbc6f1d253ce122446d68ebfe685388dc0186706db83a4510"
 }

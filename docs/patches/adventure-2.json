@@ -1,0 +1,106 @@
+{
+  "schema": 2,
+  "version": 2,
+  "levels": {
+    "1": {
+      "moves": 48,
+      "goal": 6,
+      "reward": 60
+    },
+    "2": {
+      "moves": 48,
+      "goal": 6,
+      "reward": 90
+    },
+    "3": {
+      "moves": 48,
+      "goal": 6,
+      "reward": 60
+    },
+    "4": {
+      "moves": 48,
+      "goal": 6,
+      "reward": 90
+    },
+    "5": {
+      "moves": 48,
+      "goal": 6,
+      "reward": 60
+    },
+    "6": {
+      "moves": 48,
+      "goal": 16,
+      "reward": 160
+    },
+    "7": {
+      "moves": 48,
+      "goal": 10,
+      "reward": 60
+    },
+    "8": {
+      "moves": 48,
+      "goal": 10,
+      "reward": 90
+    },
+    "9": {
+      "moves": 48,
+      "goal": 10,
+      "reward": 60
+    },
+    "10": {
+      "moves": 48,
+      "goal": 10,
+      "reward": 280
+    },
+    "11": {
+      "moves": 44,
+      "goal": 11,
+      "reward": 70
+    },
+    "12": {
+      "moves": 44,
+      "goal": 28,
+      "reward": 170
+    },
+    "13": {
+      "moves": 44,
+      "goal": 11,
+      "reward": 70
+    },
+    "14": {
+      "moves": 44,
+      "goal": 13,
+      "reward": 100
+    },
+    "15": {
+      "moves": 44,
+      "goal": 11,
+      "reward": 70
+    },
+    "16": {
+      "moves": 44,
+      "goal": 13,
+      "reward": 100
+    },
+    "17": {
+      "moves": 44,
+      "goal": 11,
+      "reward": 70
+    },
+    "18": {
+      "moves": 44,
+      "goal": 28,
+      "reward": 170
+    },
+    "19": {
+      "moves": 44,
+      "goal": 11,
+      "reward": 70
+    },
+    "20": {
+      "moves": 44,
+      "goal": 21,
+      "reward": 290
+    }
+  }
+}

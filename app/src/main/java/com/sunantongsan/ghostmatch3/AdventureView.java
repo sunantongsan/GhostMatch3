@@ -120,7 +120,7 @@ final class AdventureView extends View {
             int stars=game.moves>=game.level.moves/3?3:game.moves>=3?2:1;
             prefs.edit().putInt("stars_"+game.level.number,Math.max(stars,prefs.getInt("stars_"+game.level.number,0))).apply();
             rewardItem=new int[]{0,6,7,8,1,2,9}[game.level.number%7];inventory[rewardItem]++;
-            resultAt=lastInteraction+2200;sound(GameAudio.WIN);host.onLevelCompleted(game.level.number);
+            resultAt=lastInteraction+3800;sound(GameAudio.WIN);host.onLevelCompleted(game.level.number);
         }else if(game.lost){resultAt=lastInteraction+600;sound(GameAudio.LOSE);}else if(fxKind<0)sound(game.chains>1?GameAudio.MAGIC:GameAudio.MATCH);
         selected=-1;save();invalidate();
     }
@@ -133,7 +133,7 @@ final class AdventureView extends View {
         if(background!=null){paint.setAlpha(255);canvas.drawBitmap(background,null,new RectF(0,0,getWidth(),getHeight()),paint);}
         canvas.save();canvas.translate(ox,oy);canvas.scale(scale,scale);
         if(screen.equals("home"))drawHome(canvas);else if(screen.equals("shop"))drawShop(canvas);else if(screen.equals("map"))drawMap(canvas);else drawGame(canvas);
-        if(System.currentTimeMillis()<noticeUntil){round(canvas,10,391,390,436,0xf5231738,16);text(canvas,notice,200,419,12,WHITE);}
+        if(System.currentTimeMillis()<noticeUntil&&!(screen.equals("play")&&game!=null&&(game.won||game.lost))){round(canvas,10,391,390,436,0xf5231738,16);text(canvas,notice,200,419,12,WHITE);}
         canvas.restore();
         host.updateBannerVisibility(false,0);
         if(active&&isShown()&&(screen.equals("play")||System.currentTimeMillis()<noticeUntil))postInvalidateDelayed(33);
@@ -235,6 +235,7 @@ final class AdventureView extends View {
         if(brief)drawBrief(c);
         else if(paused)drawPause(c);
         else if((game.won||game.lost)&&System.currentTimeMillis()>=resultAt)drawResult(c);
+        else if(game.won)drawCelebration(c);
     }
     private float rescueProgress(){
         if(game==null)return 0;float goal=Math.min(1,game.progress/(float)game.level.goal);
@@ -242,7 +243,7 @@ final class AdventureView extends View {
     }
     private void drawRescueScene(Canvas c){
         shownRescue+=(rescueProgress()-shownRescue)*.12f;shownDanger+=(Math.min(1,game.danger/(float)game.level.moves)-shownDanger)*.12f;
-        art.scene(c,game,new RectF(12,103,388,259),shownRescue,shownDanger,(System.currentTimeMillis()-(resultAt-2200))/1000f);
+        art.scene(c,game,new RectF(12,103,388,259),shownRescue,shownDanger,(System.currentTimeMillis()-(resultAt-3800))/1000f);
     }
     private void overlay(Canvas c,String title){hits.clear();round(c,0,0,400,820,0xb8100b20,0);round(c,25,192,375,647,0xff39244f,25);round(c,31,198,369,641,0xff241734,22);text(c,title,200,239,26,GOLD);}
     private void drawBrief(Canvas c){
@@ -261,14 +262,42 @@ final class AdventureView extends View {
         button(c,68,500,332,553,"กลับหน้าแรก",0xff604783,()->{screen="home";save();invalidate();});
         button(c,68,574,332,619,"เริ่มด่านใหม่",0xff604783,()->new android.app.AlertDialog.Builder(host).setTitle("เริ่มใหม่?").setMessage("ความคืบหน้าในด่านนี้จะเริ่มใหม่ ของที่ใช้ไปแล้วไม่คืน").setNegativeButton("ยกเลิก",null).setPositiveButton("เริ่มใหม่",(d,w)->start(game.level.number)).show());
     }
+    private void fireworks(Canvas c,float t){
+        for(int burst=0;burst<5;burst++){
+            float age=(t-burst*.23f)%1.8f;if(age<0)continue;
+            float cx=54+(burst*79)%300,cy=170+(burst%3)*96;
+            int color=burst%2==0?GOLD:TEAL;
+            for(int i=0;i<18;i++){
+                double a=i*Math.PI*2/18;float r=age*72;
+                paint.setColor(color);paint.setAlpha((int)(255*Math.max(0,1-age/1.8f)));
+                paint.setStrokeWidth(2.4f);float x=cx+(float)Math.cos(a)*r,y=cy+(float)Math.sin(a)*r+age*age*22;
+                c.drawLine(x,y,x-(float)Math.cos(a)*8,y-(float)Math.sin(a)*8,paint);
+            }
+        }
+        paint.setAlpha(255);
+    }
+    private void drawCelebration(Canvas c){
+        hits.clear();float t=(System.currentTimeMillis()-(resultAt-3800))/1000f;
+        // Leave the first second unobscured so the actual rescue can be seen.
+        if(t<1.1f)return;
+        round(c,0,0,400,820,0xa8101028,0);fireworks(c,t-1.1f);
+        float pop=Math.min(1,(t-1.1f)*3),zoom=1+.08f*(float)Math.sin(pop*Math.PI);
+        c.save();c.scale(zoom,zoom,200,400);
+        gradient(c,new RectF(32,255,368,328),0xff7654b7,0xff3c2777,22);
+        text(c,game.level.kind==AdventureEngine.RESCUE?"ช่วยได้แล้ว!":"ยอดเยี่ยม!",200,302,32,GOLD);
+        art.ghost(c,game.level.world%3,1,200,413+(float)Math.sin(t*4)*5,154);
+        text(c,game.level.kind==AdventureEngine.RESCUE?"ขอบคุณที่ช่วยเรานะ":"ผ่านด่านแล้ว!",200,521,23,WHITE);
+        c.restore();
+    }
     private void drawResult(Canvas c){
         boolean win=game.won;overlay(c,win?(game.level.kind==AdventureEngine.RESCUE?"ช่วยผีน้อยสำเร็จ!":"ผ่านด่านแล้ว!"):"ช่วยผีน้อยอีกครั้งนะ");
         art.scene(c,game,new RectF(39,255,361,395),rescueProgress(),shownDanger,3);
         if(win){float t=(System.currentTimeMillis()-resultAt)/1000f;int earned=game.moves>=game.level.moves/3?3:game.moves>=3?2:1;
             for(int i=0;i<3;i++){float pop=Math.min(1,Math.max(0,(t-i*.16f)*4));text(c,"★",136+i*64,426,38*pop,i<earned?GOLD:0xff6d5979);}
-            for(int i=0;i<40;i++){float x=30+(i*73)%340,y=245+((t*70+i*37)%235);paint.setColor(i%3==0?GOLD:i%3==1?TEAL:0xffff95cc);c.drawCircle(x,y,2+i%3,paint);}
+            fireworks(c,t);
+            for(int i=0;i<30;i++){float x=30+(i*73)%340,y=80+((t*64+i*37)%550);paint.setColor(i%3==0?GOLD:i%3==1?TEAL:0xffff95cc);c.save();c.rotate(t*80+i*21,x,y);c.drawRect(x-2,y-4,x+2,y+4,paint);c.restore();}
         }
-        text(c,win?"+ "+lastReward+" เหรียญทอง":"จับคู่เปิดทาง แล้วลองใหม่ได้เลย",200,460,22,win?GOLD:WHITE);
+        text(c,win?"+ "+(int)(lastReward*Math.min(1,Math.max(0,(System.currentTimeMillis()-resultAt)/1000f)))+" เหรียญทอง":"จับคู่เปิดทาง แล้วลองใหม่ได้เลย",200,460,22,win?GOLD:WHITE);
         if(win&&rewardItem>=0){art.booster(c,rewardItem,82,485,29);text(c,"ได้รับ "+ITEMS[rewardItem]+" × 1",220,490,15,TEAL);}
         button(c,67,516,333,567,win?(game.level.number==120?"ครบ 120 ด่าน!":"ด่านต่อไป"):"ลองอีกครั้ง",GOLD,()->{
             if(win&&game.level.number==120){screen="map";mapPage=5;invalidate();}

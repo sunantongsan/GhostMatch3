@@ -42,16 +42,24 @@ final class RescueArt {
         p.setAlpha(255);c.drawBitmap(castle,null,new RectF(0,-10,376,178),p);
         double tick=System.currentTimeMillis()/280.0;float bob=(float)Math.sin(tick)*3;
         float exit=g.won?Math.min(1,Math.max(0,winTime)/1.8f):0;
+        float urgency=Math.max(0,(danger-.55f)/.45f);
         float gx=92+rescue*52+exit*180,gy=106+bob-exit*8;
-        // The same danger counter that can end the level controls visible hazard position.
+        if(!g.won&&!g.lost)gx+=(float)Math.sin(tick*2)*urgency*4;
         if(g.level.kind==AdventureEngine.RESCUE&&!g.won){
+            p.setColor(Color.argb((int)(urgency*(28+18*Math.sin(tick))),255,58,65));c.drawRect(0,0,376,168,p);
+            line(c,18,157,358,157,0xff263349,6);
+            line(c,18,157,18+340*Math.min(1,danger),157,danger>.7f?0xffff7070:0xffffcb70,6);
+        }
+        // The same danger counter that can end the level controls visible hazard position.
+        if(g.level.kind==AdventureEngine.RESCUE&&(!g.won||exit<1)){
+            danger*=1-exit;
             if(g.level.variant==0){
                 float top=149-danger*65;Path water=new Path();water.moveTo(0,168);water.lineTo(0,top);
                 for(int x=0;x<=376;x+=4)water.lineTo(x,top+3*(float)Math.sin(x*.07+tick));water.lineTo(376,168);water.close();
                 p.setColor(0xb53acfe3);c.drawPath(water,p);
                 for(int i=0;i<12;i++){p.setColor(0xaaffffff);c.drawCircle((i*37)%376,top+8+(i%3)*7,1.5f,p);}
             }else if(g.level.variant==1){
-                float x=10+danger*62; p.setShader(new RadialGradient(x-8,95,42,new int[]{0xffb5c1d2,0xff596276,0xff293145},null,Shader.TileMode.CLAMP));c.drawCircle(x,108,35,p);p.setShader(null);
+                float x=10+danger*100; p.setShader(new RadialGradient(x-8,95,42,new int[]{0xffb5c1d2,0xff596276,0xff293145},null,Shader.TileMode.CLAMP));c.drawCircle(x,108,35,p);p.setShader(null);
                 line(c,x-19,92,x+5,110,0xff374252,4);line(c,x+5,110,x-8,128,0xff374252,3);
             }else if(g.level.variant==2){
                 for(int i=0;i<7;i++){float y=16+i*18;line(c,0,y,43+danger*65,95,0xbbdce5ff,1.5f);}
@@ -66,7 +74,7 @@ final class RescueArt {
         }
         // Remaining blockers physically raise the gate. Progress and obstacles both gate escape.
         if(g.level.kind!=AdventureEngine.BOSS&&g.level.kind!=AdventureEngine.BONUS){
-            float open=1-g.remaining/(float)Math.max(1,g.initialObstacles),top=57-open*100;
+            float open=g.won?exit:rescue,top=57-open*100;
             c.save();c.clipRect(190,22,261,145);
             for(int i=0;i<5;i++){float x=198+i*14;line(c,x,top,x,top+88,0xff172431,7);line(c,x-1,top,x-1,top+88,0xffbacbd0,3);}
             line(c,194,top+8,259,top+8,0xffd3b77a,7);line(c,194,top+82,259,top+82,0xffd3b77a,7);c.restore();
@@ -77,6 +85,10 @@ final class RescueArt {
         if(g.shield>0||g.freeze>0){p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(3);p.setColor(0xbb9cfff6);c.drawOval(gx-44,gy-52,gx+44,gy+50,p);p.setStyle(Paint.Style.FILL);}
         if(g.freeze>0)label(c,"หยุดภัย "+g.freeze+" ตา",86,26,12,0xffa6fff9);
         else if(g.level.kind==AdventureEngine.RESCUE&&!g.won)label(c,"ภัยใน "+Math.max(0,g.level.moves-g.danger)+" ตา",86,26,12,0xffffe3a4);
+        if(g.won&&exit<1){
+            for(int i=0;i<22;i++){float x=155+((i*41)%210),y=142-exit*120+(float)Math.sin(tick+i)*6;
+                p.setColor(Color.argb((int)(220*(1-exit)),130,255,239));c.drawCircle(x,y,2+i%3,p);}
+        }
         if(g.won){ghost(c,(g.level.world+1)%3,1,310,103-bob,65);label(c,"ขอบคุณที่ช่วยเรา!",190,29,16,0xffffdf8a);}
         else if(g.lost)label(c,"ลองช่วยเราอีกครั้งนะ",190,29,15,0xffffdf8a);
         c.restore();
