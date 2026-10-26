@@ -11,7 +11,8 @@ import java.util.function.BooleanSupplier;
 
 /** Device-only regression: starts the actual Activity and sends real touch input. */
 public class AdventureSmoke extends Instrumentation {
- private MainActivity host; private AdventureView view; private String phase; private Throwable mainError;
+ private volatile MainActivity host; private AdventureView view; private String phase; private Throwable mainError;
+ @Override public void callActivityOnResume(Activity activity){super.callActivityOnResume(activity);if(activity instanceof MainActivity)host=(MainActivity)activity;}
  @Override public void onCreate(Bundle args){super.onCreate(args);phase=args==null?"fresh":args.getString("phase","fresh");start();}
  private void check(boolean ok,String why){if(!ok)throw new AssertionError(why);}
  private Object field(Object o,String n){try{Field f=o.getClass().getDeclaredField(n);f.setAccessible(true);return f.get(o);}catch(Exception e){throw new RuntimeException(e);}}
@@ -34,7 +35,7 @@ public class AdventureSmoke extends Instrumentation {
  private AdventureEngine game(){return (AdventureEngine)field(view,"game");}
  private void shot(String name)throws Exception{Bitmap b=getUiAutomation().takeScreenshot();check(b!=null,"screenshot");File dir=new File(getTargetContext().getExternalFilesDir(null),"screenshots");dir.mkdirs();try(FileOutputStream o=new FileOutputStream(new File(dir,phase+"-"+name+".png"))){b.compress(Bitmap.CompressFormat.PNG,100,o);}b.recycle();}
  private void launch(){
-  Intent i=new Intent(getTargetContext(),MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);host=(MainActivity)startActivitySync(i);
+  Intent i=new Intent(getTargetContext(),MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);MainActivity started=(MainActivity)startActivitySync(i);if(host==null)host=started;
   clickText("เข้าเกม");
   if(!phase.equals("resume")){
    until(()->node(null,"android.widget.EditText")!=null,10000,"age field");
@@ -85,7 +86,7 @@ public class AdventureSmoke extends Instrumentation {
     tap(40,40);check(field(view,"screen").equals("play")&&(Boolean)field(view,"paused"),"return from shop");
     tap(200,304);check(!(Boolean)field(view,"paused"),"unpause");
     getUiAutomation().performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME);settle();
-    Intent i=new Intent(getTargetContext(),MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);getTargetContext().startActivity(i);settle();
+    Intent i=new Intent(getTargetContext(),MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);getTargetContext().startActivity(i);until(()->view.isShown(),10000,"foreground visible");settle();
     check(view.isShown(),"foreground return");shot("board");
     tap(40,35);tap(200,528);check(field(view,"screen").equals("home"),"home from pause");
     getTargetContext().getSharedPreferences("qa_expected",0).edit().putInt("coins",coins()).putInt("moves",game().moves).putInt("level",game().level.number).putString("run",getTargetContext().getSharedPreferences("ghost_adventure_v1",0).getString("run","")).commit();
