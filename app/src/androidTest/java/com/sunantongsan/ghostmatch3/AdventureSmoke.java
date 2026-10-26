@@ -88,7 +88,7 @@ public class AdventureSmoke extends Instrumentation {
     int p=-1;for(int r=0;r<8;r++)for(int c=0;c<8;c++)if(game().hp[r][c]>0)p=r*8+c;
     check(p>=0,"obstacle for hammer");int hp=game().hp[p/8][p%8];
     tap(12+p%8*47+23.5f,237+p/8*47+23.5f);
-    check(((int[])field(view,"inventory"))[0]==0&&game().hp[p/8][p%8]<hp,"hammer touch consumed and damaged");
+    check(((int[])field(view,"inventory"))[0]==0&&game().hp[p/8][p%8]<hp,"hammer touch consumed and damaged");shot("hammer-effect");
     for(int n=0;n<60&&!game().won&&!game().lost;n++)move();
     check(game().won||game().lost,"full real-touch game ended");SystemClock.sleep(1100);shot(game().won?"victory":"loss");
     tap(200,530);check(!game().won&&!game().lost,"next or retry");tap(200,578);move();
