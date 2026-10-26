@@ -73,7 +73,7 @@ public class AdventureSmoke extends Instrumentation {
   tap(194,767);long frozen=clock.remainingMs;SystemClock.sleep(1000);check(clock.remainingMs==frozen,"freeze booster stops real clock");
   main(()->{clock.frozenMs=0;game().freeze=0;clock.remainingMs=5000;});
   tap(118,767);check(clock.remainingMs>18000,"extra turns extends time");
-  tap(270,767);main(()->{clock.remainingMs=1;});SystemClock.sleep(250);check(!game().lost&&clock.remainingMs>8000&&game().shield==0,"shield protects deadline once");
+  SystemClock.sleep(600);tap(270,767);check(game().shield==1,"shield activated through touch");main(()->{clock.remainingMs=1;});SystemClock.sleep(250);check(!game().lost&&clock.remainingMs>8000&&game().shield==0,"shield protects deadline once");
   main(()->{clock.remainingMs=1;});SystemClock.sleep(900);check(game().lost,"deadline ends rescue");shot("guardian-timeout");
   for(int n:new int[]{2,4,8,14,16,22,26,28}){startLevel(n);main(()->{GuardianClock cc=(GuardianClock)field(view,"guardianClock");cc.remainingMs=cc.limitMs/4;});shot("guardian-mechanism-"+n);}
  }
@@ -90,7 +90,7 @@ public class AdventureSmoke extends Instrumentation {
    SystemClock.sleep(600);tap(42+(slot%5)*76,700+(slot/5)*67);
    if(id==6){int[] pair=game().hint();tap(12+pair[0]%8*47+23.5f,280+pair[0]/8*47+23.5f);tap(12+pair[1]%8*47+23.5f,280+pair[1]/8*47+23.5f);}
    else if(id==0||id==1||id==2||id==7||id==8)tap(12+3*47+23.5f,280+3*47+23.5f);
-   check(inv[id]==before-1,"inventory decrement "+id);check(game().moves==moves+(id==9?5:0),"booster turn cost "+id);
+   check(inv[id]==before-1+(game().won&&(Integer)field(view,"rewardItem")==id?1:0),"inventory decrement and earned reward "+id);check(game().moves==moves+(id==9?5:0),"booster turn cost "+id);
    check(game().danger==(id==9?Math.max(0,danger-5):danger),"booster danger cost "+id);
    shot("booster-"+id);
   }
