@@ -1,0 +1,64 @@
+name: Welcome and patch checks
+on:
+  push:
+    branches: [feature/ghost-wai-welcome]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [24, 35]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Campaign and patch rules
+        run: |
+          javac -d /tmp/ghost-tests app/src/main/java/com/sunantongsan/ghostmatch3/AdventureEngine.java tests/AdventureEngineTest.java
+          java -cp /tmp/ghost-tests com.sunantongsan.ghostmatch3.AdventureEngineTest
+      - name: Build and lint
+        run: gradle :app:assembleDebug :app:assembleDebugAndroidTest :app:bundleRelease :app:lintDebug --stacktrace
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          script: |
+            adb install app/build/outputs/apk/debug/app-debug.apk
+            adb install app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+            adb shell pm clear com.sunantongsan.ghostmatch3
+            adb shell am instrument -w -e phase fresh com.sunantongsan.ghostmatch3.test/com.sunantongsan.ghostmatch3.AdventureSmoke | tee online.txt
+            adb pull /sdcard/Android/data/com.sunantongsan.ghostmatch3/files/screenshots screenshots-online
+            grep 'PASS: real-entry' online.txt
+            adb shell am force-stop com.sunantongsan.ghostmatch3
+            adb shell am instrument -w -e phase resume com.sunantongsan.ghostmatch3.test/com.sunantongsan.ghostmatch3.AdventureSmoke | tee resume.txt
+            grep 'PASS: real-entry' resume.txt
+            adb pull /sdcard/Android/data/com.sunantongsan.ghostmatch3/files/screenshots screenshots-online
+            if [ "${{ matrix.api }}" = "35" ]; then adb shell pm clear com.sunantongsan.ghostmatch3; adb shell svc wifi disable; adb shell svc data disable; adb shell am instrument -w -e phase offline com.sunantongsan.ghostmatch3.test/com.sunantongsan.ghostmatch3.AdventureSmoke | tee offline.txt; adb pull /sdcard/Android/data/com.sunantongsan.ghostmatch3/files/screenshots screenshots-offline; grep 'PASS: real-entry' offline.txt; fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: welcome-api-${{ matrix.api }}
+          path: |
+            online.txt
+            resume.txt
+            offline.txt
+            screenshots-online/
+            screenshots-offline/
+            app/build/outputs/apk/debug/app-debug.apk
+            app/build/outputs/bundle/release/app-release.aab
+            app/build/reports/lint-results-debug.html

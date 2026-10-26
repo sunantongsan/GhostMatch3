@@ -46,18 +46,19 @@ final class AdventureView extends View {
         for(int i=0;i<6;i++)e.putInt("item_"+i,inventory[i]);
         if(game!=null){try{
             JSONObject j=new JSONObject();j.put("level",game.level.number);j.put("moves",game.moves);j.put("progress",game.progress);j.put("remaining",game.remaining);j.put("initial",game.initialObstacles);j.put("turns",game.turns);j.put("danger",game.danger);j.put("freeze",game.freeze);j.put("shield",game.shield);j.put("score",game.score);j.put("won",game.won);j.put("lost",game.lost);j.put("credited",credited);j.put("reward",lastReward);
+            j.put("balanceMoves",game.level.moves);j.put("balanceGoal",game.level.goal);j.put("balanceReward",game.level.reward);
             JSONArray cells=new JSONArray();for(int r=0;r<8;r++)for(int c=0;c<8;c++){cells.put(game.tile[r][c]);cells.put(game.power[r][c]);cells.put(game.hp[r][c]);cells.put(game.obstacle[r][c]);}j.put("cells",cells);e.putString("run",j.toString());
         }catch(JSONException ignored){}}
         e.apply();
     }
     private void restore(){try{
         String raw=prefs.getString("run","");if(raw.isEmpty())return;
-        JSONObject j=new JSONObject(raw);AdventureEngine restored=new AdventureEngine(j.getInt("level"),1);
+        JSONObject j=new JSONObject(raw);AdventureEngine restored=new AdventureEngine(j.getInt("level"),1,j.has("balanceMoves")?new int[]{j.getInt("balanceMoves"),j.getInt("balanceGoal"),j.getInt("balanceReward")}:null);
         JSONArray a=j.getJSONArray("cells");if(a.length()!=256)return;int k=0;
         for(int r=0;r<8;r++)for(int c=0;c<8;c++){restored.tile[r][c]=a.getInt(k++);restored.power[r][c]=a.getInt(k++);restored.hp[r][c]=a.getInt(k++);restored.obstacle[r][c]=a.getInt(k++);}
         restored.moves=j.getInt("moves");restored.progress=j.getInt("progress");restored.remaining=j.getInt("remaining");restored.initialObstacles=j.getInt("initial");restored.turns=j.getInt("turns");restored.danger=j.optInt("danger");restored.freeze=j.getInt("freeze");restored.shield=j.getInt("shield");restored.score=j.getInt("score");restored.won=j.getBoolean("won");restored.lost=j.getBoolean("lost");game=restored;credited=j.getBoolean("credited");lastReward=j.optInt("reward");
     }catch(Exception ignored){game=null;}}
-    private void start(int n){game=new AdventureEngine(n,System.nanoTime());credited=false;lastReward=0;selected=-1;item=-1;brief=true;paused=false;screen="play";lastInteraction=System.currentTimeMillis();save();invalidate();}
+    private void start(int n){game=new AdventureEngine(n,System.nanoTime(),ContentPatch.adventureLevel(host,n));credited=false;lastReward=0;selected=-1;item=-1;brief=true;paused=false;screen="play";lastInteraction=System.currentTimeMillis();save();invalidate();}
     private void afterAction(){
         lastInteraction=System.currentTimeMillis();animationUntil=lastInteraction+480;
         if(game.won&&!credited){

@@ -60,20 +60,21 @@ public class MainActivity extends Activity {
     private void showWelcome(){
         android.widget.FrameLayout screen=new android.widget.FrameLayout(this);
         android.widget.ImageView background=new android.widget.ImageView(this);
-        background.setImageResource(R.drawable.adventure_home);
+        background.setImageResource(R.drawable.ghost_wai_welcome);
+        background.setContentDescription("ผีน้อยยกมือไหว้ต้อนรับสู่อาณาจักรผี");
         background.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
         screen.addView(background,new android.widget.FrameLayout.LayoutParams(-1,-1));
         android.widget.TextView title=new android.widget.TextView(this);
-        title.setText("GHOST\nMATCH 3");title.setTextSize(42);title.setTextColor(0xFFFFD775);
+        title.setText("GHOST\nMATCH 3");title.setTextSize(38);title.setTextColor(0xFFFFD775);
         title.setGravity(Gravity.CENTER);title.setTypeface(Typeface.create("sans-serif-black",Typeface.BOLD));
         title.setShadowLayer(dp(8),0,dp(3),0xFF24083F);
         android.widget.FrameLayout.LayoutParams titleLayout=new android.widget.FrameLayout.LayoutParams(-1,-2,Gravity.TOP);
         titleLayout.topMargin=dp(36);screen.addView(title,titleLayout);
         android.widget.LinearLayout panel=new android.widget.LinearLayout(this);
         panel.setOrientation(android.widget.LinearLayout.VERTICAL);panel.setGravity(Gravity.CENTER);
-        panel.setPadding(dp(20),dp(16),dp(20),dp(12));
+        panel.setPadding(dp(20),dp(12),dp(20),dp(8));
         android.graphics.drawable.GradientDrawable panelBackground=new android.graphics.drawable.GradientDrawable(
-            android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,new int[]{0xE528123F,0xF0120826});
+            android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,new int[]{0xD928123F,0xEF120826});
         panelBackground.setCornerRadius(dp(24));panelBackground.setStroke(dp(1),0xFFBA8CDA);panel.setBackground(panelBackground);
         android.widget.FrameLayout.LayoutParams panelLayout=new android.widget.FrameLayout.LayoutParams(-1,-2,Gravity.BOTTOM);
         panelLayout.setMargins(dp(24),0,dp(24),dp(24));screen.addView(panel,panelLayout);
@@ -82,7 +83,11 @@ public class MainActivity extends Activity {
             panelLayout.bottomMargin=dp(16)+insets.getSystemWindowInsetBottom();panel.setLayoutParams(panelLayout);
             return insets;
         });
+        android.widget.TextView greeting=new android.widget.TextView(this);
+        greeting.setText("ยินดีต้อนรับสู่อาณาจักรผี");greeting.setTextSize(18);greeting.setTextColor(0xFFFFD775);
+        greeting.setGravity(Gravity.CENTER);greeting.setTypeface(null,Typeface.BOLD);panel.addView(greeting);
         android.widget.TextView status=new android.widget.TextView(this);
+        status.setTextSize(13);status.setPadding(0,dp(8),0,dp(2));
         status.setTextColor(Color.WHITE);status.setGravity(Gravity.CENTER);panel.addView(status);
         android.widget.ProgressBar bar=new android.widget.ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);
         bar.setMax(100);bar.setProgressTintList(android.content.res.ColorStateList.valueOf(0xFFCA7BFF));
@@ -101,7 +106,7 @@ public class MainActivity extends Activity {
                     bar.setIndeterminate(false);bar.setProgress(percent);status.setText("กำลังโหลดแพตช์ "+percent+"%");
                 }));
                 runOnUiThread(()->{if(isDestroyed()||isFinishing())return;
-                    bar.setIndeterminate(false);bar.setProgress(100);status.setText(result);
+                    bar.setIndeterminate(false);bar.setProgress(result.startsWith("ตรวจสอบแพตช์ไม่ได้")?0:100);status.setText(result);
                     play.setEnabled(true);retry.setVisibility(View.VISIBLE);
                 });
             },"ghost-content-update").start();
