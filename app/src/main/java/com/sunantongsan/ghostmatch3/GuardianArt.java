@@ -54,7 +54,7 @@ final class GuardianArt {
         // Position changes only after the physical intervention has completed.
         float actorStart=story.mechanism==2?179:family==3?173:86;
         float actorX=actorStart+safe*(321-actorStart);
-        float ground=floor;
+        float ground=floor;Path floodFront=null;float floodTop=0;
         if(family==0){
             float bridge=story.mechanism==4?Math.min(charge,open):charge;
             if(movie)bridge=intro<2.3f?1:Math.max(0,1-(intro-2.3f));
@@ -72,7 +72,7 @@ final class GuardianArt {
             waterTop=Math.min(h+4,waterTop+safe*h*.8f);
             Path water=new Path();water.moveTo(0,h);water.lineTo(0,waterTop);
             for(int x=0;x<=376;x+=4)water.lineTo(x,waterTop+2*(float)Math.sin(x*.09+tick*3));water.lineTo(376,h);water.close();
-            p.setShader(new LinearGradient(0,waterTop,0,h,0xaa61dfff,0xee154b84,Shader.TileMode.CLAMP));c.drawPath(water,p);p.setShader(null);
+            p.setShader(new LinearGradient(0,waterTop,0,h,0xaa61dfff,0xee154b84,Shader.TileMode.CLAMP));c.drawPath(water,p);p.setShader(null);floodFront=water;floodTop=waterTop;
             if(charge>0)for(int i=0;i<18;i++){float u=(tick*.6f+i/18f)%1,x=195+(1-u)*95,y=waterTop+u*(h-waterTop);line(c,x,y,x-7,y+4,0xaaddffff,2);}
             // Drain grille and valve visibly open with the collected ghost power.
             prop(c,7,199,h+10-charge*28,57,55,1);
@@ -101,6 +101,7 @@ final class GuardianArt {
         if(movie&&intro<2.3f&&family!=0)actorX=70+(actorStart-70)*Math.min(1,intro/2.3f);
         if(win&&safe<.9f)ground+=(float)Math.sin(tick*18)*2;
         person(c,pose,actorX,ground,Math.min(floor-10,goodDeed&&family==0?h*.55f:h*.68f));
+        if(floodFront!=null){p.setShader(new LinearGradient(0,floodTop,0,h,0x6657cde8,0xb3154b84,Shader.TileMode.CLAMP));c.drawPath(floodFront,p);p.setShader(null);}
         if(!movie||intro>4.3f){float fade=movie?Math.min(1,(intro-4.3f)/1.2f):1;
             c.save();c.scale(fade,fade,40,h*.3f);ghosts.ghost(c,0,win?1:0,40,h*.3f+(float)Math.sin(tick*3)*3,h*.28f);c.restore();}
         if(charge>0&&!win)for(int i=0;i<8;i++){float u=(tick*.4f+i/8f)%1,x=40+u*150,y=h*.3f+(floor-h*.3f)*u;

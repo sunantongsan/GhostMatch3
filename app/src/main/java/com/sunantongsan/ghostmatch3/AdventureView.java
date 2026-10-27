@@ -263,7 +263,7 @@ final class AdventureView extends View {
             float energy=Math.min(1,game.progress/(float)game.level.goal),cleared=1-game.remaining/(float)Math.max(1,game.initialObstacles);
             shownRescue+=(energy-shownRescue)*.16f;shownDanger+=(guardianClock.danger()-shownDanger)*.12f;
             guardianArt.scene(c,story,game,new RectF(12,103,388,259),shownRescue,cleared,shownDanger,(System.currentTimeMillis()-(resultAt-5200))/1000f,-1,art);
-            round(c,17,107,133,132,0xd51a263c,8);text(c,guardianClock.frozenMs>0?"หยุดภัย "+(guardianClock.frozenMs+999)/1000+" วิ":"เหลือ "+(guardianClock.remainingMs+999)/1000+" วินาที",75,125,12,guardianClock.remainingMs<30000?0xffffaaaa:GOLD);
+            if(!game.won){round(c,263,107,383,132,0xd51a263c,8);text(c,guardianClock.frozenMs>0?"หยุดภัย "+(guardianClock.frozenMs+999)/1000+" วิ":"เหลือ "+(guardianClock.remainingMs+999)/1000+" วินาที",323,125,12,guardianClock.remainingMs<30000?0xffffaaaa:GOLD);}
             return;
         }
         shownRescue+=(rescueProgress()-shownRescue)*.12f;shownDanger+=(Math.min(1,game.danger/(float)game.level.moves)-shownDanger)*.12f;
