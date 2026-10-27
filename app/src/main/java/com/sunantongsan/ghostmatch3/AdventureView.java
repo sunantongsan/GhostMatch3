@@ -13,12 +13,19 @@ final class AdventureView extends View {
     private final Paint paint=new Paint(3);
     private final Bitmap atlas,background;
     private final RescueArt art;
+    private final GuardianArt guardianArt;
+    private final Map<Integer,GuardianStory> stories;
+    private GuardianStory story;
+    private GuardianClock guardianClock;
+    private long frameAt,introElapsed,reactionAt,lastPulse,lastClockSave;
+    private int reactionCell=-1;
+    private boolean resultSoundPlayed;
     private float shownRescue,shownDanger;
     private int rewardItem=-1;
     private final ArrayList<Hit> hits=new ArrayList<>();
     private final int[] inventory=new int[10];
     private static final String[] ITEMS={"ค้อนเวท","ระเบิด","ลูกแก้วสี","หยุดภัย","โล่ผี","สลับใหม่","สลับฟรี","ล้างแถว","ล้างคอลัมน์","เพิ่ม 5 ตา"};
-    private static final String[] DETAILS={"ทุบอุปสรรค 1 ชั้นในช่องที่เลือก","ระเบิดพื้นที่ 3 × 3 ช่อง","ล้างชิ้นที่เป็นสีเดียวกับช่องที่เลือก","หยุดอันตราย 3 ตา • ใช้ในด่านช่วยเหลือและบอส","กันบอส 1 ครั้ง หรือถอยภัยช่วยเหลือ 3 ตา","เรียงกระดานใหม่โดยไม่เสียตา","เลือกสองช่องติดกันเพื่อสลับฟรี","กวาดทั้งแถวที่เลือก","กวาดทั้งคอลัมน์ที่เลือก","เพิ่ม 5 ตา และถอยภัยช่วยเหลือ 5 ตา"};
+    private static final String[] DETAILS={"ทุบอุปสรรค 1 ชั้นในช่องที่เลือก","ระเบิดพื้นที่ 3 × 3 ช่อง","ล้างชิ้นที่เป็นสีเดียวกับช่องที่เลือก","หยุดภัย 8 วินาที • บอสหยุด 3 ตา","กันบอส 1 ครั้ง หรือช่วยต่อเวลา 10 วินาที","เรียงกระดานใหม่โดยไม่เสียตา","เลือกสองช่องติดกันเพื่อสลับฟรี","กวาดทั้งแถวที่เลือก","กวาดทั้งคอลัมน์ที่เลือก","เพิ่ม 5 ตา และเวลาช่วยเหลือ 15 วินาที"};
     private static final int[] PRICES={100,180,240,120,120,80,100,160,160,150};
     private static final int GOLD=0xffffd56a,WHITE=0xfffff5e2,INK=0xff231738,TEAL=0xff78e0d7;
     private String screen="home",returnFromShop="home",notice="";
@@ -39,7 +46,7 @@ final class AdventureView extends View {
         boolean free=item==6;
         if(!(free?game.freeSwap(a,b):game.move(a,b)))return false;
         if(free){inventory[6]--;item=-1;}
-        movingFrom=a;movingTo=b;effects(free?6:powered?1:-1,b);return true;
+        reactionCell=b;reactionAt=System.currentTimeMillis();sound(GameAudio.GHOST);movingFrom=a;movingTo=b;effects(free?6:powered?1:-1,b);return true;
     }
     private void effects(int kind,int target){
         fxKind=kind;fxTarget=target;fxStart=System.currentTimeMillis();sparks.clear();
@@ -56,6 +63,13 @@ final class AdventureView extends View {
         float t=(System.currentTimeMillis()-fxStart)/1000f;if(t<0||t>1.15f)return;
         int[] colors={0xffffd56a,0xff91f5ff,0xffff93d7,0xffb3ff98,0xffbf9cff,0xffffffff};
         for(float[] p:sparks){paint.setColor(colors[(int)p[5]]);paint.setAlpha((int)(255*Math.max(0,1-t/1.15f)));float x=p[0]+p[2]*t,y=p[1]+p[3]*t+65*t*t;float r=p[4]*(1-t*.6f);c.drawCircle(x,y,r,paint);}
+        if(story!=null&&game.lastCollected>0&&t<1){
+            float sx=fxTarget>=0?BX+(fxTarget%8+.5f)*CELL:200,sy=fxTarget>=0?BY+(fxTarget/8+.5f)*CELL:470;
+            for(int i=0;i<9;i++){float u=Math.max(0,Math.min(1,t*1.25f-i*.035f)),v=1-u;
+                float x=v*v*sx+2*v*u*345+u*u*205,y=v*v*sy+2*v*u*215+u*u*175;
+                paint.setColor(i<3?0xffe5fff8:0xff70eada);paint.setAlpha((int)(210*(1-i/10f)*(1-t)));c.drawCircle(x,y,3.5f-i*.25f,paint);
+            }
+        }
         for(int[] cast:game.casts)art.spell(c,cast[1],cast[0],t,BX,BY,CELL);
         if(fxKind>=0){
             float x=fxTarget>=0?BX+(fxTarget%8+.5f)*CELL:200,y=fxTarget>=0?BY+(fxTarget/8+.5f)*CELL:420;
@@ -83,7 +97,7 @@ final class AdventureView extends View {
             for(int i=0;i<inventory.length;i++){inventory[i]+=gifts[i];gift.putInt("item_"+i,inventory[i]);}
             gift.putBoolean("classic_pack_39",true).apply();
         }
-        art=new RescueArt(getResources());
+        art=new RescueArt(getResources());guardianArt=new GuardianArt(getResources());stories=GuardianStory.load(host);
         atlas=BitmapFactory.decodeResource(getResources(),R.drawable.adventure_atlas);
         background=BitmapFactory.decodeResource(getResources(),R.drawable.adventure_home);
         setFocusable(true);setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
@@ -91,7 +105,7 @@ final class AdventureView extends View {
         setOnApplyWindowInsetsListener((v,insets)->{insetTop=insets.getSystemWindowInsetTop();insetBottom=insets.getSystemWindowInsetBottom();insetLeft=insets.getSystemWindowInsetLeft();insetRight=insets.getSystemWindowInsetRight();invalidate();return insets;});
         restore();
     }
-    void setActive(boolean value){active=value;if(value)invalidate();else save();}
+    void setActive(boolean value){active=value;frameAt=android.os.SystemClock.elapsedRealtime();if(value)invalidate();else save();}
     private void sound(int kind){host.playSound(kind);}
     private void message(String text){notice=text;noticeUntil=System.currentTimeMillis()+2600;invalidate();}
     private void save(){
@@ -99,6 +113,7 @@ final class AdventureView extends View {
         for(int i=0;i<inventory.length;i++)e.putInt("item_"+i,inventory[i]);
         if(game!=null){try{
             JSONObject j=new JSONObject();j.put("level",game.level.number);j.put("moves",game.moves);j.put("progress",game.progress);j.put("remaining",game.remaining);j.put("initial",game.initialObstacles);j.put("turns",game.turns);j.put("danger",game.danger);j.put("freeze",game.freeze);j.put("shield",game.shield);j.put("score",game.score);j.put("won",game.won);j.put("lost",game.lost);j.put("credited",credited);j.put("reward",lastReward);j.put("rewardItem",rewardItem);
+            if(guardianClock!=null){j.put("guardianMs",guardianClock.remainingMs);j.put("frozenMs",guardianClock.frozenMs);j.put("introMs",introElapsed);j.put("introPending",brief);}
             j.put("balanceMoves",game.level.moves);j.put("balanceGoal",game.level.goal);j.put("balanceReward",game.level.reward);
             JSONArray cells=new JSONArray();for(int r=0;r<8;r++)for(int c=0;c<8;c++){cells.put(game.tile[r][c]);cells.put(game.power[r][c]);cells.put(game.hp[r][c]);cells.put(game.obstacle[r][c]);}j.put("cells",cells);e.putString("run",j.toString());
         }catch(JSONException ignored){}}
@@ -110,22 +125,23 @@ final class AdventureView extends View {
         JSONArray a=j.getJSONArray("cells");if(a.length()!=256)return;int k=0;
         for(int r=0;r<8;r++)for(int c=0;c<8;c++){restored.tile[r][c]=a.getInt(k++);restored.power[r][c]=a.getInt(k++);restored.hp[r][c]=a.getInt(k++);restored.obstacle[r][c]=a.getInt(k++);}
         restored.moves=j.getInt("moves");restored.progress=j.getInt("progress");restored.remaining=j.getInt("remaining");restored.initialObstacles=j.getInt("initial");restored.turns=j.getInt("turns");restored.danger=j.optInt("danger");restored.freeze=j.getInt("freeze");restored.shield=j.getInt("shield");restored.score=j.getInt("score");restored.won=j.getBoolean("won");restored.lost=j.getBoolean("lost");game=restored;credited=j.getBoolean("credited");lastReward=j.optInt("reward");rewardItem=j.optInt("rewardItem",-1);shownRescue=rescueProgress();shownDanger=game.danger/(float)game.level.moves;
+        story=stories.get(game.level.number);if(story!=null){guardianClock=new GuardianClock(story.seconds);guardianClock.remainingMs=Math.min(guardianClock.limitMs+120000,Math.max(0,j.optLong("guardianMs",guardianClock.limitMs)));guardianClock.frozenMs=Math.max(0,j.optLong("frozenMs",0));introElapsed=j.optLong("introMs",7000);brief=j.optBoolean("introPending",false);shownDanger=guardianClock.danger();}
     }catch(Exception ignored){game=null;}}
-    private void start(int n){sparks.clear();fxStart=0;resultAt=0;fxKind=-1;movingFrom=-1;game=new AdventureEngine(n,System.nanoTime(),ContentPatch.adventureLevel(host,n));credited=false;lastReward=0;rewardItem=-1;shownRescue=0;shownDanger=0;selected=-1;item=-1;brief=true;paused=false;screen="play";lastInteraction=System.currentTimeMillis();save();invalidate();}
+    private void start(int n){sparks.clear();fxStart=0;resultAt=0;fxKind=-1;movingFrom=-1;game=new AdventureEngine(n,System.nanoTime(),ContentPatch.adventureLevel(host,n));credited=false;lastReward=0;rewardItem=-1;shownRescue=0;shownDanger=0;selected=-1;item=-1;brief=true;paused=false;screen="play";story=stories.get(n);guardianClock=story==null?null:new GuardianClock(story.seconds);introElapsed=0;frameAt=android.os.SystemClock.elapsedRealtime();reactionCell=-1;resultSoundPlayed=false;lastInteraction=System.currentTimeMillis();save();invalidate();}
     private void afterAction(){
         lastInteraction=System.currentTimeMillis();animationUntil=lastInteraction+480;
         if(fxStart<lastInteraction-50)effects(-1,-1);
-        if(game.won&&!credited){
+        if(game.won&&!credited){noticeUntil=0;
             lastReward=game.reward();coins+=lastReward;credited=true;highest=Math.min(120,Math.max(highest,game.level.number+1));
             int stars=game.moves>=game.level.moves/3?3:game.moves>=3?2:1;
             prefs.edit().putInt("stars_"+game.level.number,Math.max(stars,prefs.getInt("stars_"+game.level.number,0))).apply();
             rewardItem=new int[]{0,6,7,8,1,2,9}[game.level.number%7];inventory[rewardItem]++;
-            resultAt=lastInteraction+3800;sound(GameAudio.WIN);host.onLevelCompleted(game.level.number);
+            resultAt=lastInteraction+5200;sound(GameAudio.WIN);host.onLevelCompleted(game.level.number);
         }else if(game.lost){resultAt=lastInteraction+600;sound(GameAudio.LOSE);}else if(fxKind<0)sound(game.chains>1?GameAudio.MAGIC:GameAudio.MATCH);
         selected=-1;save();invalidate();
     }
     @Override protected void onDraw(Canvas canvas){
-        super.onDraw(canvas);hits.clear();canvas.drawColor(0xff15132b);
+        super.onDraw(canvas);updateGuardianFrame();hits.clear();canvas.drawColor(0xff15132b);
         float width=getWidth()-insetLeft-insetRight,height=getHeight()-insetTop-insetBottom;
         float designHeight=820;scale=Math.min(width/400f,height/designHeight);ox=insetLeft+(width-400*scale)/2;oy=insetTop+(height-designHeight*scale)/2;
         if(scale<=0)return;
@@ -145,13 +161,13 @@ final class AdventureView extends View {
         round(c,l,t+4,r,b+4,0xff251530,18);gradient(c,new RectF(l,t,r,b),color,darken(color),18);text(c,label,(l+r)/2,(t+b)/2+6,18,color==GOLD?INK:WHITE);hits.add(new Hit(new RectF(l,t,r,b),action));
     }
     private int darken(int color){return Color.rgb((int)(Color.red(color)*.82),(int)(Color.green(color)*.82),(int)(Color.blue(color)*.82));}
-    private void icon(Canvas c,int index,float x,float y,float size){if(atlas==null)return;int w=atlas.getWidth()/4,h=atlas.getHeight()/4;paint.setAlpha(255);paint.setShader(null);c.drawBitmap(atlas,new Rect((index%4)*w,(index/4)*h,(index%4+1)*w,(index/4+1)*h),new RectF(x-size/2,y-size/2,x+size/2,y+size/2),paint);}
+    private void icon(Canvas c,int index,float x,float y,float size){if(index>=0&&index<6){art.boardGhost(c,index,x,y,size,-1,false);return;}if(atlas==null)return;int w=atlas.getWidth()/4,h=atlas.getHeight()/4;paint.setAlpha(255);paint.setShader(null);c.drawBitmap(atlas,new Rect((index%4)*w,(index/4)*h,(index%4+1)*w,(index/4+1)*h),new RectF(x-size/2,y-size/2,x+size/2,y+size/2),paint);}
     private void header(Canvas c,String title,Runnable back){button(c,16,16,68,61,"‹",0xff604783,back);round(c,222,16,384,61,0xf529193d,18);text(c,"ทอง  "+coins,303,45,18,GOLD);text(c,title,200,99,27,WHITE);}
     private void drawHome(Canvas c){
         round(c,16,18,192,61,0xef241637,18);text(c,"ทอง  "+coins,104,46,20,GOLD);
         button(c,320,18,384,61,host.soundEnabled()?"♪":"เงียบ",0xff604783,()->{host.toggleSound();invalidate();});
-        text(c,"GHOST",200,151,51,GOLD);text(c,"MATCH 3",200,199,45,WHITE);text(c,"ผจญภัยอาณาจักรผี",200,234,22,TEAL);
-        round(c,65,437,335,485,0xd8241637,20);text(c,"120 ด่าน • ช่วยเพื่อน • ล่าสมบัติ",200,467,16,WHITE);
+        text(c,"GHOST",200,151,51,GOLD);text(c,"MATCH 3",200,199,45,WHITE);text(c,"คนดีผีคุ้ม",200,234,28,TEAL);
+        round(c,65,437,335,485,0xd8241637,20);text(c,"120 ด่าน • คุ้มครองคนดี • ล่าสมบัติ",200,467,16,WHITE);
         boolean resume=game!=null&&!game.won&&!game.lost;
         button(c,68,507,332,578,resume?"เล่นต่อ • ด่าน "+game.level.number:"เล่น • ด่าน "+highest,GOLD,()->{if(resume){screen="play";brief=false;paused=false;}else start(highest);invalidate();});
         button(c,24,610,192,691,"เลือกด่าน",0xff6953a1,()->{screen="map";mapPage=(highest-1)/20;invalidate();});
@@ -194,12 +210,12 @@ final class AdventureView extends View {
         round(c,0,0,400,820,0xdd161329,0);
         AdventureEngine.Level lv=game.level;
         button(c,13,12,64,57,"Ⅱ",0xff604783,()->{paused=true;invalidate();});
-        text(c,"ด่าน "+lv.number+" • "+lv.name()+(lv.bonus&&lv.kind==3?" + โบนัส":""),228,38,18,GOLD);
+        text(c,"ด่าน "+lv.number+" • "+(story!=null?story.title:lv.name())+(lv.bonus&&lv.kind==3?" + โบนัส":""),228,38,18,GOLD);
         round(c,16,61,384,99,0xff38264e,12);
         icon(c,lv.color,42,80,32);text(c,Math.min(lv.goal,game.progress)+" / "+lv.goal,108,86,17,WHITE);
         text(c,"อุปสรรค "+game.remaining,217,86,14,TEAL);text(c,"ตา "+game.moves,334,87,22,GOLD);
         drawRescueScene(c);
-        text(c,item>=0?"แตะช่องเพื่อใช้ "+ITEMS[item]:lv.objective(),200,272,13,WHITE);
+        text(c,item>=0?"แตะช่องเพื่อใช้ "+ITEMS[item]:story!=null?(game.progress<lv.goal?story.action1:story.action2):lv.objective(),200,272,13,WHITE);
         float bx=BX,by=BY,cell=CELL;
         round(c,bx-7,by-7,bx+376+5,by+376+5,GOLD,17);
         round(c,bx-4,by-4,bx+380,by+380,0xff15132b,15);
@@ -213,7 +229,7 @@ final class AdventureView extends View {
             int image=game.hp[r][col]>0?12+game.obstacle[r][col]:game.tile[r][col];
             float px=x+23.5f,py=y+23.5f+drop;
             if((fxKind<0||fxKind==6)&&elapsed<.16f&&movingFrom>=0){image=beforeTiles[pos];float fraction=elapsed/.16f;if(pos==movingFrom){px+=(movingTo%8-movingFrom%8)*CELL*fraction;py+=(movingTo/8-movingFrom/8)*CELL*fraction;}else if(pos==movingTo){px+=(movingFrom%8-movingTo%8)*CELL*fraction;py+=(movingFrom/8-movingTo/8)*CELL*fraction;}}
-            c.save();c.clipRect(BX,BY,BX+376,BY+376);icon(c,image,px,py,size);c.restore();
+            c.save();c.clipRect(BX,BY,BX+376,BY+376);if(image>=0&&image<6){float reaction=pos==reactionCell?(System.currentTimeMillis()-reactionAt)/1000f:-1;art.boardGhost(c,image,px,py,size,reaction,selected==pos);}else icon(c,image,px,py,size);c.restore();
             if(game.hp[r][col]>1)text(c,""+game.hp[r][col],x+34,y+38,13,GOLD);
             if(game.power[r][col]>0&&game.hp[r][col]==0){art.booster(c,new int[]{0,7,8,1,2}[game.power[r][col]],x+23.5f,y+23.5f,43);}
             if(selected==pos){paint.setColor(GOLD);paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(3);c.drawRoundRect(x+1,y+1,x+46,y+46,7,7,paint);paint.setStyle(Paint.Style.FILL);}
@@ -225,9 +241,10 @@ final class AdventureView extends View {
             art.booster(c,id,x+29,y+24,40);round(c,x+48,y+3,x+68,y+22,inventory[id]>0?0xff9d4269:0xff65566d,8);
             text(c,""+inventory[id],x+58,y+18,12,WHITE);text(c,ITEMS[id],x+35,y+55,11,WHITE);
             hits.add(new Hit(new RectF(x,y,x+71,y+61),()->{
+                if(id==3&&guardianClock!=null&&guardianClock.frozenMs==0)game.freeze=0;
                 if(inventory[id]==0){message("ยังไม่มี "+ITEMS[id]+" • รับเมื่อผ่านด่านหรือซื้อในร้าน");return;}
                 if(id<3||id==6||id==7||id==8){item=item==id?-1:id;selected=-1;message(item<0?"ยกเลิกตัวช่วย":DETAILS[id]);}
-                else if(game.use(id,-1)){inventory[id]--;effects(id,-1);afterAction();}else message("ใช้ในด่านช่วยเพื่อนหรือบอสเท่านั้น");
+                else if(game.use(id,-1)){inventory[id]--;guardianBooster(id);effects(id,-1);afterAction();}else message("ใช้ในด่านช่วยเพื่อนหรือบอสเท่านั้น");
             }));
         }
         text(c,"ทอง "+coins+" • ผ่านด่านรับตัวช่วยฟรี",200,819,11,GOLD);
@@ -242,11 +259,19 @@ final class AdventureView extends View {
         return game.level.kind==AdventureEngine.BOSS||game.level.kind==AdventureEngine.BONUS?goal:Math.min(goal,1-game.remaining/(float)Math.max(1,game.initialObstacles));
     }
     private void drawRescueScene(Canvas c){
+        if(story!=null){
+            float energy=Math.min(1,game.progress/(float)game.level.goal),cleared=1-game.remaining/(float)Math.max(1,game.initialObstacles);
+            shownRescue+=(energy-shownRescue)*.16f;shownDanger+=(guardianClock.danger()-shownDanger)*.12f;
+            guardianArt.scene(c,story,game,new RectF(12,103,388,259),shownRescue,cleared,shownDanger,(System.currentTimeMillis()-(resultAt-5200))/1000f,-1,art);
+            if(!game.won){round(c,263,107,383,132,0xd51a263c,8);text(c,guardianClock.frozenMs>0?"หยุดภัย "+(guardianClock.frozenMs+999)/1000+" วิ":"เหลือ "+(guardianClock.remainingMs+999)/1000+" วินาที",323,125,12,guardianClock.remainingMs<30000?0xffffaaaa:GOLD);}
+            return;
+        }
         shownRescue+=(rescueProgress()-shownRescue)*.12f;shownDanger+=(Math.min(1,game.danger/(float)game.level.moves)-shownDanger)*.12f;
-        art.scene(c,game,new RectF(12,103,388,259),shownRescue,shownDanger,(System.currentTimeMillis()-(resultAt-3800))/1000f);
+        art.scene(c,game,new RectF(12,103,388,259),shownRescue,shownDanger,(System.currentTimeMillis()-(resultAt-5200))/1000f);
     }
     private void overlay(Canvas c,String title){hits.clear();round(c,0,0,400,820,0xb8100b20,0);round(c,25,192,375,647,0xff39244f,25);round(c,31,198,369,641,0xff241734,22);text(c,title,200,239,26,GOLD);}
     private void drawBrief(Canvas c){
+        if(story!=null){drawGuardianIntro(c);return;}
         overlay(c,game.level.name());art.scene(c,game,new RectF(43,254,357,352),rescueProgress(),0,0);
         text(c,game.level.objective(),200,367,17,WHITE);
         text(c,"เก็บสีเป้าหมาย "+game.level.goal+" ชิ้น",200,403,17,TEAL);
@@ -277,21 +302,62 @@ final class AdventureView extends View {
         paint.setAlpha(255);
     }
     private void drawCelebration(Canvas c){
-        hits.clear();float t=(System.currentTimeMillis()-(resultAt-3800))/1000f;
+        hits.clear();float t=(System.currentTimeMillis()-(resultAt-5200))/1000f;
         // Leave the first second unobscured so the actual rescue can be seen.
-        if(t<1.1f)return;
-        round(c,0,0,400,820,0xa8101028,0);fireworks(c,t-1.1f);
-        float pop=Math.min(1,(t-1.1f)*3),zoom=1+.08f*(float)Math.sin(pop*Math.PI);
+        if(t<2.5f)return;
+        round(c,0,0,400,820,0xa8101028,0);fireworks(c,t-2.5f);
+        float pop=Math.min(1,(t-2.5f)*3),zoom=1+.08f*(float)Math.sin(pop*Math.PI);
         c.save();c.scale(zoom,zoom,200,400);
         gradient(c,new RectF(32,255,368,328),0xff7654b7,0xff3c2777,22);
         text(c,game.level.kind==AdventureEngine.RESCUE?"ช่วยได้แล้ว!":"ยอดเยี่ยม!",200,302,32,GOLD);
-        art.ghost(c,game.level.world%3,1,200,413+(float)Math.sin(t*4)*5,154);
-        text(c,game.level.kind==AdventureEngine.RESCUE?"ขอบคุณที่ช่วยเรานะ":"ผ่านด่านแล้ว!",200,521,23,WHITE);
+        if(story!=null)guardianArt.portrait(c,200,413,154);else art.ghost(c,game.level.world%3,1,200,413+(float)Math.sin(t*4)*5,154);
+        text(c,game.level.kind==AdventureEngine.RESCUE?"ขอบคุณที่คุ้มครองฉัน":"ผ่านด่านแล้ว!",200,521,23,WHITE);
         c.restore();
     }
+    private void guardianBooster(int id){
+        if(guardianClock==null)return;
+        if(id==3)guardianClock.frozenMs=8000;
+        if(id==9)guardianClock.extend(15);
+    }
+    private void updateGuardianFrame(){
+        long now=android.os.SystemClock.elapsedRealtime(),delta=frameAt==0?0:Math.max(0,now-frameAt);frameAt=now;
+        boolean playing=active&&screen.equals("play")&&!paused&&game!=null;
+        if(!playing||story==null||guardianClock==null){host.guardianMood(0,false);return;}
+        if(brief){introElapsed+=delta;if(introElapsed>=7000)beginGuardian();host.guardianMood(0,true);return;}
+        if(game.won||game.lost){host.guardianMood(0,true);return;}
+        guardianClock.advance(delta);
+        if(now-lastClockSave>=5000){lastClockSave=now;save();}
+        if(guardianClock.remainingMs==0){
+            if(game.shield>0){game.shield--;guardianClock.extend(10);sound(GameAudio.MAGIC);}
+            else{game.lost=true;afterAction();}
+        }
+        host.guardianMood(guardianClock.danger(),true);
+        if(guardianClock.remainingMs<30000&&now-lastPulse>1500){lastPulse=now;sound(GameAudio.GHOST);}
+    }
+    private void beginGuardian(){brief=false;introElapsed=7000;frameAt=android.os.SystemClock.elapsedRealtime();lastInteraction=System.currentTimeMillis();sound(GameAudio.MAGIC);save();}
+    private void wrapped(Canvas c,String value,float x,float y,float size,int color,float width){
+        android.text.TextPaint tp=new android.text.TextPaint(Paint.ANTI_ALIAS_FLAG);
+        tp.setTextSize(size);tp.setColor(color);tp.setTypeface(Typeface.create("sans-serif",Typeface.BOLD));
+        android.text.StaticLayout layout=android.text.StaticLayout.Builder.obtain(value,0,value.length(),tp,(int)width)
+            .setAlignment(android.text.Layout.Alignment.ALIGN_CENTER).setIncludePad(false).setLineSpacing(2,1).build();
+        c.save();c.translate(x-width/2,y-size);layout.draw(c);c.restore();
+    }
+    private void drawGuardianIntro(Canvas c){
+        hits.clear();round(c,0,0,400,820,0xff13182b,0);
+        text(c,"คนดีผีคุ้ม",200,112,32,GOLD);text(c,"ด่าน "+game.level.number+" • "+story.title,200,151,17,WHITE);
+        float t=introElapsed/1000f;
+        guardianArt.scene(c,story,game,new RectF(12,192,388,443),0,0,0,0,t,art);
+        String caption=t<2.3f?story.kindness:t<4.6f?story.incident:"คุณคือผีผู้พิทักษ์ • "+story.action1;
+        wrapped(c,caption,200,478,18,WHITE,350);
+        text(c,"จับคู่ผีเพื่อส่งพลังช่วยคน",200,535,15,TEAL);
+        button(c,75,548,325,608,"ข้าม • เริ่มช่วย",GOLD,this::beginGuardian);
+        text(c,"เวลาเริ่มหลังฉากเปิดจบ",200,642,13,GOLD);
+        round(c,70,672,330,676,0xff38394d,2);round(c,70,672,70+260*Math.min(1,t/7),676,TEAL,2);
+    }
     private void drawResult(Canvas c){
-        boolean win=game.won;overlay(c,win?(game.level.kind==AdventureEngine.RESCUE?"ช่วยผีน้อยสำเร็จ!":"ผ่านด่านแล้ว!"):"ช่วยผีน้อยอีกครั้งนะ");
-        art.scene(c,game,new RectF(39,255,361,395),rescueProgress(),shownDanger,3);
+        boolean win=game.won;if(win&&!resultSoundPlayed){sound(GameAudio.COMPLETE);resultSoundPlayed=true;}overlay(c,win?(game.level.kind==AdventureEngine.RESCUE?"คุ้มครองสำเร็จ!":"ผ่านด่านแล้ว!"):"ลองช่วยอีกครั้งนะ");
+        if(story!=null)guardianArt.scene(c,story,game,new RectF(39,255,361,395),Math.min(1,game.progress/(float)game.level.goal),1-game.remaining/(float)Math.max(1,game.initialObstacles),shownDanger,3,-1,art);
+        else art.scene(c,game,new RectF(39,255,361,395),rescueProgress(),shownDanger,3);
         if(win){float t=(System.currentTimeMillis()-resultAt)/1000f;int earned=game.moves>=game.level.moves/3?3:game.moves>=3?2:1;
             for(int i=0;i<3;i++){float pop=Math.min(1,Math.max(0,(t-i*.16f)*4));text(c,"★",136+i*64,426,38*pop,i<earned?GOLD:0xff6d5979);}
             fireworks(c,t);
@@ -311,7 +377,7 @@ final class AdventureView extends View {
         if(pos<0)return;if(item>=0&&item!=6){if(game.use(item,pos)){inventory[item]--;effects(item,pos);item=-1;afterAction();}return;}
         if(!game.movable(pos/8,pos%8)){message(AdventureEngine.OBSTACLES[game.obstacle[pos/8][pos%8]]+" • จับคู่ข้าง ๆ เพื่อทำลาย");return;}
         if(selected>=0&&selected!=pos){if(tryMove(selected,pos)){afterAction();return;}sound(GameAudio.INVALID);}
-        selected=selected==pos?-1:pos;invalidate();
+        selected=selected==pos?-1:pos;reactionCell=pos;reactionAt=System.currentTimeMillis();sound(GameAudio.GHOST);invalidate();
     }
     @Override public boolean onTouchEvent(android.view.MotionEvent e){
         if(scale<=0)return true;float x=(e.getX()-ox)/scale,y=(e.getY()-oy)/scale;
@@ -328,6 +394,7 @@ final class AdventureView extends View {
         if(e.getAction()!=MotionEvent.ACTION_UP)return true;
         if(swiped){swiped=false;down=-1;return true;}
         performClick();lastInteraction=System.currentTimeMillis();
+        if(!screen.equals("play")||paused||brief)frameAt=android.os.SystemClock.elapsedRealtime();
         if(screen.equals("play")&&!brief&&!paused&&!game.won&&!game.lost&&System.currentTimeMillis()<animationUntil)return true;
         for(Hit hit:new ArrayList<>(hits))if(hit.box.contains(x,y)){sound(GameAudio.SWAP);hit.action.run();return true;}
         if(screen.equals("play")&&!brief&&!paused&&!game.won&&!game.lost){int pos=cellAt(x,y);if(down>=0&&pos>=0&&pos!=down&&(item<0||item==6)){if(tryMove(down,pos))afterAction();else sound(GameAudio.INVALID);}else tapCell(pos);}

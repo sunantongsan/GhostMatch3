@@ -46,6 +46,11 @@ final class GameAudio {
         },"ghost-sound-loader").start();
     }
 
+    synchronized void guardianMood(float danger,boolean scene){
+        if(music==null||released)return;
+        float volume=scene?.13f+Math.min(1,danger)*.08f:.12f;
+        music.setVolume(volume,volume);
+    }
     boolean isEnabled(){return enabled;}
     synchronized void toggle(){enabled=!enabled;preferences.edit().putBoolean("enabled",enabled).apply();if(!enabled)stop();updateMusic();}
     synchronized void setActive(boolean value){active=value;if(!value)stop();updateMusic();}

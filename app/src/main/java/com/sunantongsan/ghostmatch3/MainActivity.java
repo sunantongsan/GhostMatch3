@@ -105,6 +105,7 @@ public class MainActivity extends Activity {
                     if(isDestroyed()||isFinishing())return;
                     bar.setIndeterminate(false);bar.setProgress(percent);status.setText("กำลังโหลดแพตช์ "+percent+"%");
                 }));
+                GuardianStory.update(this);
                 runOnUiThread(()->{if(isDestroyed()||isFinishing())return;
                     bar.setIndeterminate(false);bar.setProgress(result.startsWith("ตรวจสอบแพตช์ไม่ได้")?0:100);status.setText(result);
                     play.setEnabled(true);retry.setVisibility(View.VISIBLE);
@@ -223,6 +224,7 @@ public class MainActivity extends Activity {
         new android.app.AlertDialog.Builder(this).setTitle("ความเป็นส่วนตัว").setView(scroll).setPositiveButton("ปิด",null).show();
     }
 
+    void guardianMood(float danger,boolean scene){if(gameAudio!=null)gameAudio.guardianMood(danger,scene);}
     void playSound(int kind){if(gameAudio!=null)gameAudio.play(kind);}
     boolean soundEnabled(){return gameAudio!=null&&gameAudio.isEnabled();}
     void toggleSound(){if(gameAudio!=null){gameAudio.toggle();gameAudio.play(GameAudio.GHOST);}}

@@ -7,7 +7,6 @@ final class AdventureEngine {
     static final int SIZE=8, COLORS=6, CLEAR=0, RESCUE=1, BONUS=2, BOSS=3;
     static final String[] WORLDS={"สวนฟักทอง","ห้องปรุงยา","ป่าเรืองแสง","หอนาฬิกา","คลองผีน้อย","ห้องสมุดลับ","ตลาดเที่ยงคืน","ถ้ำน้ำแข็ง","โรงละครผี","สวนเมฆ","ปราสาทดาว","ประตูแสงจันทร์"};
     static final String[] OBSTACLES={"หินอาคม","น้ำแข็ง","ใยแมงมุม","หีบล็อก"};
-    static final String[] JOKES={"หนีสำเร็จ! อ้าว…ลืมขนม","ขอบคุณนะ! คราวหน้าจะไม่กดปุ่มมั่วแล้ว","น่ากลัวจัง…อ้าว เงาตัวเอง!","หีบนี้เก็บทอง ส่วนขนมกินหมดแล้ว","ข้าหายโกรธแล้ว…มีขนมอีกไหม?","ลอยได้ แต่กลัวความสูงนิดหน่อย!"};
     static final class Level {
         final int number,world,kind,variant,moves,goal,color,reward; final boolean bonus;
         Level(int n){this(n,null);}
@@ -21,11 +20,11 @@ final class AdventureEngine {
             goal=balance!=null?balance[1]:n<=5?6:n<=10?(kind==BOSS?16:10):kind==BOSS?26+world*2:kind==BONUS?20+world:kind==RESCUE?12+world:10+world;
             reward=balance!=null?balance[2]:60+world*10+(kind==RESCUE?30:kind==BOSS?100:0)+(bonus?220:0);
         }
-        String name(){return kind==BOSS?"บอสจอมป่วน":kind==BONUS?"ห้องสมบัติ":kind==RESCUE?"ช่วยผีน้อย":"เคลียร์อาคม";}
+        String name(){return kind==BOSS?"บอสจอมป่วน":kind==BONUS?"ห้องสมบัติ":kind==RESCUE?"คนดีผีคุ้ม":"เคลียร์อาคม";}
         String objective(){
             if(kind==BOSS)return "จับคู่สีเป้าหมายลดพลังบอส";
             if(kind==BONUS)return "เก็บสีเป้าหมาย เปิดหีบรับทอง";
-            if(kind==RESCUE)return new String[]{"เปิดทางหนีน้ำท่วม","เปิดประตูหนีหินกลิ้ง","ปลดกรงก่อนใยจะปิดทาง","ดับเปลวไฟเปิดทางหนี"}[variant];
+            if(kind==RESCUE)return "รวมพลังผี เปิดทางช่วยคนดี";
             return "เก็บสีเป้าหมายและเคลียร์อุปสรรค";
         }
     }
@@ -146,7 +145,7 @@ final class AdventureEngine {
     }
     void advanceDanger(){
         if(freeze>0){freeze--;return;}
-        if(level.kind==RESCUE){danger++;if(danger>=level.moves&&shield>0){shield--;danger=Math.max(0,danger-3);}}
+        if(level.kind==RESCUE)danger++;
         if(level.kind==BOSS&&turns%4==0&&progress<level.goal){
             if(shield>0){shield--;return;}
             // Telegraphed boss frost adds a tactical restriction, never an instant loss.
@@ -169,7 +168,7 @@ final class AdventureEngine {
     }
     void finish(){
         won=level.kind==BOSS?progress>=level.goal:level.kind==BONUS?progress>=level.goal:remaining==0&&progress>=level.goal;
-        if(!won&&(moves<=0||level.kind==RESCUE&&danger>=level.moves))lost=true;
+        if(!won&&(moves<=0))lost=true;
     }
     boolean freeSwap(int a,int b){
         if(won||lost||a<0||a>=64||b<0||b>=64||Math.abs(a/8-b/8)+Math.abs(a%8-b%8)!=1||!movable(a/8,a%8)||!movable(b/8,b%8))return false;

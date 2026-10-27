@@ -28,6 +28,18 @@ final class RescueArt {
         p.setShader(null);p.setAlpha(255);c.drawBitmap(b,src,new RectF(x-w/2,y-h/2,x+w/2,y+h/2),p);
     }
     void ghost(Canvas c,int color,int mood,float x,float y,float size){sprite(c,ghosts,ghostRects[mood*3+color%3],x,y,size);}
+    // Restored from the classic drawGhostAlive: reaction frames, wiggle, squash and orbiting sparks.
+    void boardGhost(Canvas c,int type,float x,float y,float size,float reaction,boolean selected){
+        int frame=reaction>=0&&reaction<.96f?Math.min(3,1+(int)(reaction/.32f)):0;
+        float wiggle=frame>0?(float)Math.sin(reaction/.055f)*9:0;
+        float squash=frame>0?1+.07f*(float)Math.sin(reaction/.07f):1;
+        c.save();c.rotate(wiggle,x,y);c.scale(2-squash,squash,x,y);
+        if(type>=3)p.setColorFilter(new PorterDuffColorFilter(new int[]{0xffff923f,0xff69bcff,0xffff89d4}[type-3],PorterDuff.Mode.MULTIPLY));
+        sprite(c,ghosts,ghostRects[frame*3+(type>=3?0:type)],x,y,size);
+        p.setColorFilter(null);c.restore();
+        if(selected){p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(2);p.setColor(0xffffdb71);c.drawCircle(x,y,size*.49f,p);p.setStyle(Paint.Style.FILL);}
+        if(frame>0)for(int i=0;i<3;i++){float a=reaction/.13f+i*2.09f;p.setColor(0xbbfff099);c.drawCircle(x+(float)Math.cos(a)*size*.48f,y+(float)Math.sin(a)*size*.43f,size*.035f,p);}
+    }
     void booster(Canvas c,int id,float x,float y,float size){
         if(id==7||id==8||id==1||id==2){int n=id==7?0:id==8?1:id==1?2:3;sprite(c,magic,magicRects[n],x,y,size);return;}
         int n=id==0?1:id==6?0:id==5?6:id==3?4:5;

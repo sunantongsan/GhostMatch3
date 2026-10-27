@@ -59,6 +59,24 @@ public class AdventureSmoke extends Instrumentation {
   SystemClock.sleep(550); // Allow the visible move animation to finish before the next control.
  }
  private void startLevel(int n){main(()->{try{Method method=view.getClass().getDeclaredMethod("start",int.class);method.setAccessible(true);method.invoke(view,n);}catch(Exception e){throw new RuntimeException(e);}});settle();tap(200,578);}
+ private void verifyGuardian()throws Exception{
+  java.util.Map<Integer,GuardianStory> stories=GuardianStory.load(getTargetContext());check(stories.size()==32,"32 authored rescues");
+  java.util.Set<String> titles=new java.util.HashSet<>();for(GuardianStory s:stories.values()){check(titles.add(s.title),"unique episode title");}
+  main(()->{try{Method m=view.getClass().getDeclaredMethod("start",int.class);m.setAccessible(true);m.invoke(view,2);}catch(Exception e){throw new RuntimeException(e);}});
+  SystemClock.sleep(1000);GuardianClock clock=(GuardianClock)field(view,"guardianClock");long full=clock.remainingMs;
+  shot("guardian-kindness");SystemClock.sleep(2000);shot("guardian-incident");
+  check(clock.remainingMs==full,"intro does not consume rescue time");
+  SystemClock.sleep(2200);shot("guardian-arrival");
+  tap(200,578);SystemClock.sleep(600);check(clock.remainingMs<full,"timer starts after skip");
+  tap(40,35);long paused=clock.remainingMs;SystemClock.sleep(900);check(clock.remainingMs==paused,"pause freezes clock");tap(200,304);
+  int[] inv=(int[])field(view,"inventory");main(()->{inv[3]=5;inv[4]=5;inv[9]=5;});
+  tap(194,767);long frozen=clock.remainingMs;SystemClock.sleep(1000);check(clock.remainingMs==frozen,"freeze booster stops real clock");
+  main(()->{clock.frozenMs=0;game().freeze=0;clock.remainingMs=5000;});
+  tap(118,767);check(clock.remainingMs>18000,"extra turns extends time");
+  SystemClock.sleep(600);tap(270,767);check(game().shield==1,"shield activated through touch");main(()->{clock.remainingMs=1;});SystemClock.sleep(250);check(!game().lost&&clock.remainingMs>8000&&game().shield==0,"shield protects deadline once");
+  main(()->{clock.remainingMs=1;});SystemClock.sleep(900);check(game().lost,"deadline ends rescue");shot("guardian-timeout");
+  for(int n:new int[]{2,4,8,14,16,22,26,28}){startLevel(n);main(()->{GuardianClock cc=(GuardianClock)field(view,"guardianClock");cc.remainingMs=cc.limitMs/4;});shot("guardian-mechanism-"+n);}
+ }
  private void verifyRescue()throws Exception{
   int[] inv=(int[])field(view,"inventory");
   for(int level:new int[]{2,4,8,26}){startLevel(level);shot("rescue-"+level);}
@@ -72,7 +90,7 @@ public class AdventureSmoke extends Instrumentation {
    SystemClock.sleep(600);tap(42+(slot%5)*76,700+(slot/5)*67);
    if(id==6){int[] pair=game().hint();tap(12+pair[0]%8*47+23.5f,280+pair[0]/8*47+23.5f);tap(12+pair[1]%8*47+23.5f,280+pair[1]/8*47+23.5f);}
    else if(id==0||id==1||id==2||id==7||id==8)tap(12+3*47+23.5f,280+3*47+23.5f);
-   check(inv[id]==before-1,"inventory decrement "+id);check(game().moves==moves+(id==9?5:0),"booster turn cost "+id);
+   check(inv[id]==before-1+(game().won&&(Integer)field(view,"rewardItem")==id?1:0),"inventory decrement and earned reward "+id);check(game().moves==moves+(id==9?5:0),"booster turn cost "+id);
    check(game().danger==(id==9?Math.max(0,danger-5):danger),"booster danger cost "+id);
    shot("booster-"+id);
   }
@@ -83,7 +101,7 @@ public class AdventureSmoke extends Instrumentation {
    tap(12+pos%8*47+23.5f,280+pos/8*47+23.5f);
    if(i==2)shot("rescue-progress");
   }
-  check(game().won,"rescue completed with real booster touches");SystemClock.sleep(1700);shot("rescue-celebration");SystemClock.sleep(3000);shot("rescue-victory");
+  check(game().won,"rescue completed with real booster touches");SystemClock.sleep(3200);shot("rescue-celebration");SystemClock.sleep(3000);shot("rescue-victory");
   int rewarded=(Integer)field(view,"rewardItem");check(rewarded>=0,"win grants booster");int count=inv[rewarded];
   SystemClock.sleep(300);check(inv[rewarded]==count,"win reward credited once");
   startLevel(2);move();tap(40,35);tap(200,528);
@@ -97,6 +115,16 @@ public class AdventureSmoke extends Instrumentation {
     try(FileOutputStream out=new FileOutputStream(new File(getTargetContext().getFilesDir(),"adventure-patch.json"))){out.write("{\"schema\":2,\"version\":999,\"levels\":{\"1\":{\"moves\":42,\"goal\":17,\"reward\":95}}}".getBytes("UTF-8"));}
    }
    launch();shot("home");
+   if(phase.equals("showcase")){
+    for(int level:new int[]{2,4}){
+     main(()->{try{Method m=view.getClass().getDeclaredMethod("start",int.class);m.setAccessible(true);m.invoke(view,level);}catch(Exception e){throw new RuntimeException(e);}});
+     SystemClock.sleep(7800);for(int j=0;j<4&&!game().won&&!game().lost;j++)move();
+     int[] inventory=(int[])field(view,"inventory");main(()->{inventory[1]=20;});
+     for(int i=0;i<20&&!game().won&&!game().lost;i++){SystemClock.sleep(650);tap(346,700);int target=-1;for(int r=0;r<8;r++)for(int c=0;c<8;c++)if(game().hp[r][c]>0)target=r*8+c;if(target<0)target=(i*17)%64;if(!game().inside(target/8,target%8))target=27;tap(12+target%8*47+23.5f,280+target/8*47+23.5f);}
+     SystemClock.sleep(7000);shot("showcase-"+level);
+    }
+    result.putString("stream","PASS: showcase\n");finish(Activity.RESULT_OK,result);return;
+   }
    if(phase.equals("resume")){
     SharedPreferences exp=getTargetContext().getSharedPreferences("qa_expected",0);
     check(coins()==exp.getInt("coins",-1),"coins after process death");
@@ -120,16 +148,17 @@ public class AdventureSmoke extends Instrumentation {
     tap(12+p%8*47+23.5f,280+p/8*47+23.5f);
     check(((int[])field(view,"inventory"))[0]==2&&game().hp[p/8][p%8]<hp,"hammer touch consumed and damaged");shot("hammer-effect");
     for(int n=0;n<60&&!game().won&&!game().lost;n++)move();
-    check(game().won||game().lost,"full real-touch game ended");SystemClock.sleep(4500);shot(game().won?"victory":"loss");
+    check(game().won||game().lost,"full real-touch game ended");SystemClock.sleep(6000);shot(game().won?"victory":"loss");
     tap(200,530);check(!game().won&&!game().lost,"next or retry");tap(200,578);move();
     tap(40,35);check((Boolean)field(view,"paused"),"pause");
     tap(200,375);check(field(view,"screen").equals("shop"),"shop while paused");
     tap(40,40);check(field(view,"screen").equals("play")&&(Boolean)field(view,"paused"),"return from shop");
     tap(200,304);check(!(Boolean)field(view,"paused"),"unpause");
-    getUiAutomation().performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME);settle();
-    Intent i=new Intent(getTargetContext(),MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);getTargetContext().startActivity(i);until(()->view.isShown(),10000,"foreground visible");settle();
+    getUiAutomation().performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME);until(()->!view.hasWindowFocus(),10000,"background focus lost");settle();
+    Intent i=new Intent(getTargetContext(),MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);getTargetContext().startActivity(i);until(()->view.isShown()&&view.hasWindowFocus(),10000,"foreground visible and focused");settle();
     check(view.isShown(),"foreground return");shot("board");
     tap(40,35);tap(200,528);check(field(view,"screen").equals("home"),"home from pause");
+    verifyGuardian();
     verifyRescue();
     getTargetContext().getSharedPreferences("qa_expected",0).edit().putInt("coins",coins()).putInt("moves",game().moves).putInt("level",game().level.number).putString("run",getTargetContext().getSharedPreferences("ghost_adventure_v1",0).getString("run","")).commit();
    }

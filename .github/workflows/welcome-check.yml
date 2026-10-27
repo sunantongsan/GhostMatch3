@@ -1,7 +1,7 @@
 name: Welcome and patch checks
 on:
   push:
-    branches: [feature/ghost-rescue-040]
+    branches: [feature/guardian-041]
 permissions:
   contents: read
 jobs:
@@ -22,8 +22,9 @@ jobs:
           gradle-version: '8.11.1'
       - name: Campaign and patch rules
         run: |
-          javac -d /tmp/ghost-tests app/src/main/java/com/sunantongsan/ghostmatch3/AdventureEngine.java tests/AdventureEngineTest.java
+          javac -d /tmp/ghost-tests app/src/main/java/com/sunantongsan/ghostmatch3/AdventureEngine.java app/src/main/java/com/sunantongsan/ghostmatch3/GuardianClock.java tests/AdventureEngineTest.java tests/GuardianClockTest.java
           java -cp /tmp/ghost-tests com.sunantongsan.ghostmatch3.AdventureEngineTest
+          java -cp /tmp/ghost-tests com.sunantongsan.ghostmatch3.GuardianClockTest
       - name: Build and lint
         run: gradle :app:assembleDebug :app:assembleDebugAndroidTest :app:bundleRelease :app:lintDebug --stacktrace
       - name: Enable KVM
@@ -49,11 +50,35 @@ jobs:
             grep 'PASS: real-entry' resume.txt
             adb pull /sdcard/Android/data/com.sunantongsan.ghostmatch3/files/screenshots screenshots-online
             if [ "${{ matrix.api }}" = "35" ]; then adb shell pm clear com.sunantongsan.ghostmatch3; adb shell svc wifi disable; adb shell svc data disable; adb shell am instrument -w -e phase offline com.sunantongsan.ghostmatch3.test/com.sunantongsan.ghostmatch3.AdventureSmoke | tee offline.txt; adb pull /sdcard/Android/data/com.sunantongsan.ghostmatch3/files/screenshots screenshots-offline; grep 'PASS: real-entry' offline.txt; fi
+      - name: Record guardian gameplay
+        if: matrix.api == 35
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          script: |
+            adb install -r app/build/outputs/apk/debug/app-debug.apk
+            adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+            adb shell pm clear com.sunantongsan.ghostmatch3
+            adb shell screenrecord --size 720x1280 --bit-rate 3000000 --time-limit 150 /sdcard/guardian-demo.mp4 > /tmp/record-log 2>&1 & RECORD_PID=$!; adb shell am instrument -w -e phase showcase com.sunantongsan.ghostmatch3.test/com.sunantongsan.ghostmatch3.AdventureSmoke | tee showcase.txt; adb shell pkill -INT screenrecord || true; wait "$RECORD_PID" || true
+            grep 'PASS: showcase' showcase.txt
+            adb pull /sdcard/guardian-demo.mp4 guardian-demo.mp4
+      - name: Build isolated preview APK
+        if: matrix.api == 35
+        run: |
+          gradle :app:assembleDebug -PguardianPreview --stacktrace
+          cp app/build/outputs/apk/debug/app-debug.apk GhostMatch3-0.41.0-guardian-preview.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify GhostMatch3-0.41.0-guardian-preview.apk
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: welcome-api-${{ matrix.api }}
           path: |
+            GhostMatch3-0.41.0-guardian-preview.apk
+            guardian-demo.mp4
+            showcase.txt
             online.txt
             resume.txt
             offline.txt
