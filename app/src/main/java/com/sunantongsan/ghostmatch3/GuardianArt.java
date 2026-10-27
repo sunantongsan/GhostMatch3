@@ -91,8 +91,8 @@ final class GuardianArt {
             if(open<1)prop(c,1,309,floor+2,45,67,1-open);
         }else{
             float approach=trainDanger*(1-charge*.35f),size=23+approach*105;
-            float x=story.mechanism==7?192+charge*100:192;
-            float y=20+approach*(floor-70);
+            float x=166+approach*10+(story.mechanism==7?charge*100:0);
+            float y=h*.62f+approach*(floor+8-h*.62f)-size;
             prop(c,4,x,y+size,Math.max(23,size),Math.max(30,size*1.3f),1);
             c.save();c.rotate(-open*70,293,floor-10);prop(c,6,320,floor+3,70,65,1);c.restore();
             if(charge>0){p.setColor(0x668ef8ff);p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(4);c.drawOval(x-size*.5f,y-5,x+size*.5f,y+size*.9f,p);p.setStyle(Paint.Style.FILL);}
