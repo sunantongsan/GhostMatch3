@@ -154,8 +154,8 @@ public class AdventureSmoke extends Instrumentation {
     tap(200,375);check(field(view,"screen").equals("shop"),"shop while paused");
     tap(40,40);check(field(view,"screen").equals("play")&&(Boolean)field(view,"paused"),"return from shop");
     tap(200,304);check(!(Boolean)field(view,"paused"),"unpause");
-    getUiAutomation().performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME);settle();
-    Intent i=new Intent(getTargetContext(),MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);getTargetContext().startActivity(i);until(()->view.isShown(),10000,"foreground visible");settle();
+    getUiAutomation().performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME);until(()->!view.hasWindowFocus(),10000,"background focus lost");settle();
+    Intent i=new Intent(getTargetContext(),MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);getTargetContext().startActivity(i);until(()->view.isShown()&&view.hasWindowFocus(),10000,"foreground visible and focused");settle();
     check(view.isShown(),"foreground return");shot("board");
     tap(40,35);tap(200,528);check(field(view,"screen").equals("home"),"home from pause");
     verifyGuardian();
