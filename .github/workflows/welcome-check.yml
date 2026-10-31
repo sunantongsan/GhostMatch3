@@ -63,7 +63,7 @@ jobs:
             adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
             adb shell pm clear com.sunantongsan.ghostmatch3
             adb shell screenrecord --size 720x1280 --bit-rate 3000000 --time-limit 150 /sdcard/guardian-demo.mp4 > /tmp/record-log 2>&1 & RECORD_PID=$!; adb shell am instrument -w -e phase showcase com.sunantongsan.ghostmatch3.test/com.sunantongsan.ghostmatch3.AdventureSmoke | tee showcase.txt; adb shell pkill -INT screenrecord || true; wait "$RECORD_PID" || true
-            grep 'PASS: showcase' showcase.txt
+            grep -q 'PASS: showcase' showcase.txt || (echo "::error title=showcase::$(tail -c 1800 showcase.txt | tr '\n\r' '  ')"; exit 1)
             adb pull /sdcard/guardian-demo.mp4 guardian-demo.mp4
       - name: Build isolated preview APK
         if: matrix.api == 35
