@@ -112,7 +112,7 @@ final class AdventureView extends View {
         SharedPreferences.Editor e=prefs.edit().putInt("gold",coins).putInt("highest",highest);
         for(int i=0;i<inventory.length;i++)e.putInt("item_"+i,inventory[i]);
         if(game!=null){try{
-            JSONObject j=new JSONObject();j.put("level",game.level.number);j.put("moves",game.moves);j.put("progress",game.progress);j.put("remaining",game.remaining);j.put("initial",game.initialObstacles);j.put("turns",game.turns);j.put("danger",game.danger);j.put("freeze",game.freeze);j.put("shield",game.shield);j.put("score",game.score);j.put("won",game.won);j.put("lost",game.lost);j.put("credited",credited);j.put("reward",lastReward);j.put("rewardItem",rewardItem);
+            JSONObject j=new JSONObject();j.put("layout",2);{JSONArray x=new JSONArray();for(int v:game.extra())x.put(v);j.put("extra",x);StringBuilder mask=new StringBuilder();for(int r=0;r<8;r++)for(int c=0;c<8;c++)mask.append(game.active[r][c]?'1':'0');j.put("mask",mask.toString());}j.put("level",game.level.number);j.put("progress2",game.progress2);j.put("moves",game.moves);j.put("progress",game.progress);j.put("remaining",game.remaining);j.put("initial",game.initialObstacles);j.put("turns",game.turns);j.put("danger",game.danger);j.put("freeze",game.freeze);j.put("shield",game.shield);j.put("score",game.score);j.put("won",game.won);j.put("lost",game.lost);j.put("credited",credited);j.put("reward",lastReward);j.put("rewardItem",rewardItem);
             if(guardianClock!=null){j.put("guardianMs",guardianClock.remainingMs);j.put("frozenMs",guardianClock.frozenMs);j.put("introMs",introElapsed);j.put("introPending",brief);}
             j.put("balanceMoves",game.level.moves);j.put("balanceGoal",game.level.goal);j.put("balanceReward",game.level.reward);
             JSONArray cells=new JSONArray();for(int r=0;r<8;r++)for(int c=0;c<8;c++){cells.put(game.tile[r][c]);cells.put(game.power[r][c]);cells.put(game.hp[r][c]);cells.put(game.obstacle[r][c]);}j.put("cells",cells);e.putString("run",j.toString());
@@ -121,10 +121,14 @@ final class AdventureView extends View {
     }
     private void restore(){try{
         String raw=prefs.getString("run","");if(raw.isEmpty())return;
-        JSONObject j=new JSONObject(raw);AdventureEngine restored=new AdventureEngine(j.getInt("level"),1,j.has("balanceMoves")?new int[]{j.getInt("balanceMoves"),j.getInt("balanceGoal"),j.getInt("balanceReward")}:null);
+        JSONObject j=new JSONObject(raw);if(j.optInt("layout")!=2)return; // boards from before authored layouts cannot be restored safely
+        JSONArray ex=j.optJSONArray("extra");int[] extra=ex!=null&&ex.length()==4?new int[]{ex.getInt(0),ex.getInt(1),ex.getInt(2),ex.getInt(3)}:null;
+        AdventureEngine restored=new AdventureEngine(j.getInt("level"),1,j.has("balanceMoves")?new int[]{j.getInt("balanceMoves"),j.getInt("balanceGoal"),j.getInt("balanceReward")}:null,extra);
+        // The saved hole mask wins over the current board patch, so a patch never reshapes a run in progress.
+        String mask=j.optString("mask","");if(mask.length()==64)for(int p=0;p<64;p++)restored.active[p/8][p%8]=mask.charAt(p)=='1';
         JSONArray a=j.getJSONArray("cells");if(a.length()!=256)return;int k=0;
         for(int r=0;r<8;r++)for(int c=0;c<8;c++){restored.tile[r][c]=a.getInt(k++);restored.power[r][c]=a.getInt(k++);restored.hp[r][c]=a.getInt(k++);restored.obstacle[r][c]=a.getInt(k++);}
-        restored.moves=j.getInt("moves");restored.progress=j.getInt("progress");restored.remaining=j.getInt("remaining");restored.initialObstacles=j.getInt("initial");restored.turns=j.getInt("turns");restored.danger=j.optInt("danger");restored.freeze=j.getInt("freeze");restored.shield=j.getInt("shield");restored.score=j.getInt("score");restored.won=j.getBoolean("won");restored.lost=j.getBoolean("lost");game=restored;credited=j.getBoolean("credited");lastReward=j.optInt("reward");rewardItem=j.optInt("rewardItem",-1);shownRescue=rescueProgress();shownDanger=game.danger/(float)game.level.moves;
+        restored.moves=j.getInt("moves");restored.progress=j.getInt("progress");restored.progress2=j.optInt("progress2");restored.remaining=j.getInt("remaining");restored.initialObstacles=j.getInt("initial");restored.turns=j.getInt("turns");restored.danger=j.optInt("danger");restored.freeze=j.getInt("freeze");restored.shield=j.getInt("shield");restored.score=j.getInt("score");restored.won=j.getBoolean("won");restored.lost=j.getBoolean("lost");game=restored;credited=j.getBoolean("credited");lastReward=j.optInt("reward");rewardItem=j.optInt("rewardItem",-1);shownRescue=rescueProgress();shownDanger=game.danger/(float)game.level.moves;
         story=stories.get(game.level.number);if(story!=null){guardianClock=new GuardianClock(story.seconds);guardianClock.remainingMs=Math.min(guardianClock.limitMs+120000,Math.max(0,j.optLong("guardianMs",guardianClock.limitMs)));guardianClock.frozenMs=Math.max(0,j.optLong("frozenMs",0));introElapsed=j.optLong("introMs",7000);brief=j.optBoolean("introPending",false);shownDanger=guardianClock.danger();}
     }catch(Exception ignored){game=null;}}
     private void start(int n){sparks.clear();fxStart=0;resultAt=0;fxKind=-1;movingFrom=-1;game=new AdventureEngine(n,System.nanoTime(),ContentPatch.adventureLevel(host,n));credited=false;lastReward=0;rewardItem=-1;shownRescue=0;shownDanger=0;selected=-1;item=-1;brief=true;paused=false;screen="play";story=stories.get(n);guardianClock=story==null?null:new GuardianClock(story.seconds);introElapsed=0;frameAt=android.os.SystemClock.elapsedRealtime();reactionCell=-1;resultSoundPlayed=false;lastInteraction=System.currentTimeMillis();save();invalidate();}
@@ -211,9 +215,7 @@ final class AdventureView extends View {
         AdventureEngine.Level lv=game.level;
         button(c,13,12,64,57,"Ⅱ",0xff604783,()->{paused=true;invalidate();});
         text(c,"ด่าน "+lv.number+" • "+(story!=null?story.title:lv.name())+(lv.bonus&&lv.kind==3?" + โบนัส":""),228,38,18,GOLD);
-        round(c,16,61,384,99,0xff38264e,12);
-        icon(c,lv.color,42,80,32);text(c,Math.min(lv.goal,game.progress)+" / "+lv.goal,108,86,17,WHITE);
-        text(c,"อุปสรรค "+game.remaining,217,86,14,TEAL);text(c,"ตา "+game.moves,334,87,22,GOLD);
+        drawGoals(c);
         drawRescueScene(c);
         text(c,item>=0?"แตะช่องเพื่อใช้ "+ITEMS[item]:story!=null?(game.progress<lv.goal?story.action1:story.action2):lv.objective(),200,272,13,WHITE);
         float bx=BX,by=BY,cell=CELL;
@@ -227,6 +229,7 @@ final class AdventureView extends View {
             float elapsed=(System.currentTimeMillis()-fxStart)/1000f;
             float drop=game.changed.contains(pos)&&elapsed>=.16f&&elapsed<.48f?-CELL*(1-(elapsed-.16f)/.32f):0;
             int image=game.hp[r][col]>0?12+game.obstacle[r][col]:game.tile[r][col];
+            if(game.hp[r][col]>0&&game.obstacle[r][col]>=AdventureEngine.BIG)continue;
             float px=x+23.5f,py=y+23.5f+drop;
             if((fxKind<0||fxKind==6)&&elapsed<.16f&&movingFrom>=0){image=beforeTiles[pos];float fraction=elapsed/.16f;if(pos==movingFrom){px+=(movingTo%8-movingFrom%8)*CELL*fraction;py+=(movingTo/8-movingFrom/8)*CELL*fraction;}else if(pos==movingTo){px+=(movingFrom%8-movingTo%8)*CELL*fraction;py+=(movingFrom/8-movingTo/8)*CELL*fraction;}}
             c.save();c.clipRect(BX,BY,BX+376,BY+376);if(image>=0&&image<6){float reaction=pos==reactionCell?(System.currentTimeMillis()-reactionAt)/1000f:-1;art.boardGhost(c,image,px,py,size,reaction,selected==pos);}else icon(c,image,px,py,size);c.restore();
@@ -234,6 +237,7 @@ final class AdventureView extends View {
             if(game.power[r][col]>0&&game.hp[r][col]==0){art.booster(c,new int[]{0,7,8,1,2}[game.power[r][col]],x+23.5f,y+23.5f,43);}
             if(selected==pos){paint.setColor(GOLD);paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(3);c.drawRoundRect(x+1,y+1,x+46,y+46,7,7,paint);paint.setStyle(Paint.Style.FILL);}
         }
+        drawGiantGhosts(c);
         if(System.currentTimeMillis()-lastInteraction>6000&&!game.won&&!game.lost&&!paused&&!brief){int[] hint=game.hint();if(hint!=null){for(int pos:hint){paint.setColor(TEAL);paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(2);float x=BX+pos%8*CELL,y=BY+pos/8*CELL;c.drawRoundRect(x+2,y+2,x+45,y+45,8,8,paint);paint.setStyle(Paint.Style.FILL);}}}
         int[] order={6,0,7,8,1,2,9,3,4,5};
         for(int slot=0;slot<order.length;slot++){final int id=order[slot];float x=12+(slot%5)*76,y=675+(slot/5)*67;
@@ -253,6 +257,42 @@ final class AdventureView extends View {
         else if(paused)drawPause(c);
         else if((game.won||game.lost)&&System.currentTimeMillis()>=resultAt)drawResult(c);
         else if(game.won)drawCelebration(c);
+    }
+    /** Babytopia-style HUD: a moves card on the left, remaining-goal chips with check marks on the right. */
+    private void drawGoals(Canvas c){
+        AdventureEngine.Level lv=game.level;
+        gradient(c,new RectF(16,61,92,101),0xff7a58c9,0xff47308a,12);
+        text(c,"ก้าว",54,74,10,WHITE);text(c,""+game.moves,54,97,22,game.moves<=5?0xffffaaaa:GOLD);
+        gradient(c,new RectF(98,61,384,101),0xff4b3576,0xff2f2050,12);
+        text(c,"เป้าหมาย",126,74,10,TEAL);
+        ArrayList<int[]> goals=new ArrayList<>();
+        goals.add(new int[]{lv.color,Math.max(0,lv.goal-game.progress)});
+        if(lv.goal2>0)goals.add(new int[]{lv.color2,Math.max(0,lv.goal2-game.progress2)});
+        if(game.initialObstacles>0&&lv.kind!=AdventureEngine.BOSS&&lv.kind!=AdventureEngine.BONUS)goals.add(new int[]{-1,game.remaining});
+        float slot=250f/goals.size();
+        for(int i=0;i<goals.size();i++){
+            int[] g=goals.get(i);float x=134+slot*i+slot/2-18;
+            if(g[0]>=0)icon(c,g[0],x,83,30);else bigGhostIcon(c,x,83,30);
+            if(g[1]==0){paint.setShader(null);paint.setColor(0xff4fd68a);c.drawCircle(x+22,88,9,paint);text(c,"✓",x+22,93,13,WHITE);}
+            else text(c,""+g[1],x+31,90,16,WHITE);
+        }
+    }
+    private void bigGhostIcon(Canvas c,float x,float y,float size){
+        boolean ghosts=false;for(int p=0;p<64;p++)if(game.obstacle[p/8][p%8]==AdventureEngine.BIG&&game.hp[p/8][p%8]>0)ghosts=true;
+        if(ghosts)art.ghost(c,1,2,x,y,size);else icon(c,12,x,y,size);
+    }
+    private void drawGiantGhosts(Canvas c){
+        long now=System.currentTimeMillis();
+        for(int r=0;r<7;r++)for(int col=0;col<7;col++)if(game.obstacle[r][col]==AdventureEngine.BIG&&game.hp[r][col]>0){
+            float cx=BX+(col+1)*CELL,cy=BY+(r+1)*CELL,bob=(float)Math.sin(now/380.0+r+col)*3;
+            boolean hit=game.changed.contains(r*8+col)&&now-fxStart<450;
+            paint.setColor(0xffffffff);paint.setShader(new RadialGradient(cx,cy,CELL*1.1f,0x88d8f4ff,0x00d8f4ff,Shader.TileMode.CLAMP));
+            c.drawCircle(cx,cy,CELL*1.1f,paint);paint.setShader(null);
+            c.save();if(hit)c.rotate((float)Math.sin(now/40.0)*7,cx,cy);
+            art.ghost(c,1,2,cx,cy+bob,CELL*1.95f);c.restore();
+            round(c,cx+CELL*.42f,cy+CELL*.5f,cx+CELL*.95f,cy+CELL*.95f,0xffc23f6b,10);
+            text(c,""+game.hp[r][col],cx+CELL*.685f,cy+CELL*.88f,14,WHITE);
+        }
     }
     private float rescueProgress(){
         if(game==null)return 0;float goal=Math.min(1,game.progress/(float)game.level.goal);
@@ -274,8 +314,9 @@ final class AdventureView extends View {
         if(story!=null){drawGuardianIntro(c);return;}
         overlay(c,game.level.name());art.scene(c,game,new RectF(43,254,357,352),rescueProgress(),0,0);
         text(c,game.level.objective(),200,367,17,WHITE);
-        text(c,"เก็บสีเป้าหมาย "+game.level.goal+" ชิ้น",200,403,17,TEAL);
-        text(c,game.level.kind==0||game.level.kind==1?"พร้อมเคลียร์อุปสรรคทั้งหมด":"ใช้คอมโบเพื่อไปถึงเป้าหมาย",200,434,16,WHITE);
+        icon(c,game.level.color,game.level.goal2>0?120:170,397,34);text(c,"× "+game.level.goal,game.level.goal2>0?160:215,405,18,TEAL);
+        if(game.level.goal2>0){icon(c,game.level.color2,230,397,34);text(c,"× "+game.level.goal2,270,405,18,TEAL);}
+        text(c,game.level.kind==0||game.level.kind==1?(game.initialObstacles>0?"และทำลายอุปสรรค "+game.initialObstacles+" ชั้น":"พร้อมเคลียร์อุปสรรคทั้งหมด"):"ใช้คอมโบเพื่อไปถึงเป้าหมาย",200,434,16,WHITE);
         text(c,"รางวัล "+game.level.reward+" ทอง + โบนัสตาที่เหลือ",200,475,15,GOLD);
         text(c,"ลากสลับ 3 ชิ้น • เรียง 4–5 ได้พลังพิเศษ",200,509,14,WHITE);
         button(c,75,548,325,608,"เริ่มผจญภัย",GOLD,()->{brief=false;lastInteraction=System.currentTimeMillis();invalidate();});

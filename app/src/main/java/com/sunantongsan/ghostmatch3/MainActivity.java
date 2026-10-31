@@ -47,6 +47,7 @@ public class MainActivity extends Activity {
     }
 
     private void startGame(){
+        BoardPatch.load(this);
         gameAudio=new GameAudio(this);
         gameAudio.setActive(activityResumed);
         gameView=new AdventureView(this);
@@ -106,6 +107,7 @@ public class MainActivity extends Activity {
                     bar.setIndeterminate(false);bar.setProgress(percent);status.setText("กำลังโหลดแพตช์ "+percent+"%");
                 }));
                 GuardianStory.update(this);
+                BoardPatch.update(this);
                 runOnUiThread(()->{if(isDestroyed()||isFinishing())return;
                     bar.setIndeterminate(false);bar.setProgress(result.startsWith("ตรวจสอบแพตช์ไม่ได้")?0:100);status.setText(result);
                     play.setEnabled(true);retry.setVisibility(View.VISIBLE);

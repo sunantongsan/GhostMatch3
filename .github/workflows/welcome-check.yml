@@ -1,7 +1,7 @@
 name: Welcome and patch checks
 on:
   push:
-    branches: [feature/guardian-041]
+    branches: [feature/guardian-041, feature/babytopia-levels-042]
 permissions:
   contents: read
 jobs:
@@ -63,20 +63,20 @@ jobs:
             adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
             adb shell pm clear com.sunantongsan.ghostmatch3
             adb shell screenrecord --size 720x1280 --bit-rate 3000000 --time-limit 150 /sdcard/guardian-demo.mp4 > /tmp/record-log 2>&1 & RECORD_PID=$!; adb shell am instrument -w -e phase showcase com.sunantongsan.ghostmatch3.test/com.sunantongsan.ghostmatch3.AdventureSmoke | tee showcase.txt; adb shell pkill -INT screenrecord || true; wait "$RECORD_PID" || true
-            grep 'PASS: showcase' showcase.txt
+            grep -q 'PASS: showcase' showcase.txt || (echo "::error title=showcase::$(tail -c 1800 showcase.txt | tr '\n\r' '  ')"; exit 1)
             adb pull /sdcard/guardian-demo.mp4 guardian-demo.mp4
       - name: Build isolated preview APK
         if: matrix.api == 35
         run: |
           gradle :app:assembleDebug -PguardianPreview --stacktrace
-          cp app/build/outputs/apk/debug/app-debug.apk GhostMatch3-0.41.0-guardian-preview.apk
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify GhostMatch3-0.41.0-guardian-preview.apk
+          cp app/build/outputs/apk/debug/app-debug.apk GhostMatch3-0.42.0-guardian-preview.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify GhostMatch3-0.42.0-guardian-preview.apk
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: welcome-api-${{ matrix.api }}
           path: |
-            GhostMatch3-0.41.0-guardian-preview.apk
+            GhostMatch3-0.42.0-guardian-preview.apk
             guardian-demo.mp4
             showcase.txt
             online.txt

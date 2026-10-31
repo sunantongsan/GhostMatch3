@@ -4,7 +4,7 @@ public class AdventureEngineTest {
  static void check(boolean condition,String message){if(!condition)throw new AssertionError(message);}
  static void invariant(AdventureEngine e){
   int remaining=0;
-  for(int r=0;r<8;r++)for(int c=0;c<8;c++)if(e.active[r][c]){check(e.tile[r][c]>=0&&e.tile[r][c]<6,"tile range");check(e.hp[r][c]>=0,"negative obstacle");remaining+=e.hp[r][c];}
+  for(int r=0;r<8;r++)for(int c=0;c<8;c++)if(e.active[r][c]){check(e.tile[r][c]>=0&&e.tile[r][c]<6,"tile range");check(e.hp[r][c]>=0,"negative obstacle");if(e.obstacle[r][c]!=AdventureEngine.BIG_PART)remaining+=e.hp[r][c];}
   check(remaining==e.remaining,"obstacle accounting");check(e.matches().isEmpty(),"unresolved cascade");
   if(!e.won&&!e.lost)check(e.hint()!=null,"no legal move");
  }
@@ -46,7 +46,30 @@ public class AdventureEngineTest {
   e=new AdventureEngine(2,42);h=e.hint();int m=e.moves,d=e.danger;
   check(e.freeSwap(h[0],h[1]),"free swap rejected");check(e.moves==m&&e.danger==d&&e.turns==0,"free swap charged");invariant(e);
   check(!e.freeSwap(7,8),"free swap wrapped row");
+  // Giant 2x2 ghost: one shared health pool, any covered cell can be hit, all four cells open together.
+  e=new AdventureEngine(12,3);int anchor=-1;for(int p=0;p<64;p++)if(e.obstacle[p/8][p%8]==AdventureEngine.BIG&&e.hp[p/8][p%8]>0){anchor=p;break;}
+  check(anchor>=0,"giant ghost layout");int big=e.hp[anchor/8][anchor%8],rem=e.remaining;
+  check(e.use(0,anchor+9),"hammer giant ghost part");check(e.remaining==rem-1,"giant ghost counted once");
+  for(int p:new int[]{anchor,anchor+1,anchor+8,anchor+9})check(e.hp[p/8][p%8]==big-1,"giant ghost shared health");
+  for(int i=1;i<big;i++)e.use(0,anchor+1);check(e.movable(anchor/8,anchor%8)&&e.movable(anchor/8+1,anchor%8+1),"giant ghost opens 2x2");invariant(e);
+  AdventureEngine.Level two=new AdventureEngine.Level(13);check(two.goal2>0&&two.color2!=two.color,"second goal from level 11");
+  e=new AdventureEngine(13,5);e.progress=99;e.remaining=0;e.finish();check(!e.won,"second goal required");e.progress2=two.goal2;e.finish();check(e.won,"both goals complete");
   e=new AdventureEngine(2,1);e.danger=9;check(e.use(9,-1)&&e.danger==4,"extra moves must extend rescue clock");
+  // Board patch: data-only layouts and goals, fully validated, atomic on failure.
+  String[] custom={"Gg....Gg","gg....gg","........","..####..","........","..rrrr..","........","........"};
+  java.util.Map<Integer,String[]> lay=new java.util.HashMap<>();lay.put(5,custom);
+  java.util.Map<Integer,int[]> ext=new java.util.HashMap<>();ext.put(5,new int[]{2,4,9,7});
+  AdventureEngine.applyBoardPatch(new String[][]{custom},lay,ext);
+  e=new AdventureEngine(5,1);check(e.obstacle[0][0]==AdventureEngine.BIG&&e.hp[0][0]==7&&!e.active[3][3],"patched level layout");
+  check(e.level.color==2&&e.level.color2==4&&e.level.goal2==9,"patched goals");
+  check(new AdventureEngine(9,1).obstacle[0][6]==AdventureEngine.BIG&&new AdventureEngine(16,1).obstacle[5][3]==0,"patched cycle");
+  int[] saved=e.extra();AdventureEngine.resetBoardPatch();check(new AdventureEngine(5,1,null,saved).level.goal2==9,"saved run keeps its goals");
+  for(String[] bad:new String[][]{{"G......."},{"Gg......","g.......","........","........","........","........","........","........"},{"########","########","########","########","########","########","........","........"},{"x.......","........","........","........","........","........","........","........"}}){
+   boolean refused=false;try{AdventureEngine.applyBoardPatch(new String[][]{bad},null,null);}catch(IllegalArgumentException ok){refused=true;}
+   check(refused&&AdventureEngine.cycle==AdventureEngine.LAYOUTS,"invalid layout refused atomically");
+  }
+  boolean refused=false;java.util.Map<Integer,int[]> same=new java.util.HashMap<>();same.put(13,new int[]{1,1,5,-1});
+  try{AdventureEngine.applyBoardPatch(null,null,same);}catch(IllegalArgumentException ok){refused=true;}check(refused&&AdventureEngine.levelExtras.isEmpty(),"same goal colours refused");
   System.out.println("PASS: 120 levels; 600 full games; 20 bosses; 12 bonuses; 4 overlaps; obstacles, cascades, hints, freeze, shield and completion. First-hint wins="+wins+"/600 (not a difficulty acceptance test)");
  }
 }
