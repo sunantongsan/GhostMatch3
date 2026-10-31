@@ -2,6 +2,16 @@
 
 Original ghost-themed Android match-3 prototype with illustrated sprite assets, touch/swipe controls and staged effects. Inspired by common match-3 mechanics; no third-party game's artwork, music, names or level layouts are included.
 
+## Babytopia-style stages (v0.42.0)
+
+From level 4 every stage uses one of 12 hand-made board layouts instead of random scatter:
+holes and channels in the board, stone "dig" areas that must be broken from the outside in,
+ice/web/lock walls, and giant 2x2 ghosts that block four cells and need several hits
+(any adjacent match or booster damages them; the whole 2x2 opens at once).
+The top HUD now shows a moves card (ก้าว) and a goal panel (เป้าหมาย) with remaining counts
+and check marks. From level 11 normal and rescue stages have a second ghost colour to collect.
+Saved runs from older versions are not resumed (progress, gold and items are kept).
+
 ## Test build v0.12.0
 
 Download the APK from [Releases](https://github.com/sunantongsan/GhostMatch3/releases/tag/v0.12.0).

@@ -6,15 +6,33 @@ import java.util.*;
 final class AdventureEngine {
     static final int SIZE=8, COLORS=6, CLEAR=0, RESCUE=1, BONUS=2, BOSS=3;
     static final String[] WORLDS={"สวนฟักทอง","ห้องปรุงยา","ป่าเรืองแสง","หอนาฬิกา","คลองผีน้อย","ห้องสมุดลับ","ตลาดเที่ยงคืน","ถ้ำน้ำแข็ง","โรงละครผี","สวนเมฆ","ปราสาทดาว","ประตูแสงจันทร์"};
-    static final String[] OBSTACLES={"หินอาคม","น้ำแข็ง","ใยแมงมุม","หีบล็อก"};
+    static final String[] OBSTACLES={"หินอาคม","น้ำแข็ง","ใยแมงมุม","หีบล็อก","ผียักษ์","ผียักษ์"};
+    static final int BIG=4,BIG_PART=5;
+    /** Authored Babytopia-style boards from level 4: '.' piece, '#' hole, r/R stone, i ice, w web, l lock, G+g 2x2 giant ghost. */
+    static final String[][] LAYOUTS={
+        {"..#..#..","........","..i..i..","........","rr....rr","........","..#..#..","........"},
+        {"...##...","........","..w..w..","#......#","#......#","..w..w..","........","...##..."},
+        {"#......#","........","...Gg...","...gg...","..r..r..","........","........","#......#"},
+        {"rrrr....","rrrr....","rrr.....","rr......","........","........","........","........"},
+        {"###..###","##....##","#......#","...ww...","...ww...","#......#","##....##","###..###"},
+        {"........",".ii..ii.","........","........","........","........",".ii..ii.","........"},
+        {"l......l","l......l","........","..Gg....","..gg....","........","l......l","l......l"},
+        {"....rrrr","....rrrr",".....rrr","......rr","........","........","..i..i..","........"},
+        {"........","........","#..rr..#","........","........",".Gg..Gg.",".gg..gg.","........"},
+        {"........","........","........","...rr...","..rRRr..","..rrrr..","........","........"},
+        {"........","........","........","........","rr....rr","r......r","........","........"},
+        {"Gg....Gg","gg....gg","........","........","..####..","........","........","........"}
+    };
     static final class Level {
-        final int number,world,kind,variant,moves,goal,color,reward; final boolean bonus;
+        final int number,world,kind,variant,moves,goal,color,reward,color2,goal2; final boolean bonus;
         Level(int n){this(n,null);}
         Level(int n,int[] balance){
             if(n<1||n>120)throw new IllegalArgumentException("level");
             number=n;world=(n-1)/10;bonus=n%10==0;
             kind=n%6==0?BOSS:bonus?BONUS:n%2==0?RESCUE:CLEAR;
-            variant=(n/2+world)%4;color=(n+world)%COLORS;
+            variant=(n/2+world)%4;color=(n+world)%COLORS;color2=(color+3)%COLORS;
+            // Second collection goal (like Babytopia's multi-goal panel) for ordinary and rescue stages from level 11.
+            goal2=n>=11&&(kind==CLEAR||kind==RESCUE)?4+world/2+n%3:0;
             if(balance!=null&&(balance.length!=3||balance[0]<1||balance[0]>100||balance[1]<1||balance[1]>500||balance[2]<0||balance[2]>10000))throw new IllegalArgumentException("balance");
             moves=balance!=null?balance[0]:n<=10?48:n<=20?44:kind==BONUS?28:kind==BOSS?40:kind==RESCUE?38:36;
             goal=balance!=null?balance[1]:n<=5?6:n<=10?(kind==BOSS?16:10):kind==BOSS?26+world*2:kind==BONUS?20+world:kind==RESCUE?12+world:10+world;
@@ -32,7 +50,7 @@ final class AdventureEngine {
     final int[][] tile=new int[SIZE][SIZE],power=new int[SIZE][SIZE],hp=new int[SIZE][SIZE],obstacle=new int[SIZE][SIZE];
     final boolean[][] active=new boolean[SIZE][SIZE];
     final Random random;
-    int moves,progress,remaining,initialObstacles,turns,danger,freeze,shield,score,chains,lastCollected;
+    int moves,progress,progress2,remaining,initialObstacles,turns,danger,freeze,shield,score,chains,lastCollected;
     boolean won,lost;
     final Set<Integer> changed=new HashSet<>();
     final List<int[]> casts=new ArrayList<>();
@@ -41,28 +59,49 @@ final class AdventureEngine {
         level=new Level(n,balance);random=new Random(seed);moves=level.moves+(level.kind==RESCUE?8:0);
         // Distinct masks and obstacle placements: seeded per level, pieces vary per attempt.
         Random layout=new Random(n*7919L);
-        for(int r=0;r<SIZE;r++)for(int c=0;c<SIZE;c++){
-            int shape=(n-1)%5;
-            active[r][c]=!(shape==1&&(r==0||r==7)&&(c==0||c==7))
-                &&!(shape==2&&(r==0||r==7)&&(c<2||c>5))
-                &&!(shape==3&&((r==0&&c<2)||(r==7&&c>5)))
-                &&!(shape==4&&(r==0||r==7)&&(c==0||c==7||c==1||c==6));
-            tile[r][c]=-1;
-        }
-        List<Integer> spots=new ArrayList<>();
-        for(int r=1;r<7;r++)for(int c=0;c<8;c++)if(active[r][c])spots.add(r*8+c);
-        Collections.shuffle(spots,layout);
-        int count=n<=3?2:n<=5?3:n<=10?4:Math.min(14,4+level.world/2+(n%3));
-        for(int i=0;i<count;i++){
-            int p=spots.get(i),r=p/8,c=p%8;
-            obstacle[r][c]=n<5?0:(i+level.world+level.variant)%Math.min(4,2+level.world);
-            hp[r][c]=obstacle[r][c]==0?1+(level.world>=3?1:0):obstacle[r][c]==3?2:1;
-            remaining+=hp[r][c];
+        if(n>=4){
+            String[] map=LAYOUTS[(n-4)%LAYOUTS.length];
+            int bigHp=Math.min(6,3+level.world/3);
+            for(int r=0;r<SIZE;r++)for(int c=0;c<SIZE;c++){
+                char ch=map[r].charAt(c);tile[r][c]=-1;active[r][c]=ch!='#';
+                if(level.world==0){if(ch=='l')ch='r';if(ch=='w')ch='i';}
+                if(n<8&&(ch=='G'||ch=='g'))ch='.';
+                if(ch=='r'){obstacle[r][c]=0;hp[r][c]=1+(level.world>=3?1:0);}
+                else if(ch=='R'){obstacle[r][c]=0;hp[r][c]=2;}
+                else if(ch=='i'){obstacle[r][c]=1;hp[r][c]=1;}
+                else if(ch=='w'){obstacle[r][c]=2;hp[r][c]=1;}
+                else if(ch=='l'){obstacle[r][c]=3;hp[r][c]=2;}
+                else if(ch=='G'){obstacle[r][c]=BIG;hp[r][c]=bigHp;}
+                else if(ch=='g'){obstacle[r][c]=BIG_PART;hp[r][c]=bigHp;}
+                if(ch!='g')remaining+=hp[r][c];
+            }
+        }else{
+            for(int r=0;r<SIZE;r++)for(int c=0;c<SIZE;c++){
+                int shape=(n-1)%5;
+                active[r][c]=!(shape==1&&(r==0||r==7)&&(c==0||c==7))
+                    &&!(shape==2&&(r==0||r==7)&&(c<2||c>5))
+                    &&!(shape==3&&((r==0&&c<2)||(r==7&&c>5)));
+                tile[r][c]=-1;
+            }
+            List<Integer> spots=new ArrayList<>();
+            for(int r=1;r<7;r++)for(int c=0;c<8;c++)if(active[r][c])spots.add(r*8+c);
+            Collections.shuffle(spots,layout);
+            int count=n<=3?2:3;
+            for(int i=0;i<count;i++){
+                int p=spots.get(i),r=p/8,c=p%8;
+                obstacle[r][c]=0;hp[r][c]=1;remaining+=hp[r][c];
+            }
         }
         initialObstacles=remaining;refillFresh();ensureMove();
     }
     boolean inside(int r,int c){return r>=0&&r<8&&c>=0&&c<8&&active[r][c];}
-    boolean movable(int r,int c){return inside(r,c)&&!(hp[r][c]>0&&(obstacle[r][c]==0||obstacle[r][c]==1||obstacle[r][c]==2||obstacle[r][c]==3));}
+    boolean movable(int r,int c){return inside(r,c)&&hp[r][c]==0;}
+    /** Giant ghosts cover 2x2 cells; every hit on any of the four cells is routed to the top-left anchor. */
+    int anchor(int pos){
+        int r=pos/8,c=pos%8;if(obstacle[r][c]!=BIG_PART)return pos;
+        for(int[] d:new int[][]{{0,-1},{-1,0},{-1,-1}}){int y=r+d[0],x=c+d[1];if(y>=0&&x>=0&&obstacle[y][x]==BIG&&hp[y][x]>0)return y*8+x;}
+        return pos;
+    }
     void refillFresh(){
         for(int r=0;r<8;r++)for(int c=0;c<8;c++){
             if(!active[r][c])continue;
@@ -118,13 +157,17 @@ final class AdventureEngine {
             for(int pos:hits){
                 int r=pos/8,c=pos%8;if(!inside(r,c))continue;
                 if(hp[r][c]>0){damaged.add(pos);continue;}
-                if(tile[r][c]==level.color){progress++;lastCollected++;}
+                if(tile[r][c]==level.color){progress++;lastCollected++;}else if(level.goal2>0&&tile[r][c]==level.color2)progress2++;
                 score+=10*chains;
                 for(int[] d:new int[][]{{1,0},{-1,0},{0,1},{0,-1}}){int y=r+d[0],x=c+d[1];if(inside(y,x)&&hp[y][x]>0)damaged.add(y*8+x);}
                 if(born>0&&pos==preferred&&!fired.contains(pos)){power[r][c]=born;}else{tile[r][c]=-1;power[r][c]=0;}
                 changed.add(pos);
             }
-            for(int pos:damaged){int r=pos/8,c=pos%8;if(hp[r][c]>0){hp[r][c]--;remaining--;changed.add(pos);score+=25;}}
+            Set<Integer> struck=new HashSet<>();for(int pos:damaged)struck.add(anchor(pos));
+            for(int pos:struck){int r=pos/8,c=pos%8;if(hp[r][c]<=0)continue;
+                if(obstacle[r][c]==BIG&&r<7&&c<7){for(int y=r;y<=r+1;y++)for(int x=c;x<=c+1;x++)if(hp[y][x]>0){hp[y][x]--;changed.add(y*8+x);}}
+                else{hp[r][c]--;changed.add(pos);}
+                remaining--;score+=obstacle[r][c]==BIG?60:25;}
             collapse();preferred=-1;hits=matches();
         }
         if(chains>=32)refillFresh();
@@ -167,7 +210,7 @@ final class AdventureEngine {
         resolve(hits,-1);finish();ensureMove();return true;
     }
     void finish(){
-        won=level.kind==BOSS?progress>=level.goal:level.kind==BONUS?progress>=level.goal:remaining==0&&progress>=level.goal;
+        won=(level.kind==BOSS||level.kind==BONUS?progress>=level.goal:remaining==0&&progress>=level.goal)&&progress2>=level.goal2;
         if(!won&&(moves<=0))lost=true;
     }
     boolean freeSwap(int a,int b){

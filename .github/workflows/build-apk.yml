@@ -40,20 +40,20 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs app/build/outputs/apk/debug/app-debug.apk
 
       - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk GhostMatch3-v0.41.0.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk GhostMatch3-v0.42.0.apk
 
       - name: Upload test APK
         uses: actions/upload-artifact@v4
         with:
           name: GhostMatch3-Android-APK
-          path: GhostMatch3-v0.41.0.apk
+          path: GhostMatch3-v0.42.0.apk
 
       - name: Publish test release
         uses: ncipollo/release-action@v1
         with:
-          tag: v0.41.0
-          name: Ghost Match 3 - Test Version 0.41.0
-          artifacts: GhostMatch3-v0.41.0.apk
+          tag: v0.42.0
+          name: Ghost Match 3 - Test Version 0.42.0
+          artifacts: GhostMatch3-v0.42.0.apk
           allowUpdates: true
           replacesArtifacts: true
           body: |
