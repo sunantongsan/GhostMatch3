@@ -23,16 +23,62 @@ final class AdventureEngine {
         {"........","........","........","........","rr....rr","r......r","........","........"},
         {"Gg....Gg","gg....gg","........","........","..####..","........","........","........"}
     };
+    static final String CELLS=".#rRiwlGg";
+    // Board patch (data only). Defaults are the bundled LAYOUTS; BoardPatch swaps these after validation.
+    static volatile String[][] cycle=LAYOUTS;
+    static volatile Map<Integer,String[]> levelLayouts=new HashMap<>();
+    /** level -> {color, color2, goal2, giantHp}; -1 keeps the built-in value. */
+    static volatile Map<Integer,int[]> levelExtras=new HashMap<>();
+    static String[] checkLayout(String[] rows){
+        if(rows==null||rows.length!=8)throw new IllegalArgumentException("layout rows");
+        boolean[] covered=new boolean[64];int playable=0;
+        for(int r=0;r<8;r++){
+            if(rows[r]==null||rows[r].length()!=8)throw new IllegalArgumentException("layout width");
+            for(int c=0;c<8;c++){char ch=rows[r].charAt(c);if(CELLS.indexOf(ch)<0)throw new IllegalArgumentException("layout cell "+ch);if(ch=='.')playable++;}
+        }
+        for(int r=0;r<8;r++)for(int c=0;c<8;c++)if(rows[r].charAt(c)=='G'){
+            if(r>6||c>6||rows[r].charAt(c+1)!='g'||rows[r+1].charAt(c)!='g'||rows[r+1].charAt(c+1)!='g')throw new IllegalArgumentException("giant ghost needs G g / g g");
+            for(int y=r;y<=r+1;y++)for(int x=c;x<=c+1;x++){if(covered[y*8+x])throw new IllegalArgumentException("giant overlap");covered[y*8+x]=true;}
+        }
+        for(int r=0;r<8;r++)for(int c=0;c<8;c++)if(rows[r].charAt(c)=='g'&&!covered[r*8+c])throw new IllegalArgumentException("stray g");
+        if(playable<24)throw new IllegalArgumentException("needs at least 24 '.' cells");
+        return rows.clone();
+    }
+    /** Validates everything (including building all 120 stages) before switching; on failure nothing changes. */
+    static synchronized void applyBoardPatch(String[][] newCycle,Map<Integer,String[]> layouts,Map<Integer,int[]> extras){
+        String[][] c=newCycle==null||newCycle.length==0?LAYOUTS:newCycle.clone();
+        if(c.length>64)throw new IllegalArgumentException("too many layouts");
+        for(int i=0;i<c.length;i++)c[i]=checkLayout(c[i]);
+        Map<Integer,String[]> l=new HashMap<>();if(layouts!=null)for(Map.Entry<Integer,String[]> e:layouts.entrySet()){if(e.getKey()<1||e.getKey()>120)throw new IllegalArgumentException("level");l.put(e.getKey(),checkLayout(e.getValue()));}
+        Map<Integer,int[]> x=new HashMap<>();if(extras!=null)for(Map.Entry<Integer,int[]> e:extras.entrySet()){
+            int[] v=e.getValue();if(e.getKey()<1||e.getKey()>120||v==null||v.length!=4)throw new IllegalArgumentException("level extra");
+            if(v[0]<-1||v[0]>=COLORS||v[1]<-1||v[1]>=COLORS||v[2]<-1||v[2]>200||v[3]<-1||v[3]==0||v[3]>9)throw new IllegalArgumentException("level extra range");
+            x.put(e.getKey(),v.clone());
+        }
+        String[][] oldC=cycle;Map<Integer,String[]> oldL=levelLayouts;Map<Integer,int[]> oldX=levelExtras;
+        cycle=c;levelLayouts=l;levelExtras=x;
+        try{for(int n=1;n<=120;n++)new AdventureEngine(n,1);}
+        catch(RuntimeException error){cycle=oldC;levelLayouts=oldL;levelExtras=oldX;throw error;}
+    }
+    static synchronized void resetBoardPatch(){cycle=LAYOUTS;levelLayouts=new HashMap<>();levelExtras=new HashMap<>();}
     static final class Level {
-        final int number,world,kind,variant,moves,goal,color,reward,color2,goal2; final boolean bonus;
-        Level(int n){this(n,null);}
-        Level(int n,int[] balance){
+        final int number,world,kind,variant,moves,goal,color,reward,color2,goal2,giantHp; final boolean bonus;
+        Level(int n){this(n,null,null);}
+        Level(int n,int[] balance){this(n,balance,null);}
+        /** extra = {color,color2,goal2,giantHp} saved with a run; null reads the current board patch. */
+        Level(int n,int[] balance,int[] extra){
             if(n<1||n>120)throw new IllegalArgumentException("level");
             number=n;world=(n-1)/10;bonus=n%10==0;
             kind=n%6==0?BOSS:bonus?BONUS:n%2==0?RESCUE:CLEAR;
-            variant=(n/2+world)%4;color=(n+world)%COLORS;color2=(color+3)%COLORS;
+            variant=(n/2+world)%4;
+            int[] x=extra!=null?extra:levelExtras.get(n);
+            if(x!=null&&x.length!=4)throw new IllegalArgumentException("extra");
+            color=x!=null&&x[0]>=0?x[0]:(n+world)%COLORS;
+            color2=x!=null&&x[1]>=0?x[1]:(color+3)%COLORS;
             // Second collection goal (like Babytopia's multi-goal panel) for ordinary and rescue stages from level 11.
-            goal2=n>=11&&(kind==CLEAR||kind==RESCUE)?4+world/2+n%3:0;
+            goal2=x!=null&&x[2]>=0?x[2]:n>=11&&(kind==CLEAR||kind==RESCUE)?4+world/2+n%3:0;
+            giantHp=x!=null&&x[3]>0?x[3]:Math.min(6,3+world/3);
+            if(color<0||color>=COLORS||color2<0||color2>=COLORS||goal2<0||goal2>200||giantHp<1||giantHp>9||goal2>0&&color2==color)throw new IllegalArgumentException("goals");
             if(balance!=null&&(balance.length!=3||balance[0]<1||balance[0]>100||balance[1]<1||balance[1]>500||balance[2]<0||balance[2]>10000))throw new IllegalArgumentException("balance");
             moves=balance!=null?balance[0]:n<=10?48:n<=20?44:kind==BONUS?28:kind==BOSS?40:kind==RESCUE?38:36;
             goal=balance!=null?balance[1]:n<=5?6:n<=10?(kind==BOSS?16:10):kind==BOSS?26+world*2:kind==BONUS?20+world:kind==RESCUE?12+world:10+world;
@@ -55,17 +101,20 @@ final class AdventureEngine {
     final Set<Integer> changed=new HashSet<>();
     final List<int[]> casts=new ArrayList<>();
     AdventureEngine(int n,long seed){this(n,seed,null);}
-    AdventureEngine(int n,long seed,int[] balance){
-        level=new Level(n,balance);random=new Random(seed);moves=level.moves+(level.kind==RESCUE?8:0);
+    int[] extra(){return new int[]{level.color,level.color2,level.goal2,level.giantHp};}
+    AdventureEngine(int n,long seed,int[] balance){this(n,seed,balance,null);}
+    AdventureEngine(int n,long seed,int[] balance,int[] extra){
+        level=new Level(n,balance,extra);random=new Random(seed);moves=level.moves+(level.kind==RESCUE?8:0);
         // Distinct masks and obstacle placements: seeded per level, pieces vary per attempt.
         Random layout=new Random(n*7919L);
-        if(n>=4){
-            String[] map=LAYOUTS[(n-4)%LAYOUTS.length];
-            int bigHp=Math.min(6,3+level.world/3);
+        String[] exact=levelLayouts.get(n);String[][] layouts=cycle;
+        if(exact!=null||n>=4){
+            String[] map=exact!=null?exact:layouts[(n-4)%layouts.length];
+            int bigHp=level.giantHp;
             for(int r=0;r<SIZE;r++)for(int c=0;c<SIZE;c++){
                 char ch=map[r].charAt(c);tile[r][c]=-1;active[r][c]=ch!='#';
-                if(level.world==0){if(ch=='l')ch='r';if(ch=='w')ch='i';}
-                if(n<8&&(ch=='G'||ch=='g'))ch='.';
+                if(exact==null&&level.world==0){if(ch=='l')ch='r';if(ch=='w')ch='i';}
+                if(exact==null&&n<8&&(ch=='G'||ch=='g'))ch='.';
                 if(ch=='r'){obstacle[r][c]=0;hp[r][c]=1+(level.world>=3?1:0);}
                 else if(ch=='R'){obstacle[r][c]=0;hp[r][c]=2;}
                 else if(ch=='i'){obstacle[r][c]=1;hp[r][c]=1;}

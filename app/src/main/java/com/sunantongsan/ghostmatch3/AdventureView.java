@@ -112,7 +112,7 @@ final class AdventureView extends View {
         SharedPreferences.Editor e=prefs.edit().putInt("gold",coins).putInt("highest",highest);
         for(int i=0;i<inventory.length;i++)e.putInt("item_"+i,inventory[i]);
         if(game!=null){try{
-            JSONObject j=new JSONObject();j.put("layout",2);j.put("level",game.level.number);j.put("progress2",game.progress2);j.put("moves",game.moves);j.put("progress",game.progress);j.put("remaining",game.remaining);j.put("initial",game.initialObstacles);j.put("turns",game.turns);j.put("danger",game.danger);j.put("freeze",game.freeze);j.put("shield",game.shield);j.put("score",game.score);j.put("won",game.won);j.put("lost",game.lost);j.put("credited",credited);j.put("reward",lastReward);j.put("rewardItem",rewardItem);
+            JSONObject j=new JSONObject();j.put("layout",2);{JSONArray x=new JSONArray();for(int v:game.extra())x.put(v);j.put("extra",x);StringBuilder mask=new StringBuilder();for(int r=0;r<8;r++)for(int c=0;c<8;c++)mask.append(game.active[r][c]?'1':'0');j.put("mask",mask.toString());}j.put("level",game.level.number);j.put("progress2",game.progress2);j.put("moves",game.moves);j.put("progress",game.progress);j.put("remaining",game.remaining);j.put("initial",game.initialObstacles);j.put("turns",game.turns);j.put("danger",game.danger);j.put("freeze",game.freeze);j.put("shield",game.shield);j.put("score",game.score);j.put("won",game.won);j.put("lost",game.lost);j.put("credited",credited);j.put("reward",lastReward);j.put("rewardItem",rewardItem);
             if(guardianClock!=null){j.put("guardianMs",guardianClock.remainingMs);j.put("frozenMs",guardianClock.frozenMs);j.put("introMs",introElapsed);j.put("introPending",brief);}
             j.put("balanceMoves",game.level.moves);j.put("balanceGoal",game.level.goal);j.put("balanceReward",game.level.reward);
             JSONArray cells=new JSONArray();for(int r=0;r<8;r++)for(int c=0;c<8;c++){cells.put(game.tile[r][c]);cells.put(game.power[r][c]);cells.put(game.hp[r][c]);cells.put(game.obstacle[r][c]);}j.put("cells",cells);e.putString("run",j.toString());
@@ -122,7 +122,10 @@ final class AdventureView extends View {
     private void restore(){try{
         String raw=prefs.getString("run","");if(raw.isEmpty())return;
         JSONObject j=new JSONObject(raw);if(j.optInt("layout")!=2)return; // boards from before authored layouts cannot be restored safely
-        AdventureEngine restored=new AdventureEngine(j.getInt("level"),1,j.has("balanceMoves")?new int[]{j.getInt("balanceMoves"),j.getInt("balanceGoal"),j.getInt("balanceReward")}:null);
+        JSONArray ex=j.optJSONArray("extra");int[] extra=ex!=null&&ex.length()==4?new int[]{ex.getInt(0),ex.getInt(1),ex.getInt(2),ex.getInt(3)}:null;
+        AdventureEngine restored=new AdventureEngine(j.getInt("level"),1,j.has("balanceMoves")?new int[]{j.getInt("balanceMoves"),j.getInt("balanceGoal"),j.getInt("balanceReward")}:null,extra);
+        // The saved hole mask wins over the current board patch, so a patch never reshapes a run in progress.
+        String mask=j.optString("mask","");if(mask.length()==64)for(int p=0;p<64;p++)restored.active[p/8][p%8]=mask.charAt(p)=='1';
         JSONArray a=j.getJSONArray("cells");if(a.length()!=256)return;int k=0;
         for(int r=0;r<8;r++)for(int c=0;c<8;c++){restored.tile[r][c]=a.getInt(k++);restored.power[r][c]=a.getInt(k++);restored.hp[r][c]=a.getInt(k++);restored.obstacle[r][c]=a.getInt(k++);}
         restored.moves=j.getInt("moves");restored.progress=j.getInt("progress");restored.progress2=j.optInt("progress2");restored.remaining=j.getInt("remaining");restored.initialObstacles=j.getInt("initial");restored.turns=j.getInt("turns");restored.danger=j.optInt("danger");restored.freeze=j.getInt("freeze");restored.shield=j.getInt("shield");restored.score=j.getInt("score");restored.won=j.getBoolean("won");restored.lost=j.getBoolean("lost");game=restored;credited=j.getBoolean("credited");lastReward=j.optInt("reward");rewardItem=j.optInt("rewardItem",-1);shownRescue=rescueProgress();shownDanger=game.danger/(float)game.level.moves;

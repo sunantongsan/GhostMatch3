@@ -55,6 +55,21 @@ public class AdventureEngineTest {
   AdventureEngine.Level two=new AdventureEngine.Level(13);check(two.goal2>0&&two.color2!=two.color,"second goal from level 11");
   e=new AdventureEngine(13,5);e.progress=99;e.remaining=0;e.finish();check(!e.won,"second goal required");e.progress2=two.goal2;e.finish();check(e.won,"both goals complete");
   e=new AdventureEngine(2,1);e.danger=9;check(e.use(9,-1)&&e.danger==4,"extra moves must extend rescue clock");
+  // Board patch: data-only layouts and goals, fully validated, atomic on failure.
+  String[] custom={"Gg....Gg","gg....gg","........","..####..","........","..rrrr..","........","........"};
+  java.util.Map<Integer,String[]> lay=new java.util.HashMap<>();lay.put(5,custom);
+  java.util.Map<Integer,int[]> ext=new java.util.HashMap<>();ext.put(5,new int[]{2,4,9,7});
+  AdventureEngine.applyBoardPatch(new String[][]{custom},lay,ext);
+  e=new AdventureEngine(5,1);check(e.obstacle[0][0]==AdventureEngine.BIG&&e.hp[0][0]==7&&!e.active[3][3],"patched level layout");
+  check(e.level.color==2&&e.level.color2==4&&e.level.goal2==9,"patched goals");
+  check(new AdventureEngine(9,1).obstacle[0][6]==AdventureEngine.BIG&&new AdventureEngine(16,1).obstacle[5][3]==0,"patched cycle");
+  int[] saved=e.extra();AdventureEngine.resetBoardPatch();check(new AdventureEngine(5,1,null,saved).level.goal2==9,"saved run keeps its goals");
+  for(String[] bad:new String[][]{{"G......."},{"Gg......","g.......","........","........","........","........","........","........"},{"########","########","########","########","########","########","........","........"},{"x.......","........","........","........","........","........","........","........"}}){
+   boolean refused=false;try{AdventureEngine.applyBoardPatch(new String[][]{bad},null,null);}catch(IllegalArgumentException ok){refused=true;}
+   check(refused&&AdventureEngine.cycle==AdventureEngine.LAYOUTS,"invalid layout refused atomically");
+  }
+  boolean refused=false;java.util.Map<Integer,int[]> same=new java.util.HashMap<>();same.put(13,new int[]{1,1,5,-1});
+  try{AdventureEngine.applyBoardPatch(null,null,same);}catch(IllegalArgumentException ok){refused=true;}check(refused&&AdventureEngine.levelExtras.isEmpty(),"same goal colours refused");
   System.out.println("PASS: 120 levels; 600 full games; 20 bosses; 12 bonuses; 4 overlaps; obstacles, cascades, hints, freeze, shield and completion. First-hint wins="+wins+"/600 (not a difficulty acceptance test)");
  }
 }

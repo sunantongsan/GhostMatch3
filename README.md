@@ -11,6 +11,7 @@ ice/web/lock walls, and giant 2x2 ghosts that block four cells and need several 
 The top HUD now shows a moves card (ก้าว) and a goal panel (เป้าหมาย) with remaining counts
 and check marks. From level 11 normal and rescue stages have a second ghost colour to collect.
 Saved runs from older versions are not resumed (progress, gold and items are kept).
+Board layouts, giant ghost health and second goals can be changed afterwards without an app update via the schema-4 board patch (`docs/patches/board-manifest.json`, see `docs/patches/README.md`).
 
 ## Test build v0.12.0
 
