@@ -31,6 +31,11 @@ public class SerJoySmoke extends Instrumentation {
   rejected=false;try{JokePatch.validate(invalid.toString().getBytes("UTF-8"));}catch(Exception expected){rejected=true;}check(rejected,"invalid answer rejection");
   File cache=new File(getTargetContext().getFilesDir(),"ser-joy-content.json");try(FileOutputStream out=new FileOutputStream(cache)){out.write("broken".getBytes("UTF-8"));}
   check(JokePatch.local(getTargetContext()).jokes.length()==22,"corrupt cache fallback");cache.delete();
+  org.json.JSONObject updated=new org.json.JSONObject(new String(bundled,"UTF-8"));updated.put("version",2);byte[] patch=updated.toString().getBytes("UTF-8");
+  JokePatch.install(getTargetContext(),patch,JokePatch.sha(patch),2,22);
+  check(JokePatch.local(getTargetContext()).version==2,"downloaded content persists for offline launch");
+  try{JokePatch.install(getTargetContext(),bundled,"bad",3,22);}catch(Exception expected){}
+  check(JokePatch.local(getTargetContext()).version==2,"bad update preserves last good cache");cache.delete();
   launch();check(view.progress.index==0,"initial question");shot("01-question");
   invoke("answer",new Class[]{int.class},1);check(view.progress.phase==QuizProgress.Phase.AD_REQUIRED,"wrong gate");shot("02-wrong-reaction");SystemClock.sleep(1300);
   runOnMainSync(()->host.finish());waitForIdleSync();SystemClock.sleep(500);launch();check(view.progress.phase==QuizProgress.Phase.AD_REQUIRED&&view.progress.streak==1,"restart retains gate: phase="+view.progress.phase+", streak="+view.progress.streak+", prefs="+getTargetContext().getSharedPreferences("ser_joy_v1",0).getAll());

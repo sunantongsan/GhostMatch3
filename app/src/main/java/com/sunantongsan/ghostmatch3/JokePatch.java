@@ -42,6 +42,12 @@ final class JokePatch {
         Content next=validate(data);if(next.version!=version||next.jokes.length()<previousCount)throw new IOException("version/count");
         return next;
     }
+    static Content install(Context c,byte[] data,String hash,int version,int previousCount)throws Exception{
+        Content next=verified(data,hash,version,previousCount);
+        AtomicFile target=new AtomicFile(new File(c.getFilesDir(),"ser-joy-content.json"));FileOutputStream out=null;
+        try{out=target.startWrite();out.write(data);target.finishWrite(out);}catch(Exception e){if(out!=null)target.failWrite(out);throw e;}
+        return next;
+    }
     static String sha(byte[] b)throws Exception{
         StringBuilder out=new StringBuilder();for(byte v:MessageDigest.getInstance("SHA-256").digest(b))out.append(String.format(Locale.ROOT,"%02x",v&255));return out.toString();
     }
@@ -80,11 +86,7 @@ final class JokePatch {
                 String file=m.getString("file"),hash=m.getString("sha256");
                 if(!file.matches("ser-joy-v[0-9]+\\.json")||!hash.matches("[a-f0-9]{64}"))throw new IOException("manifest fields");
                 byte[] data=fetch(file,status,30);
-                Content next=verified(data,hash,version,current.jokes.length());
-                // Atomic replacement keeps the previous good content if writing is interrupted.
-                AtomicFile target=new AtomicFile(new File(c.getFilesDir(),"ser-joy-content.json"));FileOutputStream out=null;
-                try{out=target.startWrite();out.write(data);target.finishWrite(out);}catch(Exception e){if(out!=null)target.failWrite(out);throw e;}
-                current=next;
+                current=install(c,data,hash,version,current.jokes.length());
             }
             status.update("พร้อมเล่นแล้ว • ข้อมูลเวอร์ชัน "+current.version,100);
         }catch(Exception e){status.update("เชื่อมต่อไม่ได้ • เล่นด้วยข้อมูลที่มีได้เลย",100);}
