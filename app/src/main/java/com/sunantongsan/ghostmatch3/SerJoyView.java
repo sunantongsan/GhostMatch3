@@ -32,7 +32,7 @@ final class SerJoyView extends ScrollView {
             while((n=in.read(b))!=-1)out.write(b,0,n);
             jokes=new JSONArray(out.toString("UTF-8"));
         }catch(Exception e){throw new IllegalStateException("Bundled joke data is invalid",e);}
-        try(java.io.InputStream in=host.getAssets().open("ser-joy-reactions.webp")){reactions=BitmapFactory.decodeStream(in);}
+        try(java.io.InputStream in=host.getAssets().open("ser-joy-animation.webp")){reactions=BitmapFactory.decodeStream(in);}
         catch(Exception e){throw new IllegalStateException("Missing reaction artwork",e);}
         ghosts=BitmapFactory.decodeResource(getResources(),R.drawable.ghost_sprites);
         progress=new QuizProgress(jokes.length(),prefs.getInt("index",0),prefs.getInt("streak",0),prefs.getString("phase","QUESTION"));
@@ -46,8 +46,8 @@ final class SerJoyView extends ScrollView {
     private void add(View v){LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.bottomMargin=dp(10);page.addView(v,lp);}
     private Button button(String label,Runnable action){Button b=new Button(host);b.setText(label);b.setTextSize(17);b.setTextColor(ink);b.setAllCaps(false);b.setMinHeight(dp(56));b.setPadding(dp(12),dp(10),dp(12),dp(10));b.setBackground(shape(yellow,ink));b.setOnClickListener(v->action.run());add(b);return b;}
     private void save(){prefs.edit().putInt("index",progress.index).putInt("streak",progress.streak).putString("phase",progress.phase.name()).apply();}
-    void setActive(boolean value){active=value;if(!value){save();saveBoard();}else if(actor!=null)actor.invalidate();}
-    void release(){save();saveBoard();}
+    void setActive(boolean value){active=value;if(actor!=null)actor.setRunning(value);}
+    void release(){active=false;if(actor!=null)actor.setRunning(false);}
     private JSONObject joke(){return jokes.optJSONObject(Math.min(progress.index,jokes.length()-1));}
     private void render(){
         removeAllViews();page=new LinearLayout(host);page.setOrientation(LinearLayout.VERTICAL);page.setPadding(dp(18),dp(12),dp(18),dp(20));addView(page);
@@ -105,13 +105,16 @@ final class SerJoyView extends ScrollView {
     private void saveBoard(){if(board==null)return;try{JSONObject b=new JSONObject();b.put("index",progress.index);b.put("moves",board.moves);b.put("score",board.score);JSONArray cells=new JSONArray();for(int r=0;r<8;r++)for(int c=0;c<8;c++){cells.put(board.tile[r][c]);cells.put(board.power[r][c]);}b.put("cells",cells);prefs.edit().putString("board",b.toString()).apply();}catch(JSONException ignored){}}
     private void restoreBoard(){try{JSONObject b=new JSONObject(prefs.getString("board","{}"));if(b.optInt("index",-1)!=progress.index)return;JSONArray cells=b.getJSONArray("cells");if(cells.length()!=128)return;for(int n=0;n<128;n+=2){if(cells.getInt(n)<0||cells.getInt(n)>5||cells.getInt(n+1)<0||cells.getInt(n+1)>4)return;}board.moves=Math.max(0,Math.min(10,b.getInt("moves")));board.score=b.getInt("score");for(int i=0;i<64;i++){board.tile[i/8][i%8]=cells.getInt(i*2);board.power[i/8][i%8]=cells.getInt(i*2+1);}board.lost=board.moves==0;board.ensureMove();}catch(JSONException ignored){}}
     private final class ReactionView extends View {
-        final Paint p=new Paint(3);final long start=SystemClock.uptimeMillis();
-        ReactionView(){super(host);setBackgroundColor(Color.WHITE);setContentDescription(progress.phase==QuizProgress.Phase.QUESTION?"ท่านเซ่อจ่อยกำลังคิด":progress.phase==QuizProgress.Phase.CORRECT?"ท่านเซ่อจ่อยทำหน้าคิดหนัก แล้วชี้แสดงความยินดี":"ท่านเซ่อจ่อยหรี่ตา ยื่นปากหัวเราะเยาะอย่างขี้เล่น");}
-        protected void onDraw(Canvas c){super.onDraw(c);long elapsed=SystemClock.uptimeMillis()-start;boolean correct=progress.phase==QuizProgress.Phase.CORRECT||progress.phase==QuizProgress.Phase.COMPLETE;boolean wrong=progress.phase==QuizProgress.Phase.AD_REQUIRED||progress.phase==QuizProgress.Phase.BREAK_REQUIRED;
-            int cell=correct?(elapsed<850?2:3):wrong?1:0;int w=reactions.getWidth()/2,h=reactions.getHeight()/2;Rect src=new Rect(cell%2*w,cell/2*h,(cell%2+1)*w,(cell/2+1)*h);
-            float side=Math.min(getWidth(),getHeight()),x=(getWidth()-side)/2f,y=(getHeight()-side)/2f;
-            c.save();if(wrong&&elapsed<2300)c.rotate((float)Math.sin(elapsed/65.0)*2.5f,getWidth()/2f,getHeight()/2f);c.drawBitmap(reactions,src,new RectF(x,y,x+side,y+side),p);c.restore();
-            if(active&&(elapsed<2400))postInvalidateDelayed(32);
+        final Paint p=new Paint(3);long elapsed,last=SystemClock.uptimeMillis();boolean running=true;
+        ReactionView(){super(host);setBackgroundColor(Color.WHITE);setContentDescription(progress.phase==QuizProgress.Phase.QUESTION?"ท่านเซ่อจ่อยยกมือคิดและกะพริบตา":progress.phase==QuizProgress.Phase.CORRECT?"ท่านเซ่อจ่อยเกาหัว ยกนิ้ว ชี้และยกนิ้วโป้งแสดงความยินดี":"ท่านเซ่อจ่อยยื่นหน้า ชี้ แล้วอ้าปากหุบปากหัวเราะอย่างขี้เล่น");}
+        void setRunning(boolean value){running=value;last=SystemClock.uptimeMillis();if(value)invalidate();}
+        protected void onDraw(Canvas c){super.onDraw(c);long now=SystemClock.uptimeMillis();if(running)elapsed+=Math.min(100,Math.max(0,now-last));last=now;
+            int frame=CharacterAnimation.frame(progress.phase,elapsed);int w=reactions.getWidth()/4,h=reactions.getHeight()/3;
+            Rect src=new Rect(frame%4*w,frame/4*h,(frame%4+1)*w,(frame/4+1)*h);
+            float scale=Math.min(getWidth()/(float)w,getHeight()/(float)h),dw=w*scale,dh=h*scale;
+            float x=(getWidth()-dw)/2f,y=(getHeight()-dh)/2f;
+            c.drawBitmap(reactions,src,new RectF(x,y,x+dw,y+dh),p);
+            if(active&&running)postInvalidateDelayed(50);
         }
     }
     private final class BoardView extends View {
