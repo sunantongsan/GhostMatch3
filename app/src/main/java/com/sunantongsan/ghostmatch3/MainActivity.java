@@ -37,13 +37,37 @@ public class MainActivity extends Activity {
         getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
         getWindow().setNavigationBarColor(0xFFFFFBF0);
         setVolumeControlStream(android.media.AudioManager.STREAM_MUSIC);
-        startGame();
+        showWelcome();
+    }
+
+    JokePatch.Content content;
+    private Thread patchWorker;
+    private android.widget.Button enterGame;
+    private void showWelcome(){
+        android.widget.LinearLayout welcome=new android.widget.LinearLayout(this);
+        welcome.setOrientation(1);welcome.setGravity(Gravity.CENTER);welcome.setPadding(32,40,32,40);welcome.setBackgroundColor(0xFFFFFBF0);
+        android.widget.ImageView hero=new android.widget.ImageView(this);hero.setImageResource(R.drawable.app_icon);hero.setAdjustViewBounds(true);
+        welcome.addView(hero,new android.widget.LinearLayout.LayoutParams(260,260));
+        android.widget.TextView title=new android.widget.TextView(this);title.setText("ท่านเซ่อจ่อย");title.setTextSize(34);title.setTextColor(0xFF24212B);title.setGravity(Gravity.CENTER);title.setTypeface(null,Typeface.BOLD);welcome.addView(title);
+        android.widget.TextView sub=new android.widget.TextView(this);sub.setText("พักเรื่องเครียด…แล้วมาโดนมุกหลอกกัน!");sub.setTextSize(17);sub.setGravity(Gravity.CENTER);sub.setPadding(0,20,0,30);welcome.addView(sub);
+        android.widget.ProgressBar bar=new android.widget.ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);bar.setMax(100);welcome.addView(bar,new android.widget.LinearLayout.LayoutParams(-1,20));
+        android.widget.TextView status=new android.widget.TextView(this);status.setText("เตรียมเสียงหัวเราะ…");status.setTextSize(16);status.setGravity(Gravity.CENTER);status.setPadding(0,24,0,24);welcome.addView(status);
+        enterGame=new android.widget.Button(this);enterGame.setText("กำลังเตรียมเกม…");enterGame.setEnabled(false);welcome.addView(enterGame,new android.widget.LinearLayout.LayoutParams(-1,-2));
+        enterGame.setOnClickListener(v->{if(content!=null&&gameView==null)startGame();});
+        setContentView(welcome);
+        patchWorker=new Thread(()->{
+            try{
+                JokePatch.Content loaded=JokePatch.check(getApplicationContext(),(message,percent)->runOnUiThread(()->{if(isDestroyed()||isFinishing())return;status.setText(message);bar.setProgress(percent);}));
+                runOnUiThread(()->{if(isDestroyed()||isFinishing())return;content=loaded;enterGame.setText("เข้าเกม  →");enterGame.setEnabled(true);});
+            }catch(Exception e){runOnUiThread(()->{if(isDestroyed()||isFinishing())return;status.setText("ข้อมูลเกมไม่สมบูรณ์ กรุณาเปิดเกมใหม่");enterGame.setText("ลองอีกครั้ง");enterGame.setEnabled(true);enterGame.setOnClickListener(v->recreate());});}
+        },"ser-joy-patch");patchWorker.start();
     }
 
     private void startGame(){
         gameAudio=new GameAudio(this);
         gameAudio.setActive(activityResumed);
         gameView=new SerJoyView(this);
+        gameView.setActive(activityResumed);
         rootLayout=new android.widget.FrameLayout(this);
         rootLayout.addView(gameView,new android.widget.FrameLayout.LayoutParams(-1,-1));
         setContentView(rootLayout);

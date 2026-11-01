@@ -27,11 +27,7 @@ final class SerJoyView extends ScrollView {
 
     SerJoyView(MainActivity activity){
         super(activity);host=activity;prefs=host.getSharedPreferences("ser_joy_v1",Context.MODE_PRIVATE);
-        try(java.io.InputStream in=host.getAssets().open("ser-joy-jokes.json")){
-            java.io.ByteArrayOutputStream out=new java.io.ByteArrayOutputStream();byte[] b=new byte[4096];int n;
-            while((n=in.read(b))!=-1)out.write(b,0,n);
-            jokes=new JSONArray(out.toString("UTF-8"));
-        }catch(Exception e){throw new IllegalStateException("Bundled joke data is invalid",e);}
+        jokes=host.content.jokes;
         try(java.io.InputStream in=host.getAssets().open("ser-joy-animation.webp")){reactions=BitmapFactory.decodeStream(in);}
         catch(Exception e){throw new IllegalStateException("Missing reaction artwork",e);}
         ghosts=BitmapFactory.decodeResource(getResources(),R.drawable.ghost_sprites);
