@@ -1,7 +1,8 @@
-name: Adventure preview and device checks
+name: Ser Joy build and device checks
 on:
   push:
-    branches: [feature/ghost-adventure-120]
+    branches: [feature/ser-joy-quiz]
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
@@ -16,10 +17,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.11.1'
-      - name: Test campaign rules
+      - name: Test game rules
         run: |
-          javac -d /tmp/ghost-tests app/src/main/java/com/sunantongsan/ghostmatch3/AdventureEngine.java tests/AdventureEngineTest.java
-          java -cp /tmp/ghost-tests com.sunantongsan.ghostmatch3.AdventureEngineTest
+          javac -d /tmp/joy-tests app/src/main/java/com/sunantongsan/ghostmatch3/{AdventureEngine,QuizProgress}.java tests/{AdventureEngineTest,QuizProgressTest}.java
+          java -cp /tmp/joy-tests com.sunantongsan.ghostmatch3.AdventureEngineTest
+          java -cp /tmp/joy-tests com.sunantongsan.ghostmatch3.QuizProgressTest
       - name: Build and lint
         run: gradle :app:assembleDebug :app:assembleDebugAndroidTest :app:lintDebug --stacktrace
       - name: Enable KVM
@@ -27,7 +29,7 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-      - name: Android smoke checks and screenshots
+      - name: Device checks
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
@@ -37,13 +39,13 @@ jobs:
           script: |
             adb install app/build/outputs/apk/debug/app-debug.apk
             adb install app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
-            adb shell am instrument -w com.sunantongsan.ghostmatch3.test/com.sunantongsan.ghostmatch3.AdventureSmoke | tee smoke-result.txt
-            grep 'PASS: screens' smoke-result.txt
+            adb shell am instrument -w com.sunantongsan.ghostmatch3.test/com.sunantongsan.ghostmatch3.SerJoySmoke | tee smoke-result.txt
+            grep 'PASS: quiz screens' smoke-result.txt
             adb pull /sdcard/Android/data/com.sunantongsan.ghostmatch3/files/screenshots screenshots
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: GhostMatch3-0.36.0-preview
+          name: SerJoy-0.42.0-test
           path: |
             app/build/outputs/apk/debug/app-debug.apk
             screenshots/

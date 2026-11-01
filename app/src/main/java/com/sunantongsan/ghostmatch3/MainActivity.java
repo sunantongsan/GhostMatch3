@@ -12,8 +12,6 @@ import com.google.android.gms.ads.AdRequest;
 import com.google.android.gms.ads.FullScreenContentCallback;
 import com.google.android.gms.ads.LoadAdError;
 import com.google.android.gms.ads.MobileAds;
-import com.google.android.gms.ads.interstitial.InterstitialAd;
-import com.google.android.gms.ads.interstitial.InterstitialAdLoadCallback;
 import com.google.android.gms.ads.rewarded.RewardedAd;
 import com.google.android.gms.ads.rewarded.RewardedAdLoadCallback;
 import com.google.android.ump.ConsentInformation;
@@ -22,98 +20,33 @@ import com.google.android.ump.UserMessagingPlatform;
 
 public class MainActivity extends Activity {
     // Google's official SAMPLE identifiers: test impressions never earn money.
-    private static final String TEST_INTERSTITIAL_ID="ca-app-pub-3940256099942544/1033173712";
     private static final String TEST_REWARDED_ID="ca-app-pub-3940256099942544/5224354917";
-    private static final String TEST_BANNER_ID="ca-app-pub-3940256099942544/6300978111";
-    private AdventureView gameView;
+    private SerJoyView gameView;
     private GameAudio gameAudio;
     private ConsentInformation consentInformation;
-    private InterstitialAd interstitial;
     private RewardedAd rewardedAd;
-    private boolean adsInitialized=false, adLoading=false, rewardLoading=false, privacyOptionsRequired=false;
+    private boolean adsInitialized=false, rewardLoading=false, privacyOptionsRequired=false;
     private android.widget.FrameLayout rootLayout;
-    private android.widget.LinearLayout bannerSlot;
-    private com.google.android.gms.ads.AdView bannerAd;
-    private boolean bannerLoaded=false, activityResumed=false, interstitialDue=false;
-    private int completedSinceAd=0;
+    private boolean activityResumed=false;
     private boolean underAgeOfConsent=true;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
-        getWindow().setStatusBarColor(Color.rgb(18,10,46));
-        getWindow().setNavigationBarColor(Color.rgb(18,10,46));
+        getWindow().setStatusBarColor(0xFFFFFBF0);
+        getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+        getWindow().setNavigationBarColor(0xFFFFFBF0);
         setVolumeControlStream(android.media.AudioManager.STREAM_MUSIC);
-        showWelcome();
+        startGame();
     }
 
     private void startGame(){
         gameAudio=new GameAudio(this);
         gameAudio.setActive(activityResumed);
-        gameView=new AdventureView(this);
+        gameView=new SerJoyView(this);
         rootLayout=new android.widget.FrameLayout(this);
         rootLayout.addView(gameView,new android.widget.FrameLayout.LayoutParams(-1,-1));
         setContentView(rootLayout);
-        completedSinceAd=getSharedPreferences("ad_frequency",MODE_PRIVATE).getInt("completed",0)%2;
         requestPlayerAge();
-    }
-
-    private void showWelcome(){
-        android.widget.FrameLayout screen=new android.widget.FrameLayout(this);
-        android.widget.ImageView background=new android.widget.ImageView(this);
-        background.setImageResource(R.drawable.ghost_wai_welcome);
-        background.setContentDescription("ผีน้อยยกมือไหว้ต้อนรับสู่อาณาจักรผี");
-        background.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
-        screen.addView(background,new android.widget.FrameLayout.LayoutParams(-1,-1));
-        android.widget.TextView title=new android.widget.TextView(this);
-        title.setText("GHOST\nMATCH 3");title.setTextSize(38);title.setTextColor(0xFFFFD775);
-        title.setGravity(Gravity.CENTER);title.setTypeface(Typeface.create("sans-serif-black",Typeface.BOLD));
-        title.setShadowLayer(dp(8),0,dp(3),0xFF24083F);
-        android.widget.FrameLayout.LayoutParams titleLayout=new android.widget.FrameLayout.LayoutParams(-1,-2,Gravity.TOP);
-        titleLayout.topMargin=dp(36);screen.addView(title,titleLayout);
-        android.widget.LinearLayout panel=new android.widget.LinearLayout(this);
-        panel.setOrientation(android.widget.LinearLayout.VERTICAL);panel.setGravity(Gravity.CENTER);
-        panel.setPadding(dp(20),dp(12),dp(20),dp(8));
-        android.graphics.drawable.GradientDrawable panelBackground=new android.graphics.drawable.GradientDrawable(
-            android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,new int[]{0xD928123F,0xEF120826});
-        panelBackground.setCornerRadius(dp(24));panelBackground.setStroke(dp(1),0xFFBA8CDA);panel.setBackground(panelBackground);
-        android.widget.FrameLayout.LayoutParams panelLayout=new android.widget.FrameLayout.LayoutParams(-1,-2,Gravity.BOTTOM);
-        panelLayout.setMargins(dp(24),0,dp(24),dp(24));screen.addView(panel,panelLayout);
-        screen.setOnApplyWindowInsetsListener((v,insets)->{
-            titleLayout.topMargin=dp(24)+insets.getSystemWindowInsetTop();title.setLayoutParams(titleLayout);
-            panelLayout.bottomMargin=dp(16)+insets.getSystemWindowInsetBottom();panel.setLayoutParams(panelLayout);
-            return insets;
-        });
-        android.widget.TextView greeting=new android.widget.TextView(this);
-        greeting.setText("ยินดีต้อนรับสู่อาณาจักรผี");greeting.setTextSize(18);greeting.setTextColor(0xFFFFD775);
-        greeting.setGravity(Gravity.CENTER);greeting.setTypeface(null,Typeface.BOLD);panel.addView(greeting);
-        android.widget.TextView status=new android.widget.TextView(this);
-        status.setTextSize(13);status.setPadding(0,dp(8),0,dp(2));
-        status.setTextColor(Color.WHITE);status.setGravity(Gravity.CENTER);panel.addView(status);
-        android.widget.ProgressBar bar=new android.widget.ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);
-        bar.setMax(100);bar.setProgressTintList(android.content.res.ColorStateList.valueOf(0xFFCA7BFF));
-        bar.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFF503167));
-        panel.addView(bar,new android.widget.LinearLayout.LayoutParams(-1,dp(20)));
-        android.widget.Button play=new android.widget.Button(this);play.setText("เข้าเกม");play.setTextSize(22);play.setTextColor(0xFF35154E);
-        play.setTypeface(null,Typeface.BOLD);play.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFFFFCD69));play.setEnabled(false);
-        panel.addView(play,new android.widget.LinearLayout.LayoutParams(-1,dp(56)));
-        android.widget.Button retry=new android.widget.Button(this);retry.setText("ตรวจสอบอีกครั้ง");retry.setTextColor(0xFFE8D1FF);retry.setBackgroundColor(Color.TRANSPARENT);retry.setVisibility(View.GONE);panel.addView(retry);
-        Runnable check=()->{
-            play.setEnabled(false);retry.setVisibility(View.GONE);bar.setIndeterminate(true);
-            status.setText("กำลังตรวจสอบแพตช์…");
-            new Thread(()->{
-                String result=ContentPatch.update(this,percent->runOnUiThread(()->{
-                    if(isDestroyed()||isFinishing())return;
-                    bar.setIndeterminate(false);bar.setProgress(percent);status.setText("กำลังโหลดแพตช์ "+percent+"%");
-                }));
-                GuardianStory.update(this);
-                runOnUiThread(()->{if(isDestroyed()||isFinishing())return;
-                    bar.setIndeterminate(false);bar.setProgress(result.startsWith("ตรวจสอบแพตช์ไม่ได้")?0:100);status.setText(result);
-                    play.setEnabled(true);retry.setVisibility(View.VISIBLE);
-                });
-            },"ghost-content-update").start();
-        };
-        play.setOnClickListener(v->{play.setEnabled(false);startGame();});
-        retry.setOnClickListener(v->check.run());setContentView(screen);check.run();
     }
 
     private void requestPlayerAge(){
@@ -198,14 +131,14 @@ public class MainActivity extends Activity {
         UserMessagingPlatform.showPrivacyOptionsForm(this,error->{
             refreshPrivacyOption();
             if(consentInformation.canRequestAds())initializeAds();
-            else {interstitial=null;rewardedAd=null;destroyBanner();}
+            else {rewardedAd=null;}
         });
     }
 
     private void initializeAds(){
-        if(adsInitialized){loadBanner();return;}
+        if(adsInitialized){loadRewardedAd();return;}
         adsInitialized=true;
-        MobileAds.initialize(this,status->runOnUiThread(()->{if(isDestroyed()||isFinishing())return;loadNextAd();loadRewardedAd();loadBanner();}));
+        MobileAds.initialize(this,status->runOnUiThread(()->{if(isDestroyed()||isFinishing())return;loadRewardedAd();}));
     }
 
     void openPrivacyPolicy(){
@@ -231,53 +164,9 @@ public class MainActivity extends Activity {
 
     private int dp(float value){return Math.round(value*getResources().getDisplayMetrics().density);}
 
-    private void loadBanner(){
-        if(bannerAd!=null||!adsInitialized||consentInformation==null||!consentInformation.canRequestAds())return;
-        bannerSlot=new android.widget.LinearLayout(this);
-        bannerSlot.setOrientation(android.widget.LinearLayout.VERTICAL);
-        bannerSlot.setGravity(Gravity.CENTER);
-        bannerSlot.setBackgroundColor(Color.rgb(22,10,46));
-        bannerSlot.setVisibility(View.GONE);
-        android.widget.TextView label=new android.widget.TextView(this);
-        label.setText("โฆษณา");label.setTextSize(10);label.setTextColor(Color.LTGRAY);
-        label.setGravity(Gravity.CENTER);
-        bannerSlot.addView(label,new android.widget.LinearLayout.LayoutParams(-1,dp(16)));
-        bannerAd=new com.google.android.gms.ads.AdView(this);
-        bannerAd.setAdSize(com.google.android.gms.ads.AdSize.BANNER);
-        bannerAd.setAdUnitId(TEST_BANNER_ID);
-        bannerSlot.addView(bannerAd,new android.widget.LinearLayout.LayoutParams(dp(320),dp(50)));
-        android.widget.FrameLayout.LayoutParams params=new android.widget.FrameLayout.LayoutParams(-1,dp(66),Gravity.BOTTOM|Gravity.CENTER_HORIZONTAL);
-        params.bottomMargin=dp(8);
-        rootLayout.addView(bannerSlot,params);
-        bannerAd.setAdListener(new com.google.android.gms.ads.AdListener(){
-            @Override public void onAdLoaded(){bannerLoaded=true;gameView.invalidate();}
-            @Override public void onAdFailedToLoad(LoadAdError error){
-                bannerLoaded=false;if(bannerSlot!=null)bannerSlot.setVisibility(View.GONE);
-            }
-        });
-        bannerAd.loadAd(new AdRequest.Builder().build());
-    }
-
-    void updateBannerVisibility(boolean gameplay,float controlsBottom){
-        if(bannerSlot==null)return;
-        // Keep 16dp clear of controls; omit the banner on screens too short or narrow.
-        boolean fits=gameView.getWidth()>=dp(320)&&controlsBottom+dp(16)<=gameView.getHeight()-dp(74);
-        boolean allowed=consentInformation!=null&&consentInformation.canRequestAds();
-        int visibility=gameplay&&fits&&allowed&&bannerLoaded&&activityResumed?View.VISIBLE:View.GONE;
-        if(bannerSlot.getVisibility()!=visibility)bannerSlot.post(()->{
-            if(bannerSlot!=null)bannerSlot.setVisibility(visibility);
-        });
-    }
-
-    private void destroyBanner(){
-        bannerLoaded=false;
-        if(bannerAd!=null){bannerAd.destroy();bannerAd=null;}
-        if(bannerSlot!=null){rootLayout.removeView(bannerSlot);bannerSlot=null;}
-    }
-
-    @Override protected void onResume(){super.onResume();activityResumed=true;if(gameAudio!=null)gameAudio.setActive(true);if(bannerAd!=null)bannerAd.resume();if(gameView!=null){gameView.setActive(true);gameView.invalidate();}}
-    @Override protected void onPause(){activityResumed=false;if(gameView!=null)gameView.setActive(false);if(gameAudio!=null)gameAudio.setActive(false);if(bannerAd!=null)bannerAd.pause();if(bannerSlot!=null)bannerSlot.setVisibility(View.GONE);super.onPause();}
-    @Override protected void onDestroy(){if(gameAudio!=null)gameAudio.release();destroyBanner();super.onDestroy();}
+    @Override protected void onResume(){super.onResume();activityResumed=true;if(gameAudio!=null)gameAudio.setActive(true);if(gameView!=null)gameView.setActive(true);}
+    @Override protected void onPause(){activityResumed=false;if(gameView!=null)gameView.setActive(false);if(gameAudio!=null)gameAudio.setActive(false);super.onPause();}
+    @Override protected void onDestroy(){if(gameView!=null)gameView.release();if(gameAudio!=null)gameAudio.release();super.onDestroy();}
 
     private void loadRewardedAd(){
         if(!adsInitialized||consentInformation==null||!consentInformation.canRequestAds()
@@ -290,54 +179,23 @@ public class MainActivity extends Activity {
             });
     }
 
-    void showRewardedMoves(Runnable earned,Runnable unavailable){
+    void showQuizReward(Runnable earned,Runnable closed,Runnable unavailable){
         if(rewardedAd==null||consentInformation==null||!consentInformation.canRequestAds()){
             loadRewardedAd();unavailable.run();return;
         }
         RewardedAd ad=rewardedAd;rewardedAd=null;
+        // Keep the reward token separate from dismissal; do not move screens under the ad.
+        final boolean[] token={false};
         ad.setFullScreenContentCallback(new FullScreenContentCallback(){
-            @Override public void onAdDismissedFullScreenContent(){loadRewardedAd();}
-            @Override public void onAdFailedToShowFullScreenContent(AdError error){loadRewardedAd();unavailable.run();}
+            private boolean finished=false;
+            @Override public void onAdDismissedFullScreenContent(){
+                if(finished)return;finished=true;loadRewardedAd();
+                if(token[0])earned.run();else closed.run();
+            }
+            @Override public void onAdFailedToShowFullScreenContent(AdError error){
+                if(finished)return;finished=true;loadRewardedAd();unavailable.run();
+            }
         });
-        ad.show(this,rewardItem->earned.run());
-    }
-
-    private void loadNextAd(){
-        if(!adsInitialized||!consentInformation.canRequestAds()||adLoading||interstitial!=null)return;
-        adLoading=true;
-        InterstitialAd.load(this,TEST_INTERSTITIAL_ID,new AdRequest.Builder().build(),
-            new InterstitialAdLoadCallback(){
-                @Override public void onAdLoaded(InterstitialAd ad){
-                    adLoading=false;interstitial=ad;
-                }
-                @Override public void onAdFailedToLoad(LoadAdError error){
-                    adLoading=false;interstitial=null;
-                }
-            });
-    }
-
-    void onLevelCompleted(int completedLevel){
-        // Count successful clears, not level numbers or failed attempts. Persist across sessions.
-        completedSinceAd=(completedSinceAd+1)%2;
-        getSharedPreferences("ad_frequency",MODE_PRIVATE).edit().putInt("completed",completedSinceAd).apply();
-        interstitialDue=completedSinceAd==0;
-        // Leave the celebration uninterrupted; show only on the next-level transition.
-        loadNextAd();
-    }
-
-    void showAdBeforeNextLevel(Runnable continueToLevel){
-        if(!interstitialDue){continueToLevel.run();return;}
-        interstitialDue=false; // Never queue a backlog if an ad is unavailable.
-        if(interstitial==null||consentInformation==null||!consentInformation.canRequestAds()){
-            loadNextAd();continueToLevel.run();return;
-        }
-        InterstitialAd ad=interstitial;interstitial=null;
-        ad.setFullScreenContentCallback(new FullScreenContentCallback(){
-            private boolean continued=false;
-            private void finish(){if(continued)return;continued=true;loadNextAd();continueToLevel.run();}
-            @Override public void onAdDismissedFullScreenContent(){finish();}
-            @Override public void onAdFailedToShowFullScreenContent(AdError error){finish();}
-        });
-        ad.show(this);
+        ad.show(this,rewardItem->token[0]=true);
     }
 }
