@@ -10,32 +10,35 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 
-/** Small original synthesized effects, decoded off the UI thread. No network or microphone. */
+/** User-supplied music and short effects; lifecycle-aware, no microphone. */
 final class GameAudio {
-    static final int GHOST=0, SWAP=1, MATCH=2, MAGIC=3, WIN=4, LOSE=5, INVALID=6, EXPLOSION=7, COMPLETE=8;
+    static final int GHOST=0, SWAP=1, MATCH=2, MAGIC=3, WIN=4, LOSE=5, INVALID=6, EXPLOSION=7, COMPLETE=8, FINALE=9;
     private final SoundPool pool;
-    private final int[] samples=new int[9];
-    private final long[] lastPlayed=new long[9];
+    private final int[] samples=new int[10];
+    private final long[] lastPlayed=new long[10];
     private final Set<Integer> ready=new HashSet<>();
     private final Set<Integer> streams=new HashSet<>();
     private android.media.MediaPlayer music;
+    private final Context context;
+    private boolean breakMusic=false;
     private boolean released=false, active=false;
     private volatile boolean enabled;
     private final android.content.SharedPreferences preferences;
 
     GameAudio(Context context){
+        this.context=context.getApplicationContext();
         preferences=context.getSharedPreferences("game_audio",Context.MODE_PRIVATE);
         enabled=preferences.getBoolean("enabled",true);
         pool=new SoundPool.Builder().setMaxStreams(4).setAudioAttributes(new AudioAttributes.Builder()
             .setUsage(AudioAttributes.USAGE_GAME).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build()).build();
         pool.setOnLoadCompleteListener((p,id,status)->{synchronized(this){if(!released&&status==0)ready.add(id);}});
-        music=android.media.MediaPlayer.create(context,R.raw.music_adventure);
+        music=android.media.MediaPlayer.create(context,R.raw.joy_music);
         if(music!=null){music.setLooping(true);music.setVolume(.12f,.12f);}
         File directory=context.getCacheDir();
         new Thread(()->{
             for(int kind=0;kind<samples.length;kind++){
                 synchronized(this){if(released)return;}
-                int resource=kind==WIN?R.raw.fx_win:kind==MAGIC?R.raw.fx_magic:kind==EXPLOSION?R.raw.fx_explosion:kind==COMPLETE?R.raw.fx_complete:0;
+                int resource=kind==GHOST?R.raw.joy_laugh:kind==MATCH?R.raw.joy_hit:kind==WIN?R.raw.joy_correct:kind==FINALE?R.raw.joy_finale:kind==MAGIC?R.raw.fx_magic:kind==EXPLOSION?R.raw.joy_explosion:kind==COMPLETE?R.raw.joy_complete:0;
                 if(resource!=0){synchronized(this){if(released)return;samples[kind]=pool.load(context,resource,1);}continue;}
                 File file=new File(directory,"ghost_sfx_v1_"+kind+".wav");
                 try{
@@ -46,10 +49,11 @@ final class GameAudio {
         },"ghost-sound-loader").start();
     }
 
-    synchronized void guardianMood(float danger,boolean scene){
-        if(music==null||released)return;
-        float volume=scene?.13f+Math.min(1,danger)*.08f:.12f;
-        music.setVolume(volume,volume);
+    synchronized void setBreakMusic(boolean value){
+        if(released||breakMusic==value)return;breakMusic=value;
+        if(music!=null)music.release();
+        music=android.media.MediaPlayer.create(context,value?R.raw.joy_break_music:R.raw.joy_music);
+        if(music!=null){music.setLooping(true);music.setVolume(.12f,.12f);}updateMusic();
     }
     boolean isEnabled(){return enabled;}
     synchronized void toggle(){enabled=!enabled;preferences.edit().putBoolean("enabled",enabled).apply();if(!enabled)stop();updateMusic();}
@@ -61,9 +65,9 @@ final class GameAudio {
         long now=SystemClock.elapsedRealtime();
         if(now-lastPlayed[kind]<(kind==GHOST?130:80))return;
         lastPlayed[kind]=now;
-        if(kind==WIN||kind==LOSE)stop();
+        if(kind==WIN||kind==LOSE||kind==GHOST||kind==COMPLETE||kind==FINALE)stop();
         float volume=kind==GHOST?.32f:kind==MAGIC?.48f:.42f;
-        float rate=kind==GHOST||kind==MATCH?.94f+(now%13)*.01f:1f;
+        float rate=1f;
         int stream=pool.play(samples[kind],volume,volume,1,0,rate);
         if(stream!=0){if(streams.size()>32)streams.clear();streams.add(stream);}
     }
