@@ -11,8 +11,8 @@ android {
         minSdk = 24
         targetSdk = 36
         manifestPlaceholders["appLabel"] = "ท่านเซ่อจ่อย"
-        versionCode = 44
-        versionName = "0.44.0"
+        versionCode = 45
+        versionName = "0.45.0"
         testInstrumentationRunner = "com.sunantongsan.ghostmatch3.SerJoySmoke"
     }
 

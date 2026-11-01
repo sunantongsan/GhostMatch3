@@ -91,16 +91,16 @@ final class SerJoyView extends ScrollView {
     }
     private void settings(){ArrayList<String> items=new ArrayList<>();items.add(host.soundEnabled()?"ปิดเสียง":"เปิดเสียง");items.add("นโยบายความเป็นส่วนตัว");if(host.needsPrivacyOptions())items.add("จัดการความยินยอมโฆษณา");
         new android.app.AlertDialog.Builder(host).setTitle("ตั้งค่า").setItems(items.toArray(new String[0]),(d,n)->{if(n==0)host.toggleSound();else if(n==1)host.openPrivacyPolicy();else host.openPrivacyOptions();}).setNegativeButton("กลับ",null).show();}
-    private void startBreak(){breakOpen=true;selected=-1;if(board==null){board=new AdventureEngine(1,113L+progress.index,new int[]{10,500,0});for(int r=0;r<8;r++)for(int c=0;c<8;c++)board.hp[r][c]=0;board.remaining=0;board.refillFresh();board.ensureMove();restoreBoard();}render();}
+    private void startBreak(){breakOpen=true;selected=-1;if(board==null){board=new AdventureEngine(1,113L+progress.index,new int[]{10,500,0},3);for(int r=0;r<8;r++)for(int c=0;c<8;c++)board.hp[r][c]=0;board.remaining=0;board.refillFresh();board.ensureMove();restoreBoard();board.recordAnimation=true;}render();}
     private void renderBreak(){
-        add(text("พักสมอง จับคู่ผี",25));add(text("ลากผีขึ้น ลง ซ้าย หรือขวาเพื่อสลับ\nเรียงเหมือนกัน 3 ตัว • เล่นครบ 10 ตาแล้วไปต่อ",15));
+        add(text("พักสมอง จับคู่ผี",21));add(text("ลากผีขึ้น ลง ซ้าย หรือขวาเพื่อสลับ\nผีชนิดเดียวกัน 3 ตัวขึ้นไป • เล่นครบ 10 ตา",15));
         breakStatus=text("เหลือ "+board.moves+" ตา  •  คะแนน "+board.score,18);add(breakStatus);
         boardView=new BoardView();page.addView(boardView,new LinearLayout.LayoutParams(-1,dp(360)));
-        Button hint=button("ใบ้คู่ที่สลับได้",()->{int[] pair=board.hint();if(pair!=null){boardView.hint=pair;boardView.invalidate();}});
+        Button hint=button("ใบ้คู่ที่สลับได้",()->{int[] pair=board.hint();if(pair!=null){if(!boardView.animating()){boardView.hint=pair;boardView.invalidate();}}});
         if(board.moves<=0||board.won||board.lost){hint.setVisibility(GONE);button("สบายใจแล้ว ไปเรื่องต่อไป  →",()->{if(progress.finishBreak()){board=null;breakOpen=false;prefs.edit().remove("board").apply();save();render();}});}
     }
-    private void saveBoard(){if(board==null)return;try{JSONObject b=new JSONObject();b.put("index",progress.index);b.put("moves",board.moves);b.put("score",board.score);JSONArray cells=new JSONArray();for(int r=0;r<8;r++)for(int c=0;c<8;c++){cells.put(board.tile[r][c]);cells.put(board.power[r][c]);}b.put("cells",cells);prefs.edit().putString("board",b.toString()).apply();}catch(JSONException ignored){}}
-    private void restoreBoard(){try{JSONObject b=new JSONObject(prefs.getString("board","{}"));if(b.optInt("index",-1)!=progress.index)return;JSONArray cells=b.getJSONArray("cells");if(cells.length()!=128)return;for(int n=0;n<128;n+=2){if(cells.getInt(n)<0||cells.getInt(n)>5||cells.getInt(n+1)<0||cells.getInt(n+1)>4)return;}board.moves=Math.max(0,Math.min(10,b.getInt("moves")));board.score=b.getInt("score");for(int i=0;i<64;i++){board.tile[i/8][i%8]=cells.getInt(i*2);board.power[i/8][i%8]=cells.getInt(i*2+1);}board.lost=board.moves==0;board.ensureMove();}catch(JSONException ignored){}}
+    private void saveBoard(){if(board==null)return;try{JSONObject b=new JSONObject();b.put("schema",2);b.put("index",progress.index);b.put("moves",board.moves);b.put("score",board.score);JSONArray cells=new JSONArray();for(int r=0;r<8;r++)for(int c=0;c<8;c++){cells.put(board.tile[r][c]);cells.put(board.power[r][c]);}b.put("cells",cells);prefs.edit().putString("board",b.toString()).apply();}catch(JSONException ignored){}}
+    private void restoreBoard(){try{JSONObject b=new JSONObject(prefs.getString("board","{}"));if(b.optInt("index",-1)!=progress.index)return;JSONArray cells=b.getJSONArray("cells");if(cells.length()!=128)return;for(int n=0;n<128;n+=2){if(cells.getInt(n)<0||cells.getInt(n)>(b.optInt("schema",0)==2?2:5)||cells.getInt(n+1)<0||cells.getInt(n+1)>4)return;}board.moves=Math.max(0,Math.min(10,b.getInt("moves")));board.score=b.getInt("score");if(b.optInt("schema",0)==2){for(int i=0;i<64;i++){board.tile[i/8][i%8]=cells.getInt(i*2);board.power[i/8][i%8]=cells.getInt(i*2+1);}}board.lost=board.moves==0;board.ensureMove();}catch(JSONException ignored){}}
     private final class ReactionView extends View {
         final Paint p=new Paint(3);long elapsed,last=SystemClock.uptimeMillis();boolean running=true;
         ReactionView(){super(host);setBackgroundColor(Color.WHITE);setContentDescription(progress.phase==QuizProgress.Phase.QUESTION?"ท่านเซ่อจ่อยยกมือคิดและกะพริบตา":progress.phase==QuizProgress.Phase.CORRECT?"ท่านเซ่อจ่อยเกาหัว ยกนิ้ว ชี้และยกนิ้วโป้งแสดงความยินดี":"ท่านเซ่อจ่อยยื่นหน้า ชี้ แล้วอ้าปากหุบปากหัวเราะอย่างขี้เล่น");}
@@ -121,25 +121,47 @@ final class SerJoyView extends ScrollView {
         final int[] colors={0xFFE6D8FF,0xFFD7F4E0,0xFFFFDFEA,0xFFD6EEFF,0xFFFFE8C2,0xFFE8E1FF};
         BoardView(){super(host);setContentDescription("กระดานจับคู่ผี 8 คูณ 8 ลากเพื่อสลับ หรือแตะสองช่องติดกัน");}
         @Override protected void onMeasure(int w,int h){int side=MeasureSpec.getSize(w);setMeasuredDimension(side,side);}
-        protected void onDraw(Canvas c){cell=getWidth()/8f;for(int r=0;r<8;r++)for(int col=0;col<8;col++){int pos=r*8+col,t=board.tile[r][col];float x=col*cell,y=r*cell;p.setColor(colors[Math.max(0,t)%6]);c.drawRoundRect(x+2,y+2,x+cell-2,y+cell-2,8,8,p);
-            int gw=ghosts.getWidth()/3;int variant=t%3;p.setAlpha(255);c.drawBitmap(ghosts,new Rect(variant*gw,0,(variant+1)*gw,ghosts.getHeight()),new RectF(x+3,y+3,x+cell-3,y+cell-3),p);p.setTextAlign(Paint.Align.CENTER);
-            // Color badges make all six ghost types distinguishable even on monochrome emoji fonts.
-            int[] badges={0xFF9A65DA,0xFF2B9B59,0xFFDE5692,0xFF3A8DCF,0xFFD88D27,0xFF6656BC};p.setColor(badges[t]);c.drawCircle(x+cell*.78f,y+cell*.22f,cell*.10f,p);
-            if(board.power[r][col]>0){p.setColor(ink);p.setTextSize(cell*.35f);c.drawText("★",x+cell*.25f,y+cell*.35f,p);}
-            if(selected==pos||hint!=null&&(hint[0]==pos||hint[1]==pos)){p.setColor(ink);p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(dp(2));c.drawRoundRect(x+3,y+3,x+cell-3,y+cell-3,8,8,p);p.setStyle(Paint.Style.FILL);}
+        AdventureEngine.Step shown=new AdventureEngine.Step("idle",board,null),before=shown;
+        final ArrayList<AdventureEngine.Step> frames=new ArrayList<>();int frameIndex;long frameStarted;int swapA,swapB;
+        boolean animating(){return frameIndex<frames.size();}
+        private long duration(AdventureEngine.Step step){return step.kind.equals("swap")||step.kind.equals("back")?180:step.kind.equals("clear")?(frameIndex>10?50:frameIndex>6?110:220):step.kind.equals("fall")?(frameIndex>10?80:frameIndex>6?160:280):120;}
+        private void piece(Canvas canvas,int type,int power,float x,float y,float size,int alpha){
+            if(type<0)return;p.setAlpha(alpha);int gw=ghosts.getWidth()/3;
+            canvas.drawBitmap(ghosts,new Rect(type*gw,0,(type+1)*gw,ghosts.getHeight()),new RectF(x+cell*(1-size)/2+3,y+cell*(1-size)/2+3,x+cell*(1+size)/2-3,y+cell*(1+size)/2-3),p);
+            if(power>0){p.setColor(0xFFFFC52F);canvas.drawCircle(x+cell*.78f,y+cell*.22f,cell*.19f,p);p.setColor(ink);p.setTextSize(cell*.27f);p.setTextAlign(Paint.Align.CENTER);canvas.drawText(power==1?"↔":power==2?"↕":power==3?"✹":"★",x+cell*.78f,y+cell*.31f,p);}p.setAlpha(255);
         }
-        float t=(SystemClock.uptimeMillis()-fxAt)/500f;if(t<1){p.setColor(0xFFFFBB23);p.setAlpha((int)(255*(1-t)));for(int pos:sparkle)for(int n=0;n<5;n++){double a=n*Math.PI*2/5;c.drawCircle((pos%8+.5f)*cell+(float)Math.cos(a)*cell*t,(pos/8+.5f)*cell+(float)Math.sin(a)*cell*t,dp(3),p);}p.setAlpha(255);if(active)postInvalidateDelayed(32);}}
+        protected void onDraw(Canvas c){
+            cell=getWidth()/8f;long now=SystemClock.uptimeMillis();
+            while(animating()&&now-frameStarted>=duration(frames.get(frameIndex))){frameStarted+=duration(frames.get(frameIndex));shown=frames.get(frameIndex++);before=shown;}
+            AdventureEngine.Step target=animating()?frames.get(frameIndex):shown;
+            float t=animating()?Math.min(1,(now-frameStarted)/(float)duration(target)):1;
+            for(int r=0;r<8;r++)for(int col=0;col<8;col++){float x=col*cell,y=r*cell;p.setColor((r+col)%2==0?0xFFF0E5D8:0xFFE8DAC7);c.drawRoundRect(x+1,y+1,x+cell-1,y+cell-1,8,8,p);}
+            c.save();c.clipRect(0,0,getWidth(),getHeight());
+            for(int r=0;r<8;r++)for(int col=0;col<8;col++){
+                int pos=r*8+col,type=target.tiles[r][col],power=target.powers[r][col];float x=col*cell,y=r*cell,size=1;int alpha=255;
+                if(animating()&&(target.kind.equals("swap")||target.kind.equals("back"))){type=before.tiles[r][col];power=before.powers[r][col];int dest=pos==swapA?swapB:pos==swapB?swapA:pos;x+=(dest%8-col)*cell*t;y+=(dest/8-r)*cell*t;}
+                else if(animating()&&target.kind.equals("clear")&&type<0&&before.tiles[r][col]>=0){type=before.tiles[r][col];power=before.powers[r][col];size=1-t;alpha=(int)(255*(1-t));}
+                else if(animating()&&target.kind.equals("fall")){float ease=1-(1-t)*(1-t);y=(target.origins[r][col]+(r-target.origins[r][col])*ease)*cell;}
+                piece(c,type,power,x,y,size,alpha);
+                if(!animating()&&(selected==pos||hint!=null&&(hint[0]==pos||hint[1]==pos))){p.setColor(0xFFE89C00);p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(dp(3));c.drawRoundRect(col*cell+3,r*cell+3,(col+1)*cell-3,(r+1)*cell-3,8,8,p);p.setStyle(Paint.Style.FILL);}
+            }c.restore();
+            if(animating()&&active)postInvalidateOnAnimation();
+            else if(!animating()&&completionPending){completionPending=false;post(()->{host.playSound(GameAudio.COMPLETE);render();});}
+        }
+        boolean completionPending;
         int fingerStart=-1,previousSelection=-1;float downX,downY;boolean swiped;
         private int position(float x,float y){float side=getWidth()/8f;if(side<=0||x<0||y<0||x>=getWidth()||y>=getHeight())return -1;return (int)(y/side)*8+(int)(x/side);}
         private void swapCells(int a,int b){
-            selected=-1;hint=null;
+            if(animating()||a<0||b<0||Math.abs(a/8-b/8)+Math.abs(a%8-b%8)!=1){selected=b;invalidate();return;}
+            selected=-1;hint=null;swapA=a;swapB=b;before=shown=new AdventureEngine.Step("idle",board,null);frames.clear();frameIndex=0;frameStarted=SystemClock.uptimeMillis();
             if(board.move(a,b)){
-                host.playSound(board.casts.isEmpty()?GameAudio.MATCH:GameAudio.EXPLOSION);
-                sparkle.clear();sparkle.addAll(board.changed);fxAt=SystemClock.uptimeMillis();saveBoard();
+                frames.addAll(board.animation);host.playSound(board.casts.isEmpty()?GameAudio.MATCH:GameAudio.EXPLOSION);saveBoard();
                 breakStatus.setText("เหลือ "+board.moves+" ตา  •  คะแนน "+board.score);
-                if(board.moves<=0||board.won||board.lost){host.playSound(GameAudio.COMPLETE);render();return;}
-            }else host.playSound(GameAudio.INVALID);
-            invalidate();
+                completionPending=board.moves<=0||board.won||board.lost;
+            }else{
+                board.swap(a,b);frames.add(new AdventureEngine.Step("swap",board,null));board.swap(a,b);frames.add(new AdventureEngine.Step("back",board,null));
+                host.playSound(GameAudio.INVALID);breakStatus.setText("ต้องเรียงผีชนิดเดียวกันอย่างน้อย 3 ตัว • ไม่เสียตา");
+            }invalidate();
         }
         private void parentInterception(boolean disallow){if(getParent()!=null)getParent().requestDisallowInterceptTouchEvent(disallow);}
         private void swipe(float x,float y){
@@ -152,7 +174,7 @@ final class SerJoyView extends ScrollView {
             else{selected=-1;invalidate();}
         }
         public boolean onTouchEvent(MotionEvent e){
-            if(board.moves<=0)return true;
+            if(board.moves<=0||animating()){if(e.getActionMasked()==MotionEvent.ACTION_UP||e.getActionMasked()==MotionEvent.ACTION_CANCEL){fingerStart=-1;parentInterception(false);}return true;}
             switch(e.getActionMasked()){
                 case MotionEvent.ACTION_DOWN:
                     fingerStart=position(e.getX(),e.getY());if(fingerStart<0)return false;
