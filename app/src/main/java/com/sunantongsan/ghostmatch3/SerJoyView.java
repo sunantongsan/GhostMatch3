@@ -109,8 +109,10 @@ final class SerJoyView extends ScrollView {
         ReactionView(){super(host);setBackgroundColor(Color.WHITE);setContentDescription(progress.phase==QuizProgress.Phase.QUESTION?"ท่านเซ่อจ่อยยกมือคิดและกะพริบตา":progress.phase==QuizProgress.Phase.CORRECT?"ท่านเซ่อจ่อยเกาหัว ยกนิ้ว ชี้และยกนิ้วโป้งแสดงความยินดี":"ท่านเซ่อจ่อยยื่นหน้า ชี้ แล้วอ้าปากหุบปากหัวเราะอย่างขี้เล่น");}
         void setRunning(boolean value){running=value;last=SystemClock.uptimeMillis();if(value)invalidate();}
         protected void onDraw(Canvas c){super.onDraw(c);long now=SystemClock.uptimeMillis();if(running)elapsed+=Math.min(100,Math.max(0,now-last));last=now;
-            int frame=CharacterAnimation.frame(progress.phase,elapsed);int w=reactions.getWidth()/4,h=reactions.getHeight()/3;
-            Rect src=new Rect(frame%4*w,frame/4*h,(frame%4+1)*w,(frame/4+1)*h);
+            int frame=CharacterAnimation.frame(progress.phase,elapsed);int w=reactions.getWidth()/4;
+            // Authored rows have unequal gutters: avoid sampling the next character's hair.
+            int[] top={0,360,712},bottom={358,708,1086};int row=frame/4,h=bottom[row]-top[row];
+            Rect src=new Rect(frame%4*w,top[row],(frame%4+1)*w,bottom[row]);
             float scale=Math.min(getWidth()/(float)w,getHeight()/(float)h),dw=w*scale,dh=h*scale;
             float x=(getWidth()-dw)/2f,y=(getHeight()-dh)/2f;
             c.drawBitmap(reactions,src,new RectF(x,y,x+dw,y+dh),p);
