@@ -45,9 +45,10 @@ public class MainActivity extends Activity {
     private android.widget.Button enterGame;
     private void showWelcome(){
         android.widget.LinearLayout welcome=new android.widget.LinearLayout(this);
-        welcome.setOrientation(1);welcome.setGravity(Gravity.CENTER);welcome.setPadding(32,40,32,40);welcome.setBackgroundColor(0xFFFFFBF0);
+        welcome.setOrientation(android.widget.LinearLayout.VERTICAL);welcome.setGravity(Gravity.CENTER);welcome.setPadding(32,40,32,40);welcome.setBackgroundColor(0xFFFFFBF0);
         android.widget.ImageView hero=new android.widget.ImageView(this);hero.setImageResource(R.drawable.app_icon);hero.setAdjustViewBounds(true);
-        welcome.addView(hero,new android.widget.LinearLayout.LayoutParams(260,260));
+        int heroSize=Math.round(210*getResources().getDisplayMetrics().density);
+        welcome.addView(hero,new android.widget.LinearLayout.LayoutParams(heroSize,heroSize));
         android.widget.TextView title=new android.widget.TextView(this);title.setText("ท่านเซ่อจ่อย");title.setTextSize(34);title.setTextColor(0xFF24212B);title.setGravity(Gravity.CENTER);title.setTypeface(null,Typeface.BOLD);welcome.addView(title);
         android.widget.TextView sub=new android.widget.TextView(this);sub.setText("พักเรื่องเครียด…แล้วมาโดนมุกหลอกกัน!");sub.setTextSize(17);sub.setGravity(Gravity.CENTER);sub.setPadding(0,20,0,30);welcome.addView(sub);
         android.widget.ProgressBar bar=new android.widget.ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);bar.setMax(100);welcome.addView(bar,new android.widget.LinearLayout.LayoutParams(-1,20));
