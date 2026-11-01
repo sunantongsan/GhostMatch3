@@ -185,6 +185,7 @@ public class MainActivity extends Activity {
         new android.app.AlertDialog.Builder(this).setTitle("ความเป็นส่วนตัว").setView(scroll).setPositiveButton("ปิด",null).show();
     }
 
+    void setBreakMusic(boolean value){if(gameAudio!=null)gameAudio.setBreakMusic(value);}
     void playSound(int kind){if(gameAudio!=null)gameAudio.play(kind);}
     boolean soundEnabled(){return gameAudio!=null&&gameAudio.isEnabled();}
     void toggleSound(){if(gameAudio!=null){gameAudio.toggle();gameAudio.play(GameAudio.GHOST);}}

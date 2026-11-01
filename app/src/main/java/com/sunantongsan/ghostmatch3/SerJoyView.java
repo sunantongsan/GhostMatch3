@@ -50,6 +50,7 @@ final class SerJoyView extends ScrollView {
         LinearLayout top=new LinearLayout(host);top.setGravity(Gravity.CENTER_VERTICAL);
         TextView brand=text("ท่านเซ่อจ่อย",24);brand.setTypeface(null,Typeface.BOLD);top.addView(brand,new LinearLayout.LayoutParams(0,-2,1));
         Button settings=new Button(host);settings.setText("☰");settings.setTextSize(22);settings.setContentDescription("ตั้งค่าเสียงและความเป็นส่วนตัว");settings.setOnClickListener(v->settings());top.addView(settings,new LinearLayout.LayoutParams(dp(54),dp(50)));add(top);
+        host.setBreakMusic(breakOpen);
         if(breakOpen){renderBreak();return;}
         boolean done=progress.phase==QuizProgress.Phase.COMPLETE;
         TextView step=text(done?"ครบทุกมุกแล้ว!":"เรื่องที่ "+(progress.index+1)+" / "+progress.total+"  •  ผิดติดกัน "+progress.streak+" / 3",14);add(step);
@@ -71,7 +72,7 @@ final class SerJoyView extends ScrollView {
             boolean correct=progress.phase==QuizProgress.Phase.CORRECT;
             TextView verdict=text(correct?"ถูกซะด้วย! ยอมเลย!":"แหม…โดนเซ่อจ่อยหลอกแล้ว!",20);verdict.setTypeface(null,Typeface.BOLD);verdict.setTextColor(correct?0xFF237857:0xFFAA4932);add(verdict);
             TextView punch=text(joke().optString("punchline"),22);punch.setBackground(shape(0xFFFFEBA8,ink));add(punch);
-            if(correct)button("เรื่องต่อไป  →",()->{if(progress.next()){save();render();}});
+            if(correct)button("เรื่องต่อไป  →",()->{if(progress.next()){if(progress.phase==QuizProgress.Phase.COMPLETE)host.playSound(GameAudio.FINALE);save();render();}});
             else if(progress.phase==QuizProgress.Phase.BREAK_REQUIRED){add(text("ผิดครบ 3 ครั้งแล้ว พักจับคู่ผีกัน!\nเล่นจบ 1 ตา ก็ไปเรื่องต่อไปได้",15));button("พักจับคู่ผี  👻",this::startBreak);}
             else {Button watch=button("ดูโฆษณาเพื่อไปเรื่องต่อไป  ▶",this::watchAd);watch.setEnabled(!adBusy);add(text("โฆษณาทดสอบ • ดูจบจึงไปต่อ",13));}
         }
@@ -92,7 +93,7 @@ final class SerJoyView extends ScrollView {
         new android.app.AlertDialog.Builder(host).setTitle("ตั้งค่า").setItems(items.toArray(new String[0]),(d,n)->{if(n==0)host.toggleSound();else if(n==1)host.openPrivacyPolicy();else host.openPrivacyOptions();}).setNegativeButton("กลับ",null).show();}
     private void startBreak(){breakOpen=true;selected=-1;if(board==null){board=new AdventureEngine(1,113L+progress.index,new int[]{10,500,0});for(int r=0;r<8;r++)for(int c=0;c<8;c++)board.hp[r][c]=0;board.remaining=0;board.refillFresh();board.ensureMove();restoreBoard();}render();}
     private void renderBreak(){
-        add(text("พักสมอง จับคู่ผี",25));add(text("แตะผี 2 ตัวที่ติดกันเพื่อสลับ\nเรียงเหมือนกัน 3 ตัว • เล่นครบ 10 ตาแล้วไปต่อ",15));
+        add(text("พักสมอง จับคู่ผี",25));add(text("ลากผีขึ้น ลง ซ้าย หรือขวาเพื่อสลับ\nเรียงเหมือนกัน 3 ตัว • เล่นครบ 10 ตาแล้วไปต่อ",15));
         breakStatus=text("เหลือ "+board.moves+" ตา  •  คะแนน "+board.score,18);add(breakStatus);
         boardView=new BoardView();page.addView(boardView,new LinearLayout.LayoutParams(-1,dp(360)));
         Button hint=button("ใบ้คู่ที่สลับได้",()->{int[] pair=board.hint();if(pair!=null){boardView.hint=pair;boardView.invalidate();}});
@@ -118,7 +119,7 @@ final class SerJoyView extends ScrollView {
     private final class BoardView extends View {
         final Paint p=new Paint(3);int[] hint;float cell;long fxAt;final Set<Integer> sparkle=new HashSet<>();
         final int[] colors={0xFFE6D8FF,0xFFD7F4E0,0xFFFFDFEA,0xFFD6EEFF,0xFFFFE8C2,0xFFE8E1FF};
-        BoardView(){super(host);setContentDescription("กระดานจับคู่ผี 8 คูณ 8 แตะสองช่องติดกันเพื่อสลับ");}
+        BoardView(){super(host);setContentDescription("กระดานจับคู่ผี 8 คูณ 8 ลากเพื่อสลับ หรือแตะสองช่องติดกัน");}
         @Override protected void onMeasure(int w,int h){int side=MeasureSpec.getSize(w);setMeasuredDimension(side,side);}
         protected void onDraw(Canvas c){cell=getWidth()/8f;for(int r=0;r<8;r++)for(int col=0;col<8;col++){int pos=r*8+col,t=board.tile[r][col];float x=col*cell,y=r*cell;p.setColor(colors[Math.max(0,t)%6]);c.drawRoundRect(x+2,y+2,x+cell-2,y+cell-2,8,8,p);
             int gw=ghosts.getWidth()/3;int variant=t%3;p.setAlpha(255);c.drawBitmap(ghosts,new Rect(variant*gw,0,(variant+1)*gw,ghosts.getHeight()),new RectF(x+3,y+3,x+cell-3,y+cell-3),p);p.setTextAlign(Paint.Align.CENTER);
@@ -128,9 +129,49 @@ final class SerJoyView extends ScrollView {
             if(selected==pos||hint!=null&&(hint[0]==pos||hint[1]==pos)){p.setColor(ink);p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(dp(2));c.drawRoundRect(x+3,y+3,x+cell-3,y+cell-3,8,8,p);p.setStyle(Paint.Style.FILL);}
         }
         float t=(SystemClock.uptimeMillis()-fxAt)/500f;if(t<1){p.setColor(0xFFFFBB23);p.setAlpha((int)(255*(1-t)));for(int pos:sparkle)for(int n=0;n<5;n++){double a=n*Math.PI*2/5;c.drawCircle((pos%8+.5f)*cell+(float)Math.cos(a)*cell*t,(pos/8+.5f)*cell+(float)Math.sin(a)*cell*t,dp(3),p);}p.setAlpha(255);if(active)postInvalidateDelayed(32);}}
-        public boolean onTouchEvent(MotionEvent e){if(e.getAction()!=MotionEvent.ACTION_UP)return true;performClick();if(board.moves<=0)return true;int col=(int)(e.getX()/cell),r=(int)(e.getY()/cell);if(col<0||col>=8||r<0||r>=8)return true;int pos=r*8+col;
-            if(selected<0){selected=pos;invalidate();return true;}int a=selected;selected=-1;hint=null;if(board.move(a,pos)){host.playSound(GameAudio.MATCH);sparkle.clear();sparkle.addAll(board.changed);fxAt=SystemClock.uptimeMillis();saveBoard();breakStatus.setText("เหลือ "+board.moves+" ตา  •  คะแนน "+board.score);if(board.moves<=0||board.won||board.lost){host.playSound(GameAudio.COMPLETE);render();return true;}}
-            else{selected=pos;host.playSound(GameAudio.INVALID);}invalidate();return true;}
+        int fingerStart=-1,previousSelection=-1;float downX,downY;boolean swiped;
+        private int position(float x,float y){float side=getWidth()/8f;if(side<=0||x<0||y<0||x>=getWidth()||y>=getHeight())return -1;return (int)(y/side)*8+(int)(x/side);}
+        private void swapCells(int a,int b){
+            selected=-1;hint=null;
+            if(board.move(a,b)){
+                host.playSound(board.casts.isEmpty()?GameAudio.MATCH:GameAudio.EXPLOSION);
+                sparkle.clear();sparkle.addAll(board.changed);fxAt=SystemClock.uptimeMillis();saveBoard();
+                breakStatus.setText("เหลือ "+board.moves+" ตา  •  คะแนน "+board.score);
+                if(board.moves<=0||board.won||board.lost){host.playSound(GameAudio.COMPLETE);render();return;}
+            }else host.playSound(GameAudio.INVALID);
+            invalidate();
+        }
+        private void parentInterception(boolean disallow){if(getParent()!=null)getParent().requestDisallowInterceptTouchEvent(disallow);}
+        private void swipe(float x,float y){
+            if(fingerStart<0||swiped)return;
+            float dx=x-downX,dy=y-downY,threshold=Math.max(dp(8),getWidth()/8f*.22f);
+            if(Math.max(Math.abs(dx),Math.abs(dy))<threshold)return;
+            swiped=true;int row=fingerStart/8,col=fingerStart%8;
+            if(Math.abs(dx)>=Math.abs(dy))col+=dx>0?1:-1;else row+=dy>0?1:-1;
+            if(row>=0&&row<8&&col>=0&&col<8)swapCells(fingerStart,row*8+col);
+            else{selected=-1;invalidate();}
+        }
+        public boolean onTouchEvent(MotionEvent e){
+            if(board.moves<=0)return true;
+            switch(e.getActionMasked()){
+                case MotionEvent.ACTION_DOWN:
+                    fingerStart=position(e.getX(),e.getY());if(fingerStart<0)return false;
+                    previousSelection=selected;selected=fingerStart;downX=e.getX();downY=e.getY();swiped=false;
+                    parentInterception(true);invalidate();return true;
+                case MotionEvent.ACTION_MOVE:swipe(e.getX(),e.getY());return true;
+                case MotionEvent.ACTION_UP:
+                    swipe(e.getX(),e.getY());
+                    if(fingerStart>=0&&!swiped){performClick();int pos=position(e.getX(),e.getY());
+                        if(pos==fingerStart&&previousSelection>=0&&previousSelection!=pos)swapCells(previousSelection,pos);
+                        else selected=pos==previousSelection?-1:pos;
+                    }
+                    fingerStart=-1;parentInterception(false);invalidate();return true;
+                case MotionEvent.ACTION_CANCEL:
+                case MotionEvent.ACTION_POINTER_DOWN:
+                    fingerStart=-1;selected=-1;parentInterception(false);invalidate();return true;
+                default:return true;
+            }
+        }
         @Override public boolean performClick(){super.performClick();return true;}
     }
 }
