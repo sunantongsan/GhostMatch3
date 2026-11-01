@@ -23,7 +23,7 @@ public class SerJoySmoke extends Instrumentation {
   runOnMainSync(()->view.progress.reward());invoke("render",new Class[]{});
   invoke("answer",new Class[]{int.class},1);check(view.progress.phase==QuizProgress.Phase.CORRECT,"correct answer");shot("03-correct-reaction");
   runOnMainSync(()->{view.progress.next();view.progress.answer(false);view.progress.reward();view.progress.answer(false);view.progress.reward();view.progress.answer(false);});
-  invoke("render",new Class[]{});check(view.progress.phase==QuizProgress.Phase.BREAK_REQUIRED,"three wrong");shot("04-break-gate");invoke("startBreak",new Class[]{});shot("05-match-three");
+  invoke("save",new Class[]{});invoke("render",new Class[]{});check(view.progress.phase==QuizProgress.Phase.BREAK_REQUIRED,"three wrong");shot("04-break-gate");invoke("startBreak",new Class[]{});shot("05-match-three");
   AdventureEngine board=(AdventureEngine)field(view,"board");int before=board.moves;View bv=(View)field(view,"boardView");int[] pair=board.hint();
   for(int cell:pair){runOnMainSync(()->{float side=bv.getWidth()/8f;long t=SystemClock.uptimeMillis();MotionEvent e=MotionEvent.obtain(t,t,MotionEvent.ACTION_UP,(cell%8+.5f)*side,(cell/8+.5f)*side,0);bv.dispatchTouchEvent(e);e.recycle();});}
   check(board.moves==before-1,"actual board touch consumes one turn");runOnMainSync(()->host.finish());waitForIdleSync();SystemClock.sleep(500);launch();invoke("startBreak",new Class[]{});board=(AdventureEngine)field(view,"board");check(board.moves==before-1,"break board restored");
