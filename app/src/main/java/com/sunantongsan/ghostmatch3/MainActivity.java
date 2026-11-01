@@ -46,13 +46,18 @@ public class MainActivity extends Activity {
     private void showWelcome(){
         android.widget.LinearLayout welcome=new android.widget.LinearLayout(this);
         welcome.setOrientation(android.widget.LinearLayout.VERTICAL);welcome.setGravity(Gravity.CENTER);welcome.setPadding(32,40,32,40);welcome.setBackgroundColor(0xFFFFFBF0);
-        android.widget.ImageView hero=new android.widget.ImageView(this);hero.setImageResource(R.drawable.app_icon);hero.setAdjustViewBounds(true);
+        android.widget.ImageView hero=new android.widget.ImageView(this);hero.setAdjustViewBounds(true);hero.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+        try(java.io.InputStream scene=getAssets().open("ser-joy-neighborhood.webp");java.io.InputStream actor=getAssets().open("ser-joy-fullbody.webp")){
+            android.graphics.Bitmap bg=android.graphics.BitmapFactory.decodeStream(scene),sheet=android.graphics.BitmapFactory.decodeStream(actor);
+            android.graphics.drawable.BitmapDrawable backdrop=new android.graphics.drawable.BitmapDrawable(getResources(),bg);backdrop.setGravity(Gravity.FILL);welcome.setBackground(backdrop);
+            hero.setImageBitmap(android.graphics.Bitmap.createBitmap(sheet,0,0,sheet.getWidth()/4,420));sheet.recycle();
+        }catch(java.io.IOException e){hero.setImageResource(R.drawable.app_icon);}
         int heroSize=Math.round(210*getResources().getDisplayMetrics().density);
-        welcome.addView(hero,new android.widget.LinearLayout.LayoutParams(heroSize,heroSize));
-        android.widget.TextView title=new android.widget.TextView(this);title.setText("ท่านเซ่อจ่อย");title.setTextSize(34);title.setTextColor(0xFF24212B);title.setGravity(Gravity.CENTER);title.setTypeface(null,Typeface.BOLD);welcome.addView(title);
-        android.widget.TextView sub=new android.widget.TextView(this);sub.setText("พักเรื่องเครียด…แล้วมาโดนมุกหลอกกัน!");sub.setTextSize(17);sub.setGravity(Gravity.CENTER);sub.setPadding(0,20,0,30);welcome.addView(sub);
+        welcome.addView(hero,new android.widget.LinearLayout.LayoutParams(heroSize,Math.round(heroSize*1.33f)));
+        android.widget.TextView title=new android.widget.TextView(this);title.setText("ท่านเซ่อจ่อย");title.setTextSize(34);title.setBackgroundColor(0xDFFFF8E8);title.setTextColor(0xFF24212B);title.setGravity(Gravity.CENTER);title.setTypeface(null,Typeface.BOLD);welcome.addView(title);
+        android.widget.TextView sub=new android.widget.TextView(this);sub.setText("พักเรื่องเครียด…แล้วมาโดนมุกหลอกกัน!");sub.setTextSize(17);sub.setBackgroundColor(0xDFFFF8E8);sub.setGravity(Gravity.CENTER);sub.setPadding(0,20,0,30);welcome.addView(sub);
         android.widget.ProgressBar bar=new android.widget.ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);bar.setMax(100);welcome.addView(bar,new android.widget.LinearLayout.LayoutParams(-1,20));
-        android.widget.TextView status=new android.widget.TextView(this);status.setText("เตรียมเสียงหัวเราะ…");status.setTextSize(16);status.setGravity(Gravity.CENTER);status.setPadding(0,24,0,24);welcome.addView(status);
+        android.widget.TextView status=new android.widget.TextView(this);status.setText("เตรียมเสียงหัวเราะ…");status.setTextSize(16);status.setBackgroundColor(0xDFFFF8E8);status.setGravity(Gravity.CENTER);status.setPadding(0,24,0,24);welcome.addView(status);
         enterGame=new android.widget.Button(this);enterGame.setText("กำลังเตรียมเกม…");enterGame.setEnabled(false);welcome.addView(enterGame,new android.widget.LinearLayout.LayoutParams(-1,-2));
         enterGame.setOnClickListener(v->{if(content!=null&&gameView==null)startGame();});
         setContentView(welcome);

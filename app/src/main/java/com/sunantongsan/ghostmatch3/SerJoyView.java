@@ -15,7 +15,7 @@ final class SerJoyView extends ScrollView {
     private final SharedPreferences prefs;
     private final JSONArray jokes;
     final QuizProgress progress;
-    private final Bitmap reactions, ghosts;
+    private final Bitmap reactions, ghosts, scenery;
     private LinearLayout page;
     private ReactionView actor;
     private AdventureEngine board;
@@ -28,18 +28,24 @@ final class SerJoyView extends ScrollView {
     SerJoyView(MainActivity activity){
         super(activity);host=activity;prefs=host.getSharedPreferences("ser_joy_v1",Context.MODE_PRIVATE);
         jokes=host.content.jokes;
-        try(java.io.InputStream in=host.getAssets().open("ser-joy-animation.webp")){reactions=BitmapFactory.decodeStream(in);}
+        try(java.io.InputStream in=host.getAssets().open("ser-joy-fullbody.webp")){reactions=BitmapFactory.decodeStream(in);}
         catch(Exception e){throw new IllegalStateException("Missing reaction artwork",e);}
+        try(java.io.InputStream in=host.getAssets().open("ser-joy-neighborhood.webp")){scenery=BitmapFactory.decodeStream(in);}
+        catch(Exception e){throw new IllegalStateException("Missing scenery",e);}
         ghosts=BitmapFactory.decodeResource(getResources(),R.drawable.ghost_sprites);
         progress=new QuizProgress(jokes.length(),prefs.getInt("index",0),prefs.getInt("streak",0),prefs.getString("phase","QUESTION"));
-        setFillViewport(true);setBackgroundColor(paper);
+        setFillViewport(true);setBackground(new android.graphics.drawable.Drawable(){
+            final Paint brush=new Paint(3);
+            public void draw(Canvas canvas){Rect bounds=getBounds();float scale=Math.max(bounds.width()/(float)scenery.getWidth(),bounds.height()/(float)scenery.getHeight());float w=scenery.getWidth()*scale,h=scenery.getHeight()*scale;canvas.drawBitmap(scenery,null,new RectF(bounds.centerX()-w/2,bounds.top,bounds.centerX()+w/2,bounds.top+h),brush);}
+            public void setAlpha(int a){brush.setAlpha(a);}public void setColorFilter(ColorFilter f){brush.setColorFilter(f);}public int getOpacity(){return PixelFormat.TRANSLUCENT;}
+        });
         setOnApplyWindowInsetsListener((v,i)->{setPadding(i.getSystemWindowInsetLeft(),i.getSystemWindowInsetTop(),i.getSystemWindowInsetRight(),i.getSystemWindowInsetBottom());return i;});
         render();
     }
     private int dp(float n){return Math.round(n*getResources().getDisplayMetrics().density);}
     private GradientDrawable shape(int color,int border){GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(20));d.setStroke(dp(2),border);return d;}
     private TextView text(String value,int size){TextView t=new TextView(host);t.setText(value);t.setTextSize(size);t.setTextColor(ink);t.setGravity(Gravity.CENTER);t.setPadding(dp(8),dp(6),dp(8),dp(6));return t;}
-    private void add(View v){LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.bottomMargin=dp(10);page.addView(v,lp);}
+    private void add(View v){LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.bottomMargin=dp(8);page.addView(v,lp);}
     private Button button(String label,Runnable action){Button b=new Button(host);b.setText(label);b.setTextSize(17);b.setTextColor(ink);b.setAllCaps(false);b.setMinHeight(dp(56));b.setPadding(dp(12),dp(10),dp(12),dp(10));b.setBackground(shape(yellow,ink));b.setOnClickListener(v->action.run());add(b);return b;}
     private void save(){prefs.edit().putInt("index",progress.index).putInt("streak",progress.streak).putString("phase",progress.phase.name()).apply();}
     void setActive(boolean value){active=value;if(actor!=null)actor.setRunning(value);if(value&&boardView!=null)boardView.invalidate();}
@@ -48,15 +54,15 @@ final class SerJoyView extends ScrollView {
     private void render(){
         removeAllViews();page=new LinearLayout(host);page.setOrientation(LinearLayout.VERTICAL);page.setPadding(dp(18),dp(12),dp(18),dp(20));addView(page);
         LinearLayout top=new LinearLayout(host);top.setGravity(Gravity.CENTER_VERTICAL);
-        TextView brand=text("ท่านเซ่อจ่อย",24);brand.setTypeface(null,Typeface.BOLD);top.addView(brand,new LinearLayout.LayoutParams(0,-2,1));
+        TextView brand=text("ท่านเซ่อจ่อย",24);brand.setTypeface(null,Typeface.BOLD);brand.setBackground(shape(0xEFFFF9E9,0x00FFFFFF));top.addView(brand,new LinearLayout.LayoutParams(0,-2,1));
         Button settings=new Button(host);settings.setText("☰");settings.setTextSize(22);settings.setContentDescription("ตั้งค่าเสียงและความเป็นส่วนตัว");settings.setOnClickListener(v->settings());top.addView(settings,new LinearLayout.LayoutParams(dp(54),dp(50)));add(top);
         host.setBreakMusic(breakOpen);
         if(breakOpen){renderBreak();return;}
         boolean done=progress.phase==QuizProgress.Phase.COMPLETE;
-        TextView step=text(done?"ครบทุกมุกแล้ว!":"เรื่องที่ "+(progress.index+1)+" / "+progress.total+"  •  ผิดติดกัน "+progress.streak+" / 3",14);add(step);
+        TextView step=text(done?"ครบทุกมุกแล้ว!":"เรื่องที่ "+(progress.index+1)+" / "+progress.total+"  •  ผิดติดกัน "+progress.streak+" / 3",14);step.setBackground(shape(0xEDFFF8E7,0x00FFFFFF));add(step);
         ProgressBar bar=new ProgressBar(host,null,android.R.attr.progressBarStyleHorizontal);bar.setMax(progress.total);bar.setProgress(progress.index);bar.setProgressTintList(android.content.res.ColorStateList.valueOf(0xFFE8AC00));add(bar);
         TextView question=text(done?"เซ่อจ่อยยอมแล้ว…คุณนี่สุดจริง!":joke().optString("question"),24);question.setTypeface(null,Typeface.BOLD);question.setBackground(shape(Color.WHITE,ink));question.setPadding(dp(16),dp(14),dp(16),dp(14));add(question);
-        actor=new ReactionView();int h=Math.min(300,Math.max(190,(int)(getResources().getDisplayMetrics().heightPixels/getResources().getDisplayMetrics().density*.32f)));
+        actor=new ReactionView();int h=Math.min(320,Math.max(230,(int)(getResources().getDisplayMetrics().heightPixels/getResources().getDisplayMetrics().density*.36f)));
         page.addView(actor,new LinearLayout.LayoutParams(-1,dp(h)));
         if(done){button("เล่นมุกทั้งหมดอีกครั้ง",()->{progress.index=0;progress.streak=0;progress.phase=QuizProgress.Phase.QUESTION;save();render();});return;}
         if(progress.phase==QuizProgress.Phase.QUESTION){
@@ -93,8 +99,9 @@ final class SerJoyView extends ScrollView {
         new android.app.AlertDialog.Builder(host).setTitle("ตั้งค่า").setItems(items.toArray(new String[0]),(d,n)->{if(n==0)host.toggleSound();else if(n==1)host.openPrivacyPolicy();else host.openPrivacyOptions();}).setNegativeButton("กลับ",null).show();}
     private void startBreak(){breakOpen=true;selected=-1;if(board==null){board=new AdventureEngine(1,113L+progress.index,new int[]{10,500,0},3);for(int r=0;r<8;r++)for(int c=0;c<8;c++)board.hp[r][c]=0;board.remaining=0;board.refillFresh();board.ensureMove();restoreBoard();board.recordAnimation=true;}render();}
     private void renderBreak(){
-        add(text("พักสมอง จับคู่ผี",21));add(text("ลากผีขึ้น ลง ซ้าย หรือขวาเพื่อสลับ\nผีชนิดเดียวกัน 3 ตัวขึ้นไป • เล่นครบ 10 ตา",15));
-        breakStatus=text("เหลือ "+board.moves+" ตา  •  คะแนน "+board.score,18);add(breakStatus);
+        TextView title=text("พักสมอง จับคู่ผี",21);title.setTypeface(null,Typeface.BOLD);title.setBackground(shape(0xF4FFF7DE,ink));add(title);
+        TextView help=text("ลากสลับผีเหมือนกัน 3 ตัวขึ้นไป\nจับต่อเนื่องได้คอมโบ • เล่นครบ 10 ตา",14);help.setBackground(shape(0xEDFFF9EA,0x00FFFFFF));add(help);
+        breakStatus=text("เหลือ "+board.moves+" ตา  •  คะแนน "+board.score,18);breakStatus.setTypeface(null,Typeface.BOLD);breakStatus.setBackground(shape(0xF4FFF7DE,ink));add(breakStatus);
         boardView=new BoardView();page.addView(boardView,new LinearLayout.LayoutParams(-1,dp(360)));
         Button hint=button("ใบ้คู่ที่สลับได้",()->{int[] pair=board.hint();if(pair!=null){if(!boardView.animating()){boardView.hint=pair;boardView.invalidate();}}});
         if(board.moves<=0||board.won||board.lost){hint.setVisibility(GONE);button("สบายใจแล้ว ไปเรื่องต่อไป  →",()->{if(progress.finishBreak()){board=null;breakOpen=false;prefs.edit().remove("board").apply();save();render();}});}
@@ -103,21 +110,22 @@ final class SerJoyView extends ScrollView {
     private void restoreBoard(){try{JSONObject b=new JSONObject(prefs.getString("board","{}"));if(b.optInt("index",-1)!=progress.index)return;JSONArray cells=b.getJSONArray("cells");if(cells.length()!=128)return;for(int n=0;n<128;n+=2){if(cells.getInt(n)<0||cells.getInt(n)>(b.optInt("schema",0)==2?2:5)||cells.getInt(n+1)<0||cells.getInt(n+1)>4)return;}board.moves=Math.max(0,Math.min(10,b.getInt("moves")));board.score=b.getInt("score");if(b.optInt("schema",0)==2){for(int i=0;i<64;i++){board.tile[i/8][i%8]=cells.getInt(i*2);board.power[i/8][i%8]=cells.getInt(i*2+1);}}board.lost=board.moves==0;board.ensureMove();}catch(JSONException ignored){}}
     private final class ReactionView extends View {
         final Paint p=new Paint(3);long elapsed,last=SystemClock.uptimeMillis();boolean running=true;
-        ReactionView(){super(host);setBackgroundColor(Color.WHITE);setContentDescription(progress.phase==QuizProgress.Phase.QUESTION?"ท่านเซ่อจ่อยยกมือคิดและกะพริบตา":progress.phase==QuizProgress.Phase.CORRECT?"ท่านเซ่อจ่อยเกาหัว ยกนิ้ว ชี้และยกนิ้วโป้งแสดงความยินดี":"ท่านเซ่อจ่อยยื่นหน้า ชี้ แล้วอ้าปากหุบปากหัวเราะอย่างขี้เล่น");}
+        ReactionView(){super(host);setBackgroundColor(Color.TRANSPARENT);setContentDescription(progress.phase==QuizProgress.Phase.QUESTION?"ท่านเซ่อจ่อยยกมือคิดและกะพริบตา":progress.phase==QuizProgress.Phase.CORRECT?"ท่านเซ่อจ่อยเกาหัว ยกนิ้ว ชี้และยกนิ้วโป้งแสดงความยินดี":"ท่านเซ่อจ่อยยื่นหน้า ชี้ แล้วอ้าปากหุบปากหัวเราะอย่างขี้เล่น");}
         void setRunning(boolean value){running=value;last=SystemClock.uptimeMillis();if(value)invalidate();}
         protected void onDraw(Canvas c){super.onDraw(c);long now=SystemClock.uptimeMillis();if(running)elapsed+=Math.min(100,Math.max(0,now-last));last=now;
             int frame=CharacterAnimation.frame(progress.phase,elapsed);int w=reactions.getWidth()/4;
-            // Authored rows have unequal gutters: avoid sampling the next character's hair.
-            int[] top={0,360,712},bottom={358,708,1086};int row=frame/4,h=bottom[row]-top[row];
+            // Full-body sheet row gutters, including both feet in every frame.
+            int[] top={0,420,825},bottom={420,825,1254};int row=frame/4,h=bottom[row]-top[row];
             Rect src=new Rect(frame%4*w,top[row],(frame%4+1)*w,bottom[row]);
-            float scale=Math.min(getWidth()/(float)w,getHeight()/(float)h),dw=w*scale,dh=h*scale;
+            float scale=Math.min(getWidth()/(float)w,(getHeight()-dp(8))/(float)h),dw=w*scale,dh=h*scale;
             float x=(getWidth()-dw)/2f,y=(getHeight()-dh)/2f;
+            p.setColor(0x26000000);c.drawOval(getWidth()*.32f,getHeight()-dp(17),getWidth()*.68f,getHeight()-dp(4),p);p.setColor(Color.WHITE);
             c.drawBitmap(reactions,src,new RectF(x,y,x+dw,y+dh),p);
             if(active&&running)postInvalidateDelayed(50);
         }
     }
     private final class BoardView extends View {
-        final Paint p=new Paint(3);int[] hint;float cell;long fxAt;final Set<Integer> sparkle=new HashSet<>();
+        final Paint p=new Paint(3);int[] hint;float cell;final MatchEffects effects=new MatchEffects();int effectStep=-1;
         final int[] colors={0xFFE6D8FF,0xFFD7F4E0,0xFFFFDFEA,0xFFD6EEFF,0xFFFFE8C2,0xFFE8E1FF};
         BoardView(){super(host);setContentDescription("กระดานจับคู่ผี 8 คูณ 8 ลากเพื่อสลับ หรือแตะสองช่องติดกัน");}
         @Override protected void onMeasure(int w,int h){int side=MeasureSpec.getSize(w);setMeasuredDimension(side,side);}
@@ -134,8 +142,9 @@ final class SerJoyView extends ScrollView {
             cell=getWidth()/8f;long now=SystemClock.uptimeMillis();
             while(animating()&&now-frameStarted>=duration(frames.get(frameIndex))){frameStarted+=duration(frames.get(frameIndex));shown=frames.get(frameIndex++);before=shown;}
             AdventureEngine.Step target=animating()?frames.get(frameIndex):shown;
+            if(animating()&&effectStep!=frameIndex){effectStep=frameIndex;if(target.kind.equals("clear"))effects.clear(before,target,now);}
             float t=animating()?Math.min(1,(now-frameStarted)/(float)duration(target)):1;
-            for(int r=0;r<8;r++)for(int col=0;col<8;col++){float x=col*cell,y=r*cell;p.setColor((r+col)%2==0?0xFFF0E5D8:0xFFE8DAC7);c.drawRoundRect(x+1,y+1,x+cell-1,y+cell-1,8,8,p);}
+            for(int r=0;r<8;r++)for(int col=0;col<8;col++){float x=col*cell,y=r*cell;p.setColor((r+col)%2==0?0xFFEEE6FF:0xFFE0D5F3);c.drawRoundRect(x+1,y+1,x+cell-1,y+cell-1,8,8,p);}
             c.save();c.clipRect(0,0,getWidth(),getHeight());
             for(int r=0;r<8;r++)for(int col=0;col<8;col++){
                 int pos=r*8+col,type=target.tiles[r][col],power=target.powers[r][col];float x=col*cell,y=r*cell,size=1;int alpha=255;
@@ -145,15 +154,16 @@ final class SerJoyView extends ScrollView {
                 piece(c,type,power,x,y,size,alpha);
                 if(!animating()&&(selected==pos||hint!=null&&(hint[0]==pos||hint[1]==pos))){p.setColor(0xFFE89C00);p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(dp(3));c.drawRoundRect(col*cell+3,r*cell+3,(col+1)*cell-3,(r+1)*cell-3,8,8,p);p.setStyle(Paint.Style.FILL);}
             }c.restore();
-            if(animating()&&active)postInvalidateOnAnimation();
-            else if(!animating()&&completionPending){completionPending=false;post(()->{host.playSound(GameAudio.COMPLETE);render();});}
+            effects.draw(c,cell,now);
+            if((animating()||effects.alive(now))&&active)postInvalidateOnAnimation();
+            else if(!animating()&&!effects.alive(now)&&completionPending){completionPending=false;post(()->{host.playSound(GameAudio.COMPLETE);render();});}
         }
         boolean completionPending;
         int fingerStart=-1,previousSelection=-1;float downX,downY;boolean swiped;
         private int position(float x,float y){float side=getWidth()/8f;if(side<=0||x<0||y<0||x>=getWidth()||y>=getHeight())return -1;return (int)(y/side)*8+(int)(x/side);}
         private void swapCells(int a,int b){
             if(animating()||a<0||b<0||Math.abs(a/8-b/8)+Math.abs(a%8-b%8)!=1){selected=b;invalidate();return;}
-            selected=-1;hint=null;swapA=a;swapB=b;before=shown=new AdventureEngine.Step("idle",board,null);frames.clear();frameIndex=0;frameStarted=SystemClock.uptimeMillis();
+            selected=-1;hint=null;swapA=a;swapB=b;before=shown=new AdventureEngine.Step("idle",board,null);frames.clear();effects.reset();effectStep=-1;frameIndex=0;frameStarted=SystemClock.uptimeMillis();
             if(board.move(a,b)){
                 frames.addAll(board.animation);host.playSound(board.casts.isEmpty()?GameAudio.MATCH:GameAudio.EXPLOSION);saveBoard();
                 breakStatus.setText("เหลือ "+board.moves+" ตา  •  คะแนน "+board.score);

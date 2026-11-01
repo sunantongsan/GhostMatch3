@@ -1,7 +1,7 @@
 name: Ser Joy build and device checks
 on:
   push:
-    branches: [feature/ser-joy-quiz, feature/serjoy-swipe-audio, fix/serjoy-real-match3]
+    branches: [feature/ser-joy-quiz, feature/serjoy-swipe-audio, fix/serjoy-real-match3, feature/serjoy-comedy-polish]
   workflow_dispatch:
 permissions:
   contents: read
@@ -19,6 +19,7 @@ jobs:
           gradle-version: '8.11.1'
       - name: Test game rules
         run: |
+          python3 tests/check-content.py
           javac -d /tmp/joy-tests app/src/main/java/com/sunantongsan/ghostmatch3/{AdventureEngine,QuizProgress,CharacterAnimation}.java tests/{AdventureEngineTest,QuizProgressTest,BreakBoardTest}.java
           java -cp /tmp/joy-tests com.sunantongsan.ghostmatch3.AdventureEngineTest
           java -cp /tmp/joy-tests com.sunantongsan.ghostmatch3.QuizProgressTest
@@ -41,7 +42,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: SerJoy-0.45.0-test
+          name: SerJoy-0.46.0-test
           path: |
             app/build/outputs/apk/debug/app-debug.apk
             app/build/outputs/bundle/release/app-release.aab
