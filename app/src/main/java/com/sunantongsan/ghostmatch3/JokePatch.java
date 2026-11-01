@@ -68,7 +68,7 @@ final class JokePatch {
             }
         }finally{c.disconnect();}
     }
-    static Content check(Context c,Status status)throws Exception{
+    static synchronized Content check(Context c,Status status)throws Exception{
         Content current=local(c);
         try{
             status.update("กำลังตรวจสอบข้อมูลล่าสุด…",10);

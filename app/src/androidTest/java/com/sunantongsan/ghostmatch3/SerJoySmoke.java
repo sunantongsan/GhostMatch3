@@ -18,6 +18,7 @@ public class SerJoySmoke extends Instrumentation {
   long until=SystemClock.elapsedRealtime()+30000;
   while(field(host,"content")==null&&SystemClock.elapsedRealtime()<until){SystemClock.sleep(100);waitForIdleSync();}
   check(field(host,"content")!=null,"patch loader completes or falls back");
+  if(view==null)shot("00-welcome");
   runOnMainSync(()->{try{((android.widget.Button)field(host,"enterGame")).performClick();}catch(Exception e){throw new RuntimeException(e);}});
   view=(SerJoyView)field(host,"gameView");waitForIdleSync();}
  public void onStart(){Bundle result=new Bundle();try{
