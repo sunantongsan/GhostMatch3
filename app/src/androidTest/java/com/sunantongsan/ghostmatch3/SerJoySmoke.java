@@ -49,20 +49,24 @@ public class SerJoySmoke extends Instrumentation {
   runOnMainSync(()->view.progress.reward());invoke("render",new Class[]{});
   invoke("answer",new Class[]{int.class},1);check(view.progress.phase==QuizProgress.Phase.CORRECT,"correct answer");shot("03-correct-reaction");SystemClock.sleep(1600);shot("03b-correct-thumbs-up");
   runOnMainSync(()->{view.progress.next();view.progress.answer(false);view.progress.reward();view.progress.answer(false);view.progress.reward();view.progress.answer(false);});
-  invoke("save",new Class[]{});invoke("render",new Class[]{});check(view.progress.phase==QuizProgress.Phase.BREAK_REQUIRED,"three wrong");shot("04-break-gate");invoke("startBreak",new Class[]{});
+  invoke("save",new Class[]{});invoke("render",new Class[]{});check(view.progress.phase==QuizProgress.Phase.BREAK_REQUIRED,"three wrong");shot("04-break-gate");
+  org.json.JSONObject legacy=new org.json.JSONObject();legacy.put("index",view.progress.index);legacy.put("moves",8);legacy.put("score",60);org.json.JSONArray legacyCells=new org.json.JSONArray();for(int n=0;n<64;n++){legacyCells.put(n%6);legacyCells.put(0);}legacy.put("cells",legacyCells);
+  getTargetContext().getSharedPreferences("ser_joy_v1",0).edit().putString("board",legacy.toString()).commit();invoke("startBreak",new Class[]{});
+  AdventureEngine migrated=(AdventureEngine)field(view,"board");check(migrated.moves==8&&migrated.score==60,"legacy round progress preserved");for(int[] row:migrated.tile)for(int type:row)check(type>=0&&type<3,"one visible ghost per match type");
   GameAudio breakAudio=(GameAudio)field(host,"gameAudio");check((Boolean)field(breakAudio,"breakMusic"),"break selects second supplied music track");
   check(((android.media.MediaPlayer)field(breakAudio,"music")).isPlaying(),"break music plays");shot("05-match-three");
   AdventureEngine board=(AdventureEngine)field(view,"board");int before=board.moves;View bv=(View)field(view,"boardView");int[] pair=board.hint();
-  runOnMainSync(()->{float side=bv.getWidth()/8f;long t=SystemClock.uptimeMillis();
-   float x=(pair[0]%8+.5f)*side,y=(pair[0]/8+.5f)*side,tx=(pair[1]%8+.5f)*side,ty=(pair[1]/8+.5f)*side;
-   int[] actions={MotionEvent.ACTION_DOWN,MotionEvent.ACTION_MOVE,MotionEvent.ACTION_MOVE,MotionEvent.ACTION_UP};
-   for(int action:actions){MotionEvent e=MotionEvent.obtain(t,t+30,action,action==MotionEvent.ACTION_DOWN?x:tx,action==MotionEvent.ACTION_DOWN?y:ty,0);bv.dispatchTouchEvent(e);e.recycle();}
-  });
+  int[] screen=new int[2];runOnMainSync(()->bv.getLocationOnScreen(screen));float side=bv.getWidth()/8f;
+  long touch=SystemClock.uptimeMillis();float x=screen[0]+(pair[0]%8+.5f)*side,y=screen[1]+(pair[0]/8+.5f)*side,tx=screen[0]+(pair[1]%8+.5f)*side,ty=screen[1]+(pair[1]/8+.5f)*side;
+  for(int action:new int[]{MotionEvent.ACTION_DOWN,MotionEvent.ACTION_MOVE,MotionEvent.ACTION_MOVE,MotionEvent.ACTION_UP}){
+   MotionEvent e=MotionEvent.obtain(touch,SystemClock.uptimeMillis(),action,action==MotionEvent.ACTION_DOWN?x:tx,action==MotionEvent.ACTION_DOWN?y:ty,0);e.setSource(android.view.InputDevice.SOURCE_TOUCHSCREEN);check(getUiAutomation().injectInputEvent(e,true),"real touchscreen injection");e.recycle();SystemClock.sleep(60);
+  }
+  SystemClock.sleep(1500);shot("05b-cascade");
   check(board.moves==before-1,"drag and repeated MOVE consume exactly one turn");runOnMainSync(()->host.finish());waitForIdleSync();SystemClock.sleep(500);launch();invoke("startBreak",new Class[]{});board=(AdventureEngine)field(view,"board");check(board.moves==before-1,"break board restored");
   View restored=(View)field(view,"boardView");final int remaining=board.moves;
   runOnMainSync(()->{long t=SystemClock.uptimeMillis();for(int action:new int[]{MotionEvent.ACTION_DOWN,MotionEvent.ACTION_CANCEL,MotionEvent.ACTION_UP}){MotionEvent e=MotionEvent.obtain(t,t,action,10,10,0);restored.dispatchTouchEvent(e);e.recycle();}});
   check(board.moves==remaining,"cancelled drag never swaps");
-  int[] tap=board.hint();runOnMainSync(()->{float side=restored.getWidth()/8f;long t=SystemClock.uptimeMillis();for(int cell:tap)for(int action:new int[]{MotionEvent.ACTION_DOWN,MotionEvent.ACTION_UP}){MotionEvent e=MotionEvent.obtain(t,t,action,(cell%8+.5f)*side,(cell/8+.5f)*side,0);restored.dispatchTouchEvent(e);e.recycle();}});
+  int[] tap=board.hint();runOnMainSync(()->{float tapSide=restored.getWidth()/8f;long t=SystemClock.uptimeMillis();for(int cell:tap)for(int action:new int[]{MotionEvent.ACTION_DOWN,MotionEvent.ACTION_UP}){MotionEvent e=MotionEvent.obtain(t,t,action,(cell%8+.5f)*tapSide,(cell/8+.5f)*tapSide,0);restored.dispatchTouchEvent(e);e.recycle();}});
   check(board.moves==remaining-1,"tap-to-swap still works");
   final AdventureEngine end=board;runOnMainSync(()->{while(end.moves>0&&!end.won){int[] h=end.hint();end.move(h[0],h[1]);}});invoke("render",new Class[]{});shot("06-break-complete");
   result.putString("stream","PASS: quiz screens, reactions, restart gates, real board touch and persisted break\n");finish(Activity.RESULT_OK,result);

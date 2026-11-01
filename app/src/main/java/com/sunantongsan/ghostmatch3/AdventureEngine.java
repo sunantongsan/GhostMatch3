@@ -28,6 +28,14 @@ final class AdventureEngine {
             return "เก็บสีเป้าหมายและเคลียร์อุปสรรค";
         }
     }
+    final int colorCount;
+    boolean recordAnimation=false;
+    static final class Step {
+        final String kind;final int[][] tiles=new int[8][8],powers=new int[8][8],origins=new int[8][8];
+        Step(String kind,AdventureEngine e,int[][] source){this.kind=kind;for(int r=0;r<8;r++)for(int c=0;c<8;c++){tiles[r][c]=e.tile[r][c];powers[r][c]=e.power[r][c];origins[r][c]=source==null?r:source[r][c];}}
+    }
+    final List<Step> animation=new ArrayList<>();
+    private void frame(String kind,int[][] source){if(recordAnimation)animation.add(new Step(kind,this,source));}
     final Level level;
     final int[][] tile=new int[SIZE][SIZE],power=new int[SIZE][SIZE],hp=new int[SIZE][SIZE],obstacle=new int[SIZE][SIZE];
     final boolean[][] active=new boolean[SIZE][SIZE];
@@ -37,7 +45,9 @@ final class AdventureEngine {
     final Set<Integer> changed=new HashSet<>();
     final List<int[]> casts=new ArrayList<>();
     AdventureEngine(int n,long seed){this(n,seed,null);}
-    AdventureEngine(int n,long seed,int[] balance){
+    AdventureEngine(int n,long seed,int[] balance){this(n,seed,balance,COLORS);}
+    AdventureEngine(int n,long seed,int[] balance,int colors){
+        if(colors<3||colors>COLORS)throw new IllegalArgumentException("colors");colorCount=colors;
         level=new Level(n,balance);random=new Random(seed);moves=level.moves+(level.kind==RESCUE?8:0);
         // Distinct masks and obstacle placements: seeded per level, pieces vary per attempt.
         Random layout=new Random(n*7919L);
@@ -66,7 +76,7 @@ final class AdventureEngine {
     void refillFresh(){
         for(int r=0;r<8;r++)for(int c=0;c<8;c++){
             if(!active[r][c])continue;
-            int t;do{t=random.nextInt(COLORS);}while((c>1&&tile[r][c-1]==t&&tile[r][c-2]==t)||(r>1&&tile[r-1][c]==t&&tile[r-2][c]==t));
+            int t;do{t=random.nextInt(colorCount);}while((c>1&&tile[r][c-1]==t&&tile[r][c-2]==t)||(r>1&&tile[r-1][c]==t&&tile[r-2][c]==t));
             tile[r][c]=t;
         }
     }
@@ -85,13 +95,13 @@ final class AdventureEngine {
     boolean move(int a,int b){
         if(won||lost||moves<=0||a<0||b<0||a>=64||b>=64)return false;
         if(Math.abs(a/8-b/8)+Math.abs(a%8-b%8)!=1||!movable(a/8,a%8)||!movable(b/8,b%8))return false;
-        changed.clear();casts.clear();lastCollected=0;chains=0;int pa=power[a/8][a%8],pb=power[b/8][b%8];swap(a,b);
+        animation.clear();changed.clear();casts.clear();lastCollected=0;chains=0;int pa=power[a/8][a%8],pb=power[b/8][b%8];swap(a,b);
         Set<Integer> hits=matches();
         if(pa>0||pb>0){hits.add(a);hits.add(b);}
         if(hits.isEmpty()){swap(a,b);return false;}
-        moves--;turns++;
+        moves--;turns++;frame("swap",null);
         resolve(hits,pa==0&&pb==0?b:-1);
-        advanceDanger();finish();ensureMove();return true;
+        advanceDanger();finish();ensureMove();frame("settled",null);return true;
     }
     int makePower(Set<Integer> hits,int pos){
         if(pos<0||!hits.contains(pos))return 0;
@@ -125,11 +135,12 @@ final class AdventureEngine {
                 changed.add(pos);
             }
             for(int pos:damaged){int r=pos/8,c=pos%8;if(hp[r][c]>0){hp[r][c]--;remaining--;changed.add(pos);score+=25;}}
-            collapse();preferred=-1;hits=matches();
+            frame("clear",null);collapse();preferred=-1;hits=matches();
         }
         if(chains>=32)refillFresh();
     }
     void collapse(){
+        int[][] origins=new int[8][8];for(int r=0;r<8;r++)Arrays.fill(origins[r],r);
         for(int c=0;c<8;c++){
             int end=7;
             while(end>=0){
@@ -137,11 +148,12 @@ final class AdventureEngine {
                 if(end<0)break;
                 int start=end;while(start>0&&active[start-1][c]&&hp[start-1][c]==0)start--;
                 int write=end;
-                for(int r=end;r>=start;r--)if(tile[r][c]>=0){tile[write][c]=tile[r][c];power[write][c]=power[r][c];write--;}
-                while(write>=start){tile[write][c]=random.nextInt(COLORS);power[write][c]=0;write--;}
+                for(int r=end;r>=start;r--)if(tile[r][c]>=0){tile[write][c]=tile[r][c];power[write][c]=power[r][c];origins[write][c]=r;write--;}
+                int fresh=write-start+1;while(write>=start){tile[write][c]=random.nextInt(colorCount);power[write][c]=0;origins[write][c]=write-fresh;write--;}
                 end=start-1;
             }
         }
+        frame("fall",origins);
     }
     void advanceDanger(){
         if(freeze>0){freeze--;return;}
