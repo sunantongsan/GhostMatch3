@@ -18,7 +18,7 @@ public class SerJoySmoke extends Instrumentation {
   getTargetContext().getSharedPreferences("ad_age",0).edit().putString("band","teen").commit();getTargetContext().getSharedPreferences("ser_joy_v1",0).edit().clear().commit();
   launch();check(view.progress.index==0,"initial question");shot("01-question");
   invoke("answer",new Class[]{int.class},1);check(view.progress.phase==QuizProgress.Phase.AD_REQUIRED,"wrong gate");shot("02-wrong-reaction");
-  runOnMainSync(()->host.finish());waitForIdleSync();launch();check(view.progress.phase==QuizProgress.Phase.AD_REQUIRED&&view.progress.streak==1,"restart retains gate");
+  runOnMainSync(()->host.finish());waitForIdleSync();SystemClock.sleep(500);launch();check(view.progress.phase==QuizProgress.Phase.AD_REQUIRED&&view.progress.streak==1,"restart retains gate: phase="+view.progress.phase+", streak="+view.progress.streak+", prefs="+getTargetContext().getSharedPreferences("ser_joy_v1",0).getAll());
   // State-machine reward is tested without pretending an actual network ad was watched.
   runOnMainSync(()->view.progress.reward());invoke("render",new Class[]{});
   invoke("answer",new Class[]{int.class},1);check(view.progress.phase==QuizProgress.Phase.CORRECT,"correct answer");shot("03-correct-reaction");
@@ -26,7 +26,7 @@ public class SerJoySmoke extends Instrumentation {
   invoke("render",new Class[]{});check(view.progress.phase==QuizProgress.Phase.BREAK_REQUIRED,"three wrong");shot("04-break-gate");invoke("startBreak",new Class[]{});shot("05-match-three");
   AdventureEngine board=(AdventureEngine)field(view,"board");int before=board.moves;View bv=(View)field(view,"boardView");int[] pair=board.hint();
   for(int cell:pair){runOnMainSync(()->{float side=bv.getWidth()/8f;long t=SystemClock.uptimeMillis();MotionEvent e=MotionEvent.obtain(t,t,MotionEvent.ACTION_UP,(cell%8+.5f)*side,(cell/8+.5f)*side,0);bv.dispatchTouchEvent(e);e.recycle();});}
-  check(board.moves==before-1,"actual board touch consumes one turn");runOnMainSync(()->host.finish());waitForIdleSync();launch();invoke("startBreak",new Class[]{});board=(AdventureEngine)field(view,"board");check(board.moves==before-1,"break board restored");
+  check(board.moves==before-1,"actual board touch consumes one turn");runOnMainSync(()->host.finish());waitForIdleSync();SystemClock.sleep(500);launch();invoke("startBreak",new Class[]{});board=(AdventureEngine)field(view,"board");check(board.moves==before-1,"break board restored");
   final AdventureEngine end=board;runOnMainSync(()->{while(end.moves>0&&!end.won){int[] h=end.hint();end.move(h[0],h[1]);}});invoke("render",new Class[]{});shot("06-break-complete");
   result.putString("stream","PASS: quiz screens, reactions, restart gates, real board touch and persisted break\n");finish(Activity.RESULT_OK,result);
  }catch(Throwable t){result.putString("stream","FAIL: "+android.util.Log.getStackTraceString(t));finish(Activity.RESULT_CANCELED,result);}}

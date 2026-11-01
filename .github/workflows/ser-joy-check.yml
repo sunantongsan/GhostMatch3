@@ -40,8 +40,8 @@ jobs:
             adb install app/build/outputs/apk/debug/app-debug.apk
             adb install app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
             adb shell am instrument -w com.sunantongsan.ghostmatch3.test/com.sunantongsan.ghostmatch3.SerJoySmoke | tee smoke-result.txt
-            grep 'PASS: quiz screens' smoke-result.txt
             adb pull /sdcard/Android/data/com.sunantongsan.ghostmatch3/files/screenshots screenshots
+            grep 'PASS: quiz screens' smoke-result.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:

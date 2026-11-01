@@ -20,6 +20,7 @@ import com.google.android.ump.UserMessagingPlatform;
 
 public class MainActivity extends Activity {
     // Google's official SAMPLE identifiers: test impressions never earn money.
+    private static final boolean TEST_ADS=true;
     private static final String TEST_REWARDED_ID="ca-app-pub-3940256099942544/5224354917";
     private SerJoyView gameView;
     private GameAudio gameAudio;
@@ -100,6 +101,8 @@ public class MainActivity extends Activity {
                 :com.google.android.gms.ads.RequestConfiguration.TAG_FOR_UNDER_AGE_OF_CONSENT_FALSE)
             .setMaxAdContentRating(com.google.android.gms.ads.RequestConfiguration.MAX_AD_CONTENT_RATING_G)
             .build());
+        // Official demo units only: no publisher UMP configuration is needed for test impressions.
+        if(TEST_ADS){initializeAds();return;}
         consentInformation=UserMessagingPlatform.getConsentInformation(this);
         consentInformation.requestConsentInfoUpdate(this,
             new ConsentRequestParameters.Builder().setTagForUnderAgeOfConsent(underAgeOfConsent).build(),
@@ -157,7 +160,6 @@ public class MainActivity extends Activity {
         new android.app.AlertDialog.Builder(this).setTitle("ความเป็นส่วนตัว").setView(scroll).setPositiveButton("ปิด",null).show();
     }
 
-    void guardianMood(float danger,boolean scene){if(gameAudio!=null)gameAudio.guardianMood(danger,scene);}
     void playSound(int kind){if(gameAudio!=null)gameAudio.play(kind);}
     boolean soundEnabled(){return gameAudio!=null&&gameAudio.isEnabled();}
     void toggleSound(){if(gameAudio!=null){gameAudio.toggle();gameAudio.play(GameAudio.GHOST);}}
@@ -168,8 +170,10 @@ public class MainActivity extends Activity {
     @Override protected void onPause(){activityResumed=false;if(gameView!=null)gameView.setActive(false);if(gameAudio!=null)gameAudio.setActive(false);super.onPause();}
     @Override protected void onDestroy(){if(gameView!=null)gameView.release();if(gameAudio!=null)gameAudio.release();super.onDestroy();}
 
+    private boolean canRequestAds(){return TEST_ADS||(consentInformation!=null&&consentInformation.canRequestAds());}
+
     private void loadRewardedAd(){
-        if(!adsInitialized||consentInformation==null||!consentInformation.canRequestAds()
+        if(!adsInitialized||!canRequestAds()
             ||rewardLoading||rewardedAd!=null)return;
         rewardLoading=true;
         RewardedAd.load(this,TEST_REWARDED_ID,new AdRequest.Builder().build(),
@@ -180,7 +184,7 @@ public class MainActivity extends Activity {
     }
 
     void showQuizReward(Runnable earned,Runnable closed,Runnable unavailable){
-        if(rewardedAd==null||consentInformation==null||!consentInformation.canRequestAds()){
+        if(rewardedAd==null||!canRequestAds()){
             loadRewardedAd();unavailable.run();return;
         }
         RewardedAd ad=rewardedAd;rewardedAd=null;
