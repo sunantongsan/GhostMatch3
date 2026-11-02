@@ -105,11 +105,11 @@ public class SerJoySmoke extends Instrumentation {
   check("com.android.vending".equals(market.getPackage())&&market.getDataString().equals("market://details?id=com.sunantongsan.ghostmatch3"),"store link opens exact game");
   check(web.getDataString().equals("https://play.google.com/store/apps/details?id=com.sunantongsan.ghostmatch3"),"browser fallback opens exact game");
   launch();check(view.progress.index==0,"initial question");shot("01-ant-story");
-  runOnMainSync(()->host.showStoreUpdate(true));check(host.updateAvailable,"store availability updates UI state");
-  View update=(View)field(host,"updateGame");check(update.getVisibility()==View.VISIBLE,"update button shown for available update");
+  View update=(View)field(host,"updateGame");
+  runOnMainSync(()->{host.showStoreUpdate(true);check(host.updateAvailable,"store availability updates UI state");check(update.getVisibility()==View.VISIBLE,"update button shown for available update");});
   IntentFilter storeFilter=new IntentFilter(Intent.ACTION_VIEW);storeFilter.addDataScheme("market");ActivityMonitor storeMonitor=addMonitor(storeFilter,null,true);
-  runOnMainSync(update::performClick);check(storeMonitor.getHits()==1,"update tap launches store intent");removeMonitor(storeMonitor);
-  runOnMainSync(()->host.showStoreUpdate(false));check(update.getVisibility()==View.GONE,"no update prompt when current");
+  runOnMainSync(()->{host.showStoreUpdate(true);update.performClick();});check(storeMonitor.getHits()==1,"update tap launches store intent");removeMonitor(storeMonitor);
+  runOnMainSync(()->{host.showStoreUpdate(false);check(update.getVisibility()==View.GONE,"no update prompt when current");});
   // Regression: repeated unconstrained/constrained measurements used when ScrollView replaces a scene.
   StorySceneView probe=scene();int pw=probe.getWidth(),ph=probe.getHeight();
   runOnMainSync(()->{
