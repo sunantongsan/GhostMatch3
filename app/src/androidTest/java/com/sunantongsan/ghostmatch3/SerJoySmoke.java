@@ -98,8 +98,8 @@ public class SerJoySmoke extends Instrumentation {
   getTargetContext().getSharedPreferences("ad_age",0).edit().putString("band","teen").commit();
   getTargetContext().getSharedPreferences("ser_joy_v1",0).edit().clear().commit();
   byte[] bundled;try(InputStream in=getTargetContext().getAssets().open("ser-joy-content.json")){bundled=JokePatch.read(in);}
-  check(JokePatch.verified(bundled,JokePatch.sha(bundled),6,142).jokes.length()==156,"expanded patch compatible");
-  boolean rejected=false;try{JokePatch.verified(bundled,"bad",6,156);}catch(Exception expected){rejected=true;}check(rejected,"checksum rejection");
+  check(JokePatch.verified(bundled,JokePatch.sha(bundled),7,156).jokes.length()==156,"expanded patch compatible");
+  boolean rejected=false;try{JokePatch.verified(bundled,"bad",7,156);}catch(Exception expected){rejected=true;}check(rejected,"checksum rejection");
   File cache=new File(getTargetContext().getFilesDir(),"ser-joy-content.json");cache.delete();
   Intent market=MainActivity.storeUpdateIntent(true),web=MainActivity.storeUpdateIntent(false);
   check("com.android.vending".equals(market.getPackage())&&market.getDataString().equals("market://details?id=com.sunantongsan.ghostmatch3"),"store link opens exact game");
@@ -133,6 +133,18 @@ public class SerJoySmoke extends Instrumentation {
    for(int a=0;a<3;a++){View v=story.choiceView(a);check(v.isClickable()&&v.getContentDescription().length()>0,"accessible object "+i);Rect ar=new Rect();v.getHitRect(ar);
     check(ar.left>=0&&ar.right<=story.getWidth()&&ar.top>=0&&ar.bottom<=story.getHeight(),"object within screen "+i);
     for(int b=a+1;b<3;b++){Rect br=new Rect();story.choiceView(b).getHitRect(br);check(!Rect.intersects(ar,br),"separate choices "+i);}
+   }
+   if(i>=56){
+    org.json.JSONObject q=host.content.jokes.getJSONObject(i);
+    check((Boolean)field(story,"answerCards"),"sourced renderer selected");
+    check(!story.showsSetupSubject(),"old target cannot leak into replacement");
+    for(int a=0;a<3;a++)check(captions[a].equals(q.getJSONArray("choices").getJSONObject(a).getString("label")),"new captions use canonical choices");
+    checkSceneDraws();
+    if(i==56||i==59||i==88||i==125||i==155)shot("sourced-question-"+(i+1));
+    int correct=q.getInt("answer");tap(story.choiceView(correct));
+    check(view.progress.phase==QuizProgress.Phase.CORRECT,"correct sourced answer accepted "+i);
+    runOnMainSync(story::showFinal);checkSceneDraws();
+    if(i==56||i==59||i==88||i==125||i==155)shot("sourced-answer-"+(i+1));
    }
    shot("audit-before-"+(i+1));
    if(i>=42&&i<56){checkSceneDraws();runOnMainSync(story::showFinal);checkSceneDraws();}
@@ -175,6 +187,6 @@ public class SerJoySmoke extends Instrumentation {
   getTargetContext().getSharedPreferences("ser_joy_v1",0).edit().putInt("curatedContentVersion",5).putInt("index",50).putString("phase","CORRECT").commit();
   launch();check(view.progress.index==50&&view.progress.phase==QuizProgress.Phase.QUESTION,"replacement question clears old result");
   check(host.content.jokes.getJSONObject(50).getString("id").equals("joke-51"),"replacement keeps stable ID");
-  result.putString("stream","PASS: randomized music and reactions, mute and ad audio lifecycle; quiz screens, all 156 illustrated scenes, touch targets, ad resume drawing and retry gates, door fire cutscene, saved progress and match-three\n");finish(Activity.RESULT_OK,result);
+  result.putString("stream","PASS: randomized music and reactions, 100 sourced answers scored and rendered, mute and ad audio lifecycle; quiz screens, all 156 illustrated scenes, touch targets, ad resume drawing and retry gates, door fire cutscene, saved progress and match-three\n");finish(Activity.RESULT_OK,result);
  }catch(Throwable t){result.putString("stream","FAIL: "+android.util.Log.getStackTraceString(t));finish(Activity.RESULT_CANCELED,result);}}
 }

@@ -1,0 +1,602 @@
+[
+  {
+    "id": "joke-57",
+    "source": "https://janthai.com/blog/คําถามกวนๆ-คำถามฮาๆ-3084.html",
+    "answer": "ขนมจีบ",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-58",
+    "source": "https://janthai.com/blog/คําถามกวนๆ-คำถามฮาๆ-3084.html",
+    "answer": "ชมรมจิ๊กซอว์",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-59",
+    "source": "https://janthai.com/blog/คําถามกวนๆ-คำถามฮาๆ-3084.html",
+    "answer": "ไดโนอาทิตย์",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-60",
+    "source": "https://janthai.com/blog/คําถามกวนๆ-คำถามฮาๆ-3084.html",
+    "answer": "เกาะกลางถนน",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-61",
+    "source": "https://janthai.com/blog/คําถามกวนๆ-คำถามฮาๆ-3084.html",
+    "answer": "แมวกัน",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-62",
+    "source": "https://janthai.com/blog/คําถามกวนๆ-คำถามฮาๆ-3084.html",
+    "answer": "มด XL",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-63",
+    "source": "https://janthai.com/blog/คําถามกวนๆ-คำถามฮาๆ-3084.html",
+    "answer": "ไก่แก่",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-64",
+    "source": "https://janthai.com/blog/คําถามกวนๆ-คำถามฮาๆ-3084.html",
+    "answer": "แกะ",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-65",
+    "source": "https://janthai.com/blog/คําถามกวนๆ-คำถามฮาๆ-3084.html",
+    "answer": "จิ๋นเอและจิ๋นบี",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-66",
+    "source": "https://janthai.com/blog/คําถามกวนๆ-คำถามฮาๆ-3084.html",
+    "answer": "พรุ่งนี้",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-67",
+    "source": "https://www.sanook.com/campus/1381277/",
+    "answer": "สถิติ",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-68",
+    "source": "https://www.sanook.com/campus/1381277/",
+    "answer": "ลักส์",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-69",
+    "source": "https://www.sanook.com/campus/1381277/",
+    "answer": "3 ขั้น",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-70",
+    "source": "https://www.sanook.com/campus/1381277/",
+    "answer": "4 ขั้น",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-71",
+    "source": "https://www.sanook.com/campus/1381277/",
+    "answer": "เต่า",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-72",
+    "source": "https://www.sanook.com/campus/1381277/",
+    "answer": "ตัวเปียก",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-73",
+    "source": "https://www.sanook.com/campus/1381277/",
+    "answer": "ข้างสนาม",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-74",
+    "source": "https://www.sanook.com/campus/1381277/",
+    "answer": "กิน",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-75",
+    "source": "https://www.sanook.com/campus/1381277/",
+    "answer": "ปลาคาร์ฟ",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-76",
+    "source": "https://www.sanook.com/campus/1381277/",
+    "answer": "เรื่องสมมติ",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-77",
+    "source": "https://www.wongnai.com/articles/funny-q-a-collection",
+    "answer": "ปีโป้",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-78",
+    "source": "https://www.wongnai.com/articles/funny-q-a-collection",
+    "answer": "ซูเปอร์มาร์เก็ต",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-79",
+    "source": "https://www.wongnai.com/articles/funny-q-a-collection",
+    "answer": "ในหม้อ",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-80",
+    "source": "https://www.wongnai.com/articles/funny-q-a-collection",
+    "answer": "ยานอนหลับ",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-81",
+    "source": "https://www.wongnai.com/articles/funny-q-a-collection",
+    "answer": "อิ่มจัง",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-82",
+    "source": "https://www.wongnai.com/articles/funny-q-a-collection",
+    "answer": "อินทรี",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-83",
+    "source": "https://www.wongnai.com/articles/funny-q-a-collection",
+    "answer": "หมอยู",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-84",
+    "source": "https://www.wongnai.com/articles/funny-q-a-collection",
+    "answer": "ปลาบู่",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-85",
+    "source": "https://www.wongnai.com/articles/funny-q-a-collection",
+    "answer": "ปลาร้า",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-86",
+    "source": "https://www.wongnai.com/articles/funny-q-a-collection",
+    "answer": "อย่างน้อยก็งอก",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-87",
+    "source": "https://board.postjung.com/819171",
+    "answer": "ทุเรียนกวน",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-88",
+    "source": "https://board.postjung.com/819171",
+    "answer": "คนทั่วไป",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-89",
+    "source": "https://board.postjung.com/819171",
+    "answer": "พริกชี้ฟ้า",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-90",
+    "source": "https://board.postjung.com/819171",
+    "answer": "ตัวการ์ตูน",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-91",
+    "source": "https://board.postjung.com/819171",
+    "answer": "หันสองด้านพร้อมกันไม่ได้",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-92",
+    "source": "https://board.postjung.com/819171",
+    "answer": "สอนขับรถ",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-93",
+    "source": "https://board.postjung.com/819171",
+    "answer": "หมอนทอง",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-94",
+    "source": "https://board.postjung.com/819171",
+    "answer": "พังงา",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-95",
+    "source": "https://board.postjung.com/819171",
+    "answer": "ลาย",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-96",
+    "source": "https://board.postjung.com/819171",
+    "answer": "101",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-97",
+    "source": "https://www.kroobannok.com/10878",
+    "answer": "ย้ายที่นั่ง",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-98",
+    "source": "https://www.kroobannok.com/10878",
+    "answer": "2 แบบ",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-99",
+    "source": "https://www.kroobannok.com/10878",
+    "answer": "Q กับ S",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-100",
+    "source": "https://www.kroobannok.com/10878",
+    "answer": "กลัวตายตาไม่หลับ",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-101",
+    "source": "https://www.kroobannok.com/10878",
+    "answer": "ปลาทูน่า",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-102",
+    "source": "https://www.gotoknow.org/posts/399767",
+    "answer": "หมาที่พยายาม",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-103",
+    "source": "https://www.gotoknow.org/posts/399767",
+    "answer": "มีแผล",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-104",
+    "source": "https://www.gotoknow.org/posts/399767",
+    "answer": "ปลาไส้ตัน",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-105",
+    "source": "https://www.gotoknow.org/posts/399767",
+    "answer": "มะม่วงมัน",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-106",
+    "source": "https://www.gotoknow.org/posts/399767",
+    "answer": "กรุงเทพ",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-107",
+    "source": "https://www.nanitalk.com/100-funny-dirty-questions-with-answers/",
+    "answer": "เกรดเอ",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-108",
+    "source": "https://www.nanitalk.com/100-funny-dirty-questions-with-answers/",
+    "answer": "ปลาใจร้าย",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-109",
+    "source": "https://www.nanitalk.com/100-funny-dirty-questions-with-answers/",
+    "answer": "ผมหยิก",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-110",
+    "source": "https://www.nanitalk.com/100-funny-dirty-questions-with-answers/",
+    "answer": "โถส้วม",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-111",
+    "source": "https://www.nanitalk.com/100-funny-dirty-questions-with-answers/",
+    "answer": "สมมติ",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-112",
+    "source": "https://www.nanitalk.com/100-funny-dirty-questions-with-answers/",
+    "answer": "แสน",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-113",
+    "source": "https://www.nanitalk.com/100-funny-dirty-questions-with-answers/",
+    "answer": "แม่",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-114",
+    "source": "https://www.nanitalk.com/100-funny-dirty-questions-with-answers/",
+    "answer": "โคลน",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-115",
+    "source": "https://www.nanitalk.com/100-funny-dirty-questions-with-answers/",
+    "answer": "ประธาน",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-116",
+    "source": "https://www.nanitalk.com/100-funny-dirty-questions-with-answers/",
+    "answer": "ท่าจะบ้า",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-117",
+    "source": "https://kawtung.com/lifestyle/ความรัก/คําถามกวนแฟน/",
+    "answer": "วาฬชุบแป้งทอด",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-118",
+    "source": "https://kawtung.com/lifestyle/ความรัก/คําถามกวนแฟน/",
+    "answer": "กระบี่",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-119",
+    "source": "https://kawtung.com/lifestyle/ความรัก/คําถามกวนแฟน/",
+    "answer": "ไหจัว",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-120",
+    "source": "https://kawtung.com/lifestyle/ความรัก/คําถามกวนแฟน/",
+    "answer": "ทั้งคู่",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-121",
+    "source": "https://kawtung.com/lifestyle/ความรัก/คําถามกวนแฟน/",
+    "answer": "กา ก่า ก้า ก๊า ก๋า",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-122",
+    "source": "https://kawtung.com/lifestyle/ความรัก/คําถามกวนแฟน/",
+    "answer": "ฉกกะปก",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-123",
+    "source": "https://kawtung.com/lifestyle/ความรัก/คําถามกวนแฟน/",
+    "answer": "ว่ายน้ำไม่เป็น",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-124",
+    "source": "https://kawtung.com/lifestyle/ความรัก/คําถามกวนแฟน/",
+    "answer": "สายเบรกขาด",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-125",
+    "source": "https://kawtung.com/lifestyle/ความรัก/คําถามกวนแฟน/",
+    "answer": "ผีเสื้อ",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-126",
+    "source": "https://kawtung.com/lifestyle/ความรัก/คําถามกวนแฟน/",
+    "answer": "3 คน",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-127",
+    "source": "https://dronkapp.com/th/trick-questions/",
+    "answer": "หลุม",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-128",
+    "source": "https://dronkapp.com/th/trick-questions/",
+    "answer": "หวี",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-129",
+    "source": "https://dronkapp.com/th/trick-questions/",
+    "answer": "ขวด",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-130",
+    "source": "https://dronkapp.com/th/trick-questions/",
+    "answer": "นาฬิกา",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-131",
+    "source": "https://dronkapp.com/th/trick-questions/",
+    "answer": "แผนที่",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-132",
+    "source": "https://dronkapp.com/th/trick-questions/",
+    "answer": "ผ้าเช็ดตัว",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-133",
+    "source": "https://dronkapp.com/th/trick-questions/",
+    "answer": "ไม่ออกไข่",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-134",
+    "source": "https://dronkapp.com/th/trick-questions/",
+    "answer": "ไม่มีควัน",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-135",
+    "source": "https://dronkapp.com/th/trick-questions/",
+    "answer": "2",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-136",
+    "source": "https://dronkapp.com/th/trick-questions/",
+    "answer": "2",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-137",
+    "source": "https://www.gotoknow.org/posts/570717",
+    "answer": "เท้า",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-138",
+    "source": "https://www.gotoknow.org/posts/570717",
+    "answer": "หู",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-139",
+    "source": "https://www.gotoknow.org/posts/570717",
+    "answer": "เปลือกตา",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-140",
+    "source": "https://www.gotoknow.org/posts/570717",
+    "answer": "ผม",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-141",
+    "source": "https://www.gotoknow.org/posts/570717",
+    "answer": "ตา",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-142",
+    "source": "https://www.gotoknow.org/posts/570717",
+    "answer": "ยาสีฟัน",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-143",
+    "source": "https://www.gotoknow.org/posts/570717",
+    "answer": "น้ำ",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-144",
+    "source": "https://www.gotoknow.org/posts/570717",
+    "answer": "ก๊อกน้ำ",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-145",
+    "source": "https://www.gotoknow.org/posts/570717",
+    "answer": "จมูก",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-146",
+    "source": "https://www.gotoknow.org/posts/570717",
+    "answer": "น้ำลาย",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-147",
+    "source": "https://www.kroobannok.com/22565",
+    "answer": "กีวี",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-148",
+    "source": "https://www.kroobannok.com/22565",
+    "answer": "นาฬิกา",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-149",
+    "source": "https://www.kroobannok.com/22565",
+    "answer": "เทียนรุ",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-150",
+    "source": "https://www.kroobannok.com/22565",
+    "answer": "ก๊าบ ๆ",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-151",
+    "source": "https://www.kroobannok.com/22565",
+    "answer": "กล้องถ่ายรูป",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-152",
+    "source": "https://www.kroobannok.com/22565",
+    "answer": "ข้าวหลาม",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-153",
+    "source": "https://www.kroobannok.com/22565",
+    "answer": "ข้างใต้จะมองไม่เห็น",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-154",
+    "source": "https://www.kroobannok.com/22565",
+    "answer": "รูเข็ม",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-155",
+    "source": "https://www.kroobannok.com/22565",
+    "answer": "ข้าวเกรียบงาดำ",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  },
+  {
+    "id": "joke-156",
+    "source": "https://www.kroobannok.com/22565",
+    "answer": "ต้นตระกูลแมว",
+    "checked": "question-answer pair verified; prompt shortened; distractors editorial"
+  }
+]

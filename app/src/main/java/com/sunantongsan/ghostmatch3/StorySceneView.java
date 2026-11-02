@@ -21,6 +21,7 @@ final class StorySceneView extends FrameLayout {
     private final int room,target,layout;
     private final String action;
     private final int questionNumber,total;
+    private final boolean answerCards;
     private long elapsed,last=SystemClock.uptimeMillis();
     private boolean active=true,released,callbackSent;
     private int mode=0,chosen=-1; // intro/choose, wrong, resolution, final
@@ -28,12 +29,13 @@ final class StorySceneView extends FrameLayout {
     static final long WRONG_MS=1500,REVEAL_MS=5200;
     StorySceneView(MainActivity host,StoryArt art,JSONObject scene,JSONObject joke,int index,int total,Listener listener){
         super(host);this.host=host;this.art=art;this.scene=scene;this.joke=joke;this.listener=listener;this.questionNumber=index+1;this.total=total;
+        answerCards="answer-cards".equals(joke.optString("presentation"));
         room=scene.optInt("room");target=scene.optInt("target");action=scene.optString("action");layout=scene.optInt("layout");
         setClipChildren(true);setBackgroundColor(0xFF152A36);
         stage=new Stage();addView(stage,new FrameLayout.LayoutParams(-1,-1));
         JSONArray list=joke.optJSONArray("choices");
         for(int n=0;n<3;n++){
-            final int choice=n;objects[n]=scene.optJSONArray("objects").optInt(n);tags[n]=scene.optJSONArray("labels").optString(n);
+            final int choice=n;objects[n]=scene.optJSONArray("objects").optInt(n);tags[n]=answerCards?list.optJSONObject(n).optString("label"):scene.optJSONArray("labels").optString(n);
             View hit=new View(host);hit.setBackgroundColor(Color.TRANSPARENT);hit.setContentDescription(tags[n]);hit.setFocusable(true);hit.setClickable(true);
             hit.setOnClickListener(v->{if(mode==0&&active&&!released){setChoicesEnabled(false);listener.choose(choice);}});
             hit.setOnLongClickListener(v->{host.sayStory(tags[choice]);return true;});
@@ -43,23 +45,23 @@ final class StorySceneView extends FrameLayout {
     }
     String questionText(){return joke.optString("question");}
     // Setup subjects must be explicitly reviewed. Never preview the resolution by default.
-    boolean showsSetupSubject(){return scene.optBoolean("showTargetBeforeAnswer",false);}
+    boolean showsSetupSubject(){return !answerCards&&scene.optBoolean("showTargetBeforeAnswer",false);}
     private void setChoicesEnabled(boolean value){for(View v:choices){v.setEnabled(value);v.setVisibility(value?VISIBLE:INVISIBLE);}}
-    private float ox(int i){return new float[][]{{.16f,.51f,.84f},{.20f,.80f,.50f},{.82f,.18f,.50f},{.50f,.84f,.16f},{.16f,.84f,.50f}}[layout%5][i];}
-    private float oy(int i){return new float[][]{{.91f,.85f,.93f},{.84f,.87f,.96f},{.85f,.92f,.96f},{.85f,.93f,.91f},{.88f,.88f,.97f}}[layout%5][i]-.07f;}
+    private float ox(int i){if(answerCards)return .18f+i*.32f;return new float[][]{{.16f,.51f,.84f},{.20f,.80f,.50f},{.82f,.18f,.50f},{.50f,.84f,.16f},{.16f,.84f,.50f}}[layout%5][i];}
+    private float oy(int i){if(answerCards)return .90f;return new float[][]{{.91f,.85f,.93f},{.84f,.87f,.96f},{.85f,.92f,.96f},{.85f,.93f,.91f},{.88f,.88f,.97f}}[layout%5][i]-.07f;}
     // A single MATCH_PARENT child can retain a zero measurement after ScrollView's
     // unconstrained pass. Always measure and lay out the drawing surface explicitly.
     @Override protected void onMeasure(int widthSpec,int heightSpec){
         super.onMeasure(widthSpec,heightSpec);
         int w=getMeasuredWidth(),h=getMeasuredHeight();
         stage.measure(MeasureSpec.makeMeasureSpec(w,MeasureSpec.EXACTLY),MeasureSpec.makeMeasureSpec(h,MeasureSpec.EXACTLY));
-        int size=Math.round(w*.27f),spec=MeasureSpec.makeMeasureSpec(size,MeasureSpec.EXACTLY);
-        for(View choice:choices)choice.measure(spec,MeasureSpec.makeMeasureSpec(size+Math.round(h*.07f),MeasureSpec.EXACTLY));
+        int size=Math.round(w*(answerCards?.29f:.27f)),spec=MeasureSpec.makeMeasureSpec(size,MeasureSpec.EXACTLY);
+        for(View choice:choices)choice.measure(spec,MeasureSpec.makeMeasureSpec(answerCards?Math.round(h*.22f):size+Math.round(h*.07f),MeasureSpec.EXACTLY));
     }
     @Override protected void onLayout(boolean changed,int l,int t,int r,int b){
         int w=r-l,h=b-t;stage.layout(0,0,w,h);
         for(int i=0;i<3;i++){
-            int size=choices[i].getMeasuredWidth(),x=Math.round(w*ox(i)-size/2f),y=Math.round(h*oy(i)-size);
+            int size=choices[i].getMeasuredWidth(),x=Math.round(w*ox(i)-size/2f),y=Math.round(h*oy(i)-(answerCards?h*.18f:size));
             choices[i].layout(x,y,x+size,y+choices[i].getMeasuredHeight());
         }
     }
@@ -85,6 +87,22 @@ final class StorySceneView extends FrameLayout {
             if(value.isEmpty())return;text.setColor(color);text.setTextSize(size);text.setTypeface(Typeface.create("sans-serif",Typeface.BOLD));
             StaticLayout lines=StaticLayout.Builder.obtain(value,0,value.length(),text,Math.max(1,(int)width)).setAlignment(Layout.Alignment.ALIGN_CENTER).setIncludePad(false).setLineSpacing(0,1.05f).build();
             c.save();c.translate(x-width/2,y);lines.draw(c);c.restore();
+        }
+        private void answerCard(Canvas c,int index,float x,float y,float w,float h,boolean resolved){
+            float left=x-w*.145f,top=y-h*.18f;
+            p.setColor(resolved?0xFFF8CF58:0xFFFDF4DC);
+            c.drawRoundRect(left,top,x+w*.145f,y+h*.04f,w*.025f,w*.025f,p);
+            p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(w*.006f);p.setColor(0xFF765433);
+            c.drawRoundRect(left,top,x+w*.145f,y+h*.04f,w*.025f,w*.025f,p);p.setStyle(Paint.Style.FILL);
+            label(c,joke.optJSONArray("choices").optJSONObject(index).optString("icon"),x,top+h*.012f,w*.26f,w*.095f,0xFF302A35);
+            float font=w*.039f;StaticLayout lines;
+            do {
+                text.setTextSize(font);text.setTypeface(Typeface.create("sans-serif",Typeface.BOLD));text.setColor(0xFF302A35);
+                lines=StaticLayout.Builder.obtain(tags[index],0,tags[index].length(),text,(int)(w*.265f)).setAlignment(Layout.Alignment.ALIGN_CENTER).setIncludePad(false).build();
+                if(lines.getHeight()<=h*.115f||font<=w*.027f)break;
+                font-=w*.001f;
+            }while(true);
+            c.save();c.translate(x-w*.1325f,top+h*.075f);lines.draw(c);c.restore();p.setColor(Color.WHITE);
         }
         protected void onDraw(Canvas c){
             long now=SystemClock.uptimeMillis();if(active&&!released)elapsed+=Math.min(80,Math.max(0,now-last));last=now;
@@ -126,19 +144,21 @@ final class StorySceneView extends FrameLayout {
                 else if(effect("weight|balance|seat|stuck|stand")){dy=h*.05f*act;rotation=(float)Math.sin(act*10)*5*(1-act);}
                 c.translate(dx,dy);c.rotate(rotation,tx,ty-ts*.5f);c.scale(sx,sy,tx,ty);p.setAlpha(alpha);
             }
-            if(mode>=2||showsSetupSubject())prop(c,drawnTarget,tx,ty,ts);p.setAlpha(255);c.restore();
+            if(!answerCards&&(mode>=2||showsSetupSubject()))prop(c,drawnTarget,tx,ty,ts);p.setAlpha(255);c.restore();
             if(mode>=2){
                 float pickup=ease(a/.18f),carry=ease((a-.18f)/.23f);
                 float cx=ox(chosen)*w+(hx+w*.13f-ox(chosen)*w)*pickup;
                 float cy=oy(chosen)*h+(hy-hs*.42f-oy(chosen)*h)*pickup;
                 cx+=(tx-w*.13f-cx)*carry;cy+=(ty-cy)*carry;
                 if(mode==3){cx=tx-w*.13f;cy=ty;}
-                prop(c,objects[chosen],cx,cy,w*.23f);
-                resolvedEffects(c,act,w,h,tx,ty,ts,objects[chosen]);
+                if(answerCards)answerCard(c,chosen,w*.70f,h*.68f,w,h,true);
+                else prop(c,objects[chosen],cx,cy,w*.23f);
+                if(!answerCards)resolvedEffects(c,act,w,h,tx,ty,ts,objects[chosen]);
             }
             if(mode<2){
                 for(int i=0;i<3;i++){
                     float x=ox(i)*w,y=oy(i)*h;
+                    if(answerCards){answerCard(c,i,x,y,w,h,false);continue;}
                     if(mode==1&&i==chosen){c.save();c.rotate((float)Math.sin(cut*19)*8,x,y);}
                     if(scene.has("tints")&&scene.optJSONArray("tints").optInt(i)!=0)p.setColorFilter(new PorterDuffColorFilter(scene.optJSONArray("tints").optInt(i),PorterDuff.Mode.SRC_ATOP));
                     prop(c,objects[i],x,y,w*.25f*(scene.has("sizes")?(float)scene.optJSONArray("sizes").optDouble(i,1):1));p.setColorFilter(null);
@@ -167,7 +187,7 @@ final class StorySceneView extends FrameLayout {
             Path tail=new Path();tail.moveTo(w*.20f,bubbleTop+bubbleH-1);tail.lineTo(w*.25f,bubbleTop+bubbleH+h*.025f);tail.lineTo(w*.32f,bubbleTop+bubbleH-1);c.drawPath(tail,p);
             label(c,speech,w*.5f,bubbleTop+h*.013f,bubbleW-w*.06f,w*.047f,0xFF27283C);
             label(c,"ท่านเซ่อจ่อย  •  "+questionNumber+" / "+total,w*.39f,h*.025f,w*.72f,w*.032f,Color.WHITE);
-            if(mode==0)label(c,"แตะของในฉากเพื่อตอบ",w*.5f,h*.975f,w*.8f,w*.028f,Color.WHITE);
+            if(mode==0)label(c,answerCards?"แตะคำตอบที่ตรงกับมุก":"แตะของในฉากเพื่อตอบ",w*.5f,h*.975f,w*.8f,w*.028f,Color.WHITE);
             if(!callbackSent&&mode==1&&elapsed-transition>=WRONG_MS){callbackSent=true;post(()->{if(!released)listener.wrongFinished();});}
             if(!callbackSent&&mode==2&&elapsed-transition>=REVEAL_MS){callbackSent=true;mode=3;post(()->{if(!released)listener.revealFinished();});}
             if(active&&!released)postInvalidateDelayed(mode==3?80:33);

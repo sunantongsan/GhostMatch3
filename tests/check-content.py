@@ -10,16 +10,26 @@ for n,j in enumerate(jokes,1):
  assert 0<len(j['question'])<=300 and 0<len(j['punchline'])<=500
  for c in j['choices']:assert 0<len(c['icon'])<=24 and 0<len(c['label'])<=100
 m=json.loads((p/'docs/patches/ser-joy-manifest.json').read_text())
-assert m['version']==doc['version']==6 and m['sha256']==hashlib.sha256(raw).hexdigest()
+assert m['version']==doc['version']==7 and m['sha256']==hashlib.sha256(raw).hexdigest()
 assert (p/'docs/patches'/m['file']).read_bytes()==raw and len(raw)<262144
 print('PASS: 156 unique questions, stable old IDs, three choices, patch checksum and size')
 
-assert m['minAppVersion']==51
+assert m['minAppVersion']==53
 assert json.loads((p/'app/src/main/assets/ser-joy-jokes.json').read_text())==jokes
 
-previous=json.loads((p/'docs/patches/ser-joy-v2.json').read_text())['jokes'][22:]
-for a,b in zip(jokes[56:],previous):
- assert a['question']==b['question'] and a['punchline']==b['punchline'] and a['answer']==b['answer']
+previous=json.loads((p/'docs/patches/ser-joy-v6.json').read_text())['jokes']
+assert jokes[:56]==previous[:56], 'preserve all existing first 56 questions exactly'
+audit=json.loads((p/'docs/serjoy-v7-sources.json').read_text())
+assert len(audit)==100
+for j,old,row in zip(jokes[56:],previous[56:],audit):
+ assert j['id']==row['id'] and j['question']!=old['question']
+ assert j['source']==row['source'] and j['source'].startswith('https://')
+ assert j['choices'][j['answer']]['label']==row['answer']
+ assert j['punchline'].startswith(row['answer']+' — ')
+ assert j['presentation']=='answer-cards'
+ assert all(len(c['label'])<=32 for c in j['choices']), 'mobile answer width'
+ assert 'เซ่อจ่อย' not in j['question'], 'remove invented character scenarios'
+print('PASS: 100 sourced replacements, canonical answers, stable first 56 and mobile labels')
 scenes=json.loads((p/'app/src/main/assets/story/scenes.json').read_text())['scenes']
 assert len(scenes)==len(jokes)
 for i,s in enumerate(scenes):
@@ -27,7 +37,7 @@ for i,s in enumerate(scenes):
  for obj in [s['target']]+s['objects']:assert -17<=obj<355 and not 218<=obj<224
 for n in ['special','motion','snacks']+[f'rooms-{i}' for i in range(4)]+[f'objects-{i}' for i in range(11)]:assert (p/f'app/src/main/assets/story/{n}.webp').stat().st_size>1000
 assert [c['label'] for c in jokes[23]['choices']]==['ค้อน','ระเบิด','ไฟ'] and jokes[23]['answer']==2
-print('PASS: all 156 story scenes, old tail preserved, art references and door choices')
+print('PASS: all 156 story scenes, sourced tail installed, art references and door choices')
 
 bounds=json.loads((p/'app/src/main/assets/story/bounds.json').read_text())
 for name,rects in bounds.items():
@@ -46,7 +56,7 @@ assert scenes[27]["labels"][0]=="เงินบาท"
 # All question strings remain as supplied, no scene-level paraphrases.
 prior=json.loads((p/'docs/patches/ser-joy-v5.json').read_text())['jokes']
 assert all('พม่าแหกคุก' not in j['punchline'] for j in jokes)
-for j,prev,s in zip(jokes,prior,scenes):
+for j,prev,s in zip(jokes[:56],prior[:56],scenes[:56]):
  assert (j['id'] in ['joke-43','joke-44','joke-51','joke-53'] or j['question']==prev['question']) and 'prompt' not in s
  assert j['answer']==prev['answer'], 'stable scoring index'
  if j['id'] not in ['joke-31','joke-48','joke-51']: assert j['choices']==prev['choices'], 'preserve canonical answers separately from picture captions'

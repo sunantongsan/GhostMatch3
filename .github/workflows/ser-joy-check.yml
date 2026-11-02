@@ -1,7 +1,7 @@
 name: Ser Joy build and device checks
 on:
   push:
-    branches: [fix/serjoy-ad-resume, feature/serjoy-story-scenes, main, feature/ser-joy-quiz, feature/serjoy-swipe-audio, fix/serjoy-real-match3, feature/serjoy-comedy-polish]
+    branches: [fix/serjoy-sourced-content, fix/serjoy-ad-resume, feature/serjoy-story-scenes, main, feature/ser-joy-quiz, feature/serjoy-swipe-audio, fix/serjoy-real-match3, feature/serjoy-comedy-polish]
   workflow_dispatch:
 permissions:
   contents: read
@@ -43,15 +43,16 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: SerJoy-0.52.0-release
+          name: SerJoy-0.53.0-release
           path: |
             app/build/outputs/bundle/release/app-release.aab
             smoke-result.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: SerJoy-0.52.0-review
+          name: SerJoy-0.53.0-review
           path: |
+            screenshots/sourced-*.png
             screenshots/audit-before-31.png
             screenshots/audit-before-32.png
             screenshots/audit-before-35.png
@@ -62,7 +63,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: SerJoy-0.52.0-test
+          name: SerJoy-0.53.0-test
           path: |
             app/build/outputs/apk/storyPreview/app-storyPreview.apk
             app/build/outputs/apk/debug/app-debug.apk
