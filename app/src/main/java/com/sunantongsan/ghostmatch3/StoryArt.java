@@ -6,13 +6,13 @@ import java.io.*;
 
 /** Shared atlases are decoded once per activity, not once per question. */
 final class StoryArt {
-    final Bitmap special,hero,motion,lighter;
+    final Bitmap special,hero,motion,lighter,snacks;
     final Bitmap[] rooms=new Bitmap[4];
     final JSONObject bounds;
     final Bitmap[] objects=new Bitmap[11];
     final JSONObject[] scenes;
     StoryArt(Context c)throws Exception{
-        lighter=load(c,"story/lighter.webp");
+        lighter=load(c,"story/lighter.webp");snacks=load(c,"story/snacks.webp");
         motion=load(c,"story/motion.webp");
         for(int i=0;i<rooms.length;i++)rooms[i]=load(c,"story/rooms-"+i+".webp");
         try(InputStream in=c.getAssets().open("story/bounds.json")){bounds=new JSONObject(new String(JokePatch.read(in),"UTF-8"));}
@@ -20,7 +20,7 @@ final class StoryArt {
         for(int i=0;i<objects.length;i++)objects[i]=load(c,"story/objects-"+i+".webp");
         JSONObject doc;try(InputStream in=c.getAssets().open("story/scenes.json")){doc=new JSONObject(new String(JokePatch.read(in),"UTF-8"));}
         JSONArray all=doc.getJSONArray("scenes");scenes=new JSONObject[all.length()];
-        for(int i=0;i<scenes.length;i++){scenes[i]=all.getJSONObject(i);if(!scenes[i].getString("id").equals("joke-"+(i+1+(i>=50 ? 1 : 0))))throw new IOException("scene order");}
+        for(int i=0;i<scenes.length;i++){scenes[i]=all.getJSONObject(i);if(!scenes[i].getString("id").equals("joke-"+(i+1)))throw new IOException("scene order");}
     }
     private static Bitmap load(Context c,String name)throws Exception{try(InputStream in=c.getAssets().open(name)){Bitmap b=BitmapFactory.decodeStream(in);if(b==null)throw new IOException(name);return b;}}
     private Rect bounds(String name,int cell){
@@ -35,8 +35,8 @@ final class StoryArt {
     }
     void sprite(Canvas c,int id,float x,float y,float width,float height,Paint p){
         if(id==-17){float scale=Math.min(width/lighter.getWidth(),height/lighter.getHeight()),w=lighter.getWidth()*scale,h=lighter.getHeight()*scale;c.drawBitmap(lighter,null,new RectF(x-w/2,y-h,x+w/2,y),p);return;}
-        Bitmap b=id<0?special:objects[id/32];int cell=id<0?-id-1:id%32;
-        Rect src=bounds(id<0?"special.webp":"objects-"+(id/32)+".webp",cell);
+        Bitmap b=id>=352?snacks:id<0?special:objects[id/32];int cell=id>=352?id-352:id<0?-id-1:id%32;
+        Rect src=bounds(id>=352?"snacks.webp":id<0?"special.webp":"objects-"+(id/32)+".webp",cell);
         float scale=Math.min(width/src.width(),height/src.height()),w=src.width()*scale,h=src.height()*scale;
         c.drawBitmap(b,src,new RectF(x-w/2,y-h,x+w/2,y),p);
     }

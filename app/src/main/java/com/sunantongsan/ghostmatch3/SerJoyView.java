@@ -52,11 +52,10 @@ final class SerJoyView extends ScrollView {
             if (prefs.getInt("index", 0) >= 42) migration.putInt("index", prefs.getInt("index", 0) + 14);
             migration.commit();
         }
-        // v6 removes joke-51. Preserve subsequent saved questions; reset a removed question's result.
+        // v6 replaces joke-51. Reset its old result without moving any saved stage.
         if (host.content.version >= 6 && prefs.getInt("curatedContentVersion", 0) < 6) {
             int savedIndex = prefs.getInt("index", 0);
             SharedPreferences.Editor migration = prefs.edit().putInt("curatedContentVersion", 6);
-            if (savedIndex > 50) migration.putInt("index", savedIndex - 1);
             if (savedIndex == 50) migration.putString("phase", "QUESTION").putInt("streak", 0).remove("board");
             migration.commit();
         }
