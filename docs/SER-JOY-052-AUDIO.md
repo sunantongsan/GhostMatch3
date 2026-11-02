@@ -10,3 +10,5 @@ Questions, choices, answer explanations and artwork remain unchanged from 0.51.0
 - New audio is mono 22.05kHz / 80kbps MP3, keeping short SoundPool samples below its decoded-size limit. Original uploads are preserved.
 
 Validation: deterministic multi-seed shuffle coverage; Android decoding, actual reaction streams, track completion, mute/unmute and pause/resume regression. Existing 156-stage and ad-return tests retained.
+
+New clip gains matched to the existing library: villain -10dB, evil -9dB, alternate evil -10dB, crowd -12dB, music -4dB.
