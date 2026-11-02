@@ -9,7 +9,7 @@ final class StoryArt {
     final Bitmap special,hero,motion;
     final Bitmap[] rooms=new Bitmap[4];
     final JSONObject bounds;
-    final Bitmap[] objects=new Bitmap[8];
+    final Bitmap[] objects=new Bitmap[9];
     final JSONObject[] scenes;
     StoryArt(Context c)throws Exception{
         motion=load(c,"story/motion.webp");

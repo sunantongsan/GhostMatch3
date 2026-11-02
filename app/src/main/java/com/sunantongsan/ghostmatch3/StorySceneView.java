@@ -103,7 +103,15 @@ final class StorySceneView extends FrameLayout {
             // Story subject responds only after Ser Joy has carried the chosen object over.
             c.save();float dx=0,dy=0,rotation=0,sx=1,sy=1;int alpha=255;int drawnTarget=target;
             if(mode>=2){
-                if(action.equals("door")){drawnTarget=act>0?-2:target;dx=w*1.3f*ease(act);dy=-(float)Math.abs(Math.sin(act*42))*h*.028f;rotation=(float)Math.sin(act*38)*9;}
+                if(action.equals("wetshoe")){dy=(float)Math.sin(act*Math.PI)*h*.10f;if(act>.55f)drawnTarget=256;}
+                else if(action.equals("straighten")){rotation=-14*(1-act);if(act>.9f)drawnTarget=272;}
+                else if(action.equals("grill")){if(act>.4f)drawnTarget=275;}
+                else if(action.equals("fishboss")){if(act>.35f)drawnTarget=263;dy=-(float)Math.abs(Math.sin(act*12))*h*.02f;}
+                else if(action.equals("antswim")){if(act>.3f)drawnTarget=282;dx=(float)Math.sin(act*10)*w*.08f;}
+                else if(action.equals("escape")){dx=w*act;dy=-(float)Math.abs(Math.sin(act*25))*h*.025f;}
+                else if(action.equals("bellring")){rotation=(float)Math.sin(act*26)*25;}
+                else if(action.equals("delegate")){rotation=-10*act;}
+                else if(action.equals("door")){drawnTarget=act>0?-2:target;dx=w*1.3f*ease(act);dy=-(float)Math.abs(Math.sin(act*42))*h*.028f;rotation=(float)Math.sin(act*38)*9;}
                 else if(effect("sink|distance")){dy=h*.25f*act;sx=sy=1-.65f*act;alpha=(int)(255*(1-act*.7f));}
                 else if(effect("fall|dead|sneeze|hit|punch|shiver|surprise")){rotation=action.equals("dead")?150*act:action.equals("fall")?75*act:(float)Math.sin(act*25)*15;dy=action.equals("fall")?act*h*.07f:-(float)Math.abs(Math.sin(act*16))*h*.015f;}
                 else if(effect("float|fly|lift|jump|grow|rise|speed|walk")){dy=-h*.2f*act;if(action.equals("grow"))sx=sy=1+act*.5f;if(action.equals("jump"))dx=w*.2f*act;if(action.equals("speed"))dx=w*act;}
@@ -155,9 +163,26 @@ final class StorySceneView extends FrameLayout {
         private void resolvedEffects(Canvas c,float t,float w,float h,float x,float y,float size,int selected){
             if(t<=0)return;
             float pulse=(float)Math.sin(t*22);
-            if(action.equals("door")){
+            if(action.equals("cliffstep")){
+                float step=ease(t);art.sprite(c,224,x-size*.2f+step*size*.75f,y-size*.75f+step*step*h*.35f,size*.4f,size*.4f,p);
+            }else if(action.equals("motherwash")){
+                art.sprite(c,-13,x-size*.55f,y,size*.65f,size*.8f,p);
+                art.sprite(c,202,x+(float)Math.sin(t*24)*size*.22f,y-size*.3f,size*.23f,size*.23f,p);
+                for(int i=0;i<5;i++){p.setColor(0xCC9CF1FF);c.drawCircle(x+(i-2)*size*.14f,y-size*(.1f+t*.3f),size*.04f,p);}
+            }else if(action.equals("delegate")){
+                art.sprite(c,287,x-size*.5f,y-size*.1f,size*.55f,size*.55f,p);label(c,"วานหน่อย…",x,y-size-h*.025f,w*.4f,w*.035f,Color.WHITE);
+            }else if(action.equals("onepen")){
+                art.sprite(c,138,x-size*.2f,y-size*.5f-t*size*.1f,size*.5f,size*.5f,p);label(c,"ONE PEN",x,y-size-h*.025f,w*.4f,w*.04f,Color.WHITE);
+            }else if(action.equals("dwarfs")){
+                for(int i=0;i<7;i++)art.sprite(c,280,w*(.17f+i*.105f),h*.77f-(float)Math.abs(Math.sin(t*14+i))*h*.025f,w*.11f,w*.17f,p);
+            }else if(action.equals("outbreak")){
+                for(int i=0;i<5;i++)art.sprite(c,276,x+(i-2)*size*.24f*t,y-(i%2)*size*.3f*t,size*.25f,size*.25f,p);
+                label(c,"บาทเดียว!",x,y-size-h*.03f,w*.4f,w*.045f,Color.WHITE);
+            }else if(action.equals("bellring")){
+                label(c,"กริ๊ง!",x,y-size-h*.04f,w*.4f,w*.05f,Color.WHITE);
+            }else if(action.equals("door")){
                 for(int i=0;i<7;i++){p.setColor(Color.argb((int)(120*(1-t)),234,215,177));c.drawCircle(x+w*t*.4f-i*w*.055f,y-h*.01f,w*(.02f+.025f*t),p);}
-            }else if(effect("sink|swim|wash|shower|pour|bottle")){
+            }else if(effect("sink|swim|wash|shower|pour|bottle|wetshoe|antswim")){
                 p.setColor(0x8840D8ED);c.drawOval(x-size*.65f,y-size*.14f,x+size*.65f,y+size*.11f,p);
                 for(int i=0;i<8;i++){p.setColor(0xDD9CF1FF);float bx=x+(float)Math.sin(i*2+t*5)*size*.6f,by=y-(float)Math.abs(Math.sin(i+t*9))*size*.4f;c.drawCircle(bx,by,w*.011f,p);}
             }else if(effect("crack|cut|burst")){

@@ -46,6 +46,12 @@ final class SerJoyView extends ScrollView {
             }
             migration.commit();
         }
+        // v5 inserts fourteen scenes before the retained old tail; keep its saved question.
+        if (host.content.version >= 5 && prefs.getInt("curatedContentVersion", 0) < 5) {
+            SharedPreferences.Editor migration = prefs.edit().putInt("curatedContentVersion", 5);
+            if (prefs.getInt("index", 0) >= 42) migration.putInt("index", prefs.getInt("index", 0) + 14);
+            migration.commit();
+        }
         progress=new QuizProgress(jokes.length(),prefs.getInt("index",0),prefs.getInt("streak",0),prefs.getString("phase","QUESTION"));
         setFillViewport(true);setBackground(new android.graphics.drawable.Drawable(){
             final Paint brush=new Paint(3);

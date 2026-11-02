@@ -64,8 +64,8 @@ public class SerJoySmoke extends Instrumentation {
   getTargetContext().getSharedPreferences("ad_age",0).edit().putString("band","teen").commit();
   getTargetContext().getSharedPreferences("ser_joy_v1",0).edit().clear().commit();
   byte[] bundled;try(InputStream in=getTargetContext().getAssets().open("ser-joy-content.json")){bundled=JokePatch.read(in);}
-  check(JokePatch.verified(bundled,JokePatch.sha(bundled),4,122).jokes.length()==142,"expanded patch compatible");
-  boolean rejected=false;try{JokePatch.verified(bundled,"bad",4,142);}catch(Exception expected){rejected=true;}check(rejected,"checksum rejection");
+  check(JokePatch.verified(bundled,JokePatch.sha(bundled),5,142).jokes.length()==156,"expanded patch compatible");
+  boolean rejected=false;try{JokePatch.verified(bundled,"bad",5,156);}catch(Exception expected){rejected=true;}check(rejected,"checksum rejection");
   File cache=new File(getTargetContext().getFilesDir(),"ser-joy-content.json");cache.delete();
   launch();check(view.progress.index==0,"initial question");shot("01-ant-story");
   // Regression: repeated unconstrained/constrained measurements used when ScrollView replaces a scene.
@@ -78,13 +78,14 @@ public class SerJoySmoke extends Instrumentation {
   });checkSceneDraws();
   adReturnRegression();
   // Every question must instantiate the scene renderer with three usable nonoverlapping objects.
-  for(int i=0;i<142;i++){
+  for(int i=0;i<156;i++){
    selectQuestion(i);StorySceneView story=scene();check(story!=null,"story exists "+i);
    for(int a=0;a<3;a++){View v=story.choiceView(a);check(v.isClickable()&&v.getContentDescription().length()>0,"accessible object "+i);Rect ar=new Rect();v.getHitRect(ar);
     check(ar.left>=0&&ar.right<=story.getWidth()&&ar.top>=0&&ar.bottom<=story.getHeight(),"object within screen "+i);
     for(int b=a+1;b<3;b++){Rect br=new Rect();story.choiceView(b).getHitRect(br);check(!Rect.intersects(ar,br),"separate choices "+i);}
    }
-   if(i==22||i==30||i==31||i==38||i==40||i==141)shot("scene-"+(i+1));
+   if(i>=42&&i<56){checkSceneDraws();runOnMainSync(story::showFinal);checkSceneDraws();}
+   if(i==22||i==30||i==31||i==38||i==40||i==155||i==42||i==45||i==52||i==55)shot("scene-"+(i+1));
   }
   selectQuestion(23);shot("02-door-choices");tap(scene().choiceView(0));
   check(view.progress.phase==QuizProgress.Phase.AD_REQUIRED&&view.progress.index==23,"hammer wrong stays at door");shot("03-door-laugh");
@@ -110,6 +111,10 @@ public class SerJoySmoke extends Instrumentation {
   AdventureEngine board=(AdventureEngine)field(view,"board");int before=board.moves;int[] pair=board.hint();
   runOnMainSync(()->board.move(pair[0],pair[1]));check(board.moves==before-1,"match-three valid move");
   runOnMainSync(()->view.progress.finishBreak());check(view.progress.index==2&&view.progress.phase==QuizProgress.Phase.QUESTION,"break retries same question");
-  result.putString("stream","PASS: quiz screens, all 142 illustrated scenes, touch targets, ad resume drawing and retry gates, door fire cutscene, saved progress and match-three\n");finish(Activity.RESULT_OK,result);
+  runOnMainSync(()->host.finish());waitForIdleSync();
+  getTargetContext().getSharedPreferences("ser_joy_v1",0).edit().putInt("curatedContentVersion",4).putInt("index",42).putString("phase","QUESTION").commit();
+  launch();check(view.progress.index==56,"old tail position migrates past inserted fourteen");checkSceneDraws();
+  runOnMainSync(()->host.finish());waitForIdleSync();launch();check(view.progress.index==56,"position migration runs once");
+  result.putString("stream","PASS: quiz screens, all 156 illustrated scenes, touch targets, ad resume drawing and retry gates, door fire cutscene, saved progress and match-three\n");finish(Activity.RESULT_OK,result);
  }catch(Throwable t){result.putString("stream","FAIL: "+android.util.Log.getStackTraceString(t));finish(Activity.RESULT_CANCELED,result);}}
 }
