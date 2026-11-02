@@ -57,7 +57,7 @@ Art: built-in imagegen, two transparent 8×4 atlases. Prompt set: ordinary isola
 | 45 | ปลาเก๋า / ปลาฉลาม / ปลาวาฬ | no |
 | 46 | ถุงมือ / แม่ / ผ้าเช็ดมือ | yes |
 | 47 | ปลาเก๋า / ปลาฉลาม / ปลาปักเป้า | no |
-| 48 | มดแดง / มดดำ / มดมีปีก | no |
+| 48 | มดแดง / มดมีปีก / มดกะแดะอยากเป็นปลา | no |
 | 49 | ครูสมชาย / ครูวันเพ็ญ / ครูสมศรี | no |
 | 50 | ไทย / อังกฤษ / เบลเยี่ยม | no |
 | 51 | เลย์ / โก๋แก่ / ฮานามิ | no |
@@ -168,3 +168,5 @@ Art: built-in imagegen, two transparent 8×4 atlases. Prompt set: ordinary isola
 | 156 | ตรายาง / พลุ / ดอกไม้ | no |
 
 Snack art: built-in imagegen; three equal transparent cartoon snack bags, recognizable brands, no slogans or cassava clues. Asset: app/src/main/assets/story/snacks.webp.
+
+User confirmed retaining the original ant answer as visible caption; correct artwork is an ordinary black ant, not a winged ant.

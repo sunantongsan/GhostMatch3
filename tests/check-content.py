@@ -49,7 +49,7 @@ assert all('พม่าแหกคุก' not in j['punchline'] for j in jokes
 for j,prev,s in zip(jokes,prior,scenes):
  assert (j['id'] in ['joke-43','joke-44','joke-51','joke-53'] or j['question']==prev['question']) and 'prompt' not in s
  assert j['answer']==prev['answer'], 'stable scoring index'
- if j['id'] not in ['joke-31','joke-51']: assert j['choices']==prev['choices'], 'preserve canonical answers separately from picture captions'
+ if j['id'] not in ['joke-31','joke-48','joke-51']: assert j['choices']==prev['choices'], 'preserve canonical answers separately from picture captions'
  assert isinstance(s['showTargetBeforeAnswer'],bool)
  if s['showTargetBeforeAnswer']: assert s['target'] not in s['objects'], 'no enlarged choice before answering'
  if len(set(s['objects']))<3: assert len(s.get('inscriptions',[]))==3, 'shared art needs distinct inscriptions'
@@ -63,3 +63,5 @@ assert jokes[50]["question"]=='ขนมอะไร ใช้มันสำป
 assert [c["label"] for c in jokes[50]["choices"]]==["เลย์","โก๋แก่","ฮานามิ"]
 assert jokes[50]["answer"]==1 and "มันทุกเม็ด" in jokes[50]["punchline"]
 assert scenes[50]["objects"]==[352,353,354] and not scenes[50]["showTargetBeforeAnswer"]
+
+assert scenes[47]["objects"][2]==299 and scenes[47]["labels"][2]=="มดกะแดะอยากเป็นปลา"
