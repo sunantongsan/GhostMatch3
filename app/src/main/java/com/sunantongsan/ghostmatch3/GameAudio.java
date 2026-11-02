@@ -16,6 +16,11 @@ final class GameAudio {
     private final SoundPool pool;
     private final int[] samples=new int[10];
     private final long[] lastPlayed=new long[10];
+    private final int[] laughs=new int[4], celebrations=new int[3];
+    private final AudioShuffle laughOrder=new AudioShuffle(new int[]{0,1,2,3});
+    private final AudioShuffle celebrationOrder=new AudioShuffle(new int[]{0,1,2});
+    private final AudioShuffle musicOrder=new AudioShuffle(new int[]{R.raw.joy_music,R.raw.joy_break_music,R.raw.joy_bouncy});
+    private int musicResource;
     private final Set<Integer> ready=new HashSet<>();
     private final Set<Integer> streams=new HashSet<>();
     private android.media.MediaPlayer music;
@@ -32,13 +37,18 @@ final class GameAudio {
         pool=new SoundPool.Builder().setMaxStreams(4).setAudioAttributes(new AudioAttributes.Builder()
             .setUsage(AudioAttributes.USAGE_GAME).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build()).build();
         pool.setOnLoadCompleteListener((p,id,status)->{synchronized(this){if(!released&&status==0)ready.add(id);}});
-        music=android.media.MediaPlayer.create(context,R.raw.joy_music);
-        if(music!=null){music.setLooping(true);music.setVolume(.12f,.12f);}
+        nextMusic();
         File directory=context.getCacheDir();
         new Thread(()->{
+            int[][] resources={{R.raw.joy_laugh,R.raw.joy_laugh_villain,R.raw.joy_laugh_evil,R.raw.joy_laugh_evil_alt},
+                {R.raw.joy_correct,R.raw.joy_complete,R.raw.joy_crowd}};
+            for(int group=0;group<resources.length;group++)for(int i=0;i<resources[group].length;i++){
+                synchronized(this){if(released)return;(group==0?laughs:celebrations)[i]=pool.load(context,resources[group][i],1);}
+            }
             for(int kind=0;kind<samples.length;kind++){
                 synchronized(this){if(released)return;}
-                int resource=kind==GHOST?R.raw.joy_laugh:kind==MATCH?R.raw.joy_hit:kind==WIN?R.raw.joy_correct:kind==FINALE?R.raw.joy_finale:kind==MAGIC?R.raw.fx_magic:kind==EXPLOSION?R.raw.joy_explosion:kind==COMPLETE?R.raw.joy_complete:0;
+                if(kind==GHOST||kind==WIN||kind==COMPLETE)continue;
+                int resource=kind==MATCH?R.raw.joy_hit:kind==FINALE?R.raw.joy_finale:kind==MAGIC?R.raw.fx_magic:kind==EXPLOSION?R.raw.joy_explosion:0;
                 if(resource!=0){synchronized(this){if(released)return;samples[kind]=pool.load(context,resource,1);}continue;}
                 File file=new File(directory,"ghost_sfx_v1_"+kind+".wav");
                 try{
@@ -49,11 +59,27 @@ final class GameAudio {
         },"ghost-sound-loader").start();
     }
 
+    private synchronized void nextMusic(){
+        if(released)return;
+        if(music!=null){music.release();music=null;}
+        musicResource=musicOrder.next();
+        music=android.media.MediaPlayer.create(context,musicResource);
+        if(music!=null){
+            music.setLooping(false);music.setVolume(.12f,.12f);
+            music.setOnCompletionListener(player->{synchronized(this){if(!released&&player==music)nextMusic();}});
+            music.setOnErrorListener((player,what,extra)->{synchronized(this){if(player==music){music.release();music=null;}}return true;});
+        }
+        updateMusic();
+    }
     synchronized void setBreakMusic(boolean value){
-        if(released||breakMusic==value)return;breakMusic=value;
-        if(music!=null)music.release();
-        music=android.media.MediaPlayer.create(context,value?R.raw.joy_break_music:R.raw.joy_music);
-        if(music!=null){music.setLooping(true);music.setVolume(.12f,.12f);}updateMusic();
+        if(released||breakMusic==value)return;breakMusic=value;nextMusic();
+    }
+    private int randomSample(int[] options,AudioShuffle order){
+        boolean allReady=true;
+        for(int id:options)if(!ready.contains(id))allReady=false;
+        if(allReady)return options[order.next()];
+        for(int id:options)if(ready.contains(id))return id;
+        return 0;
     }
     boolean isEnabled(){return enabled;}
     synchronized void toggle(){enabled=!enabled;preferences.edit().putBoolean("enabled",enabled).apply();if(!enabled)stop();updateMusic();}
@@ -61,14 +87,16 @@ final class GameAudio {
     private void updateMusic(){if(music==null||released)return;if(active&&enabled){if(!music.isPlaying())music.start();}else if(music.isPlaying())music.pause();}
     private void stop(){for(int stream:streams)pool.stop(stream);streams.clear();}
     synchronized void play(int kind){
-        if(released||!active||!enabled||kind<0||kind>=samples.length||!ready.contains(samples[kind]))return;
+        if(released||!active||!enabled||kind<0||kind>=samples.length)return;
         long now=SystemClock.elapsedRealtime();
         if(now-lastPlayed[kind]<(kind==GHOST?130:80))return;
+        int sample=kind==GHOST?randomSample(laughs,laughOrder):(kind==WIN||kind==COMPLETE)?randomSample(celebrations,celebrationOrder):samples[kind];
+        if(!ready.contains(sample))return;
         lastPlayed[kind]=now;
         if(kind==WIN||kind==LOSE||kind==GHOST||kind==COMPLETE||kind==FINALE)stop();
         float volume=kind==GHOST?.32f:kind==MAGIC?.48f:.42f;
         float rate=1f;
-        int stream=pool.play(samples[kind],volume,volume,1,0,rate);
+        int stream=pool.play(sample,volume,volume,1,0,rate);
         if(stream!=0){if(streams.size()>32)streams.clear();streams.add(stream);}
     }
     synchronized void release(){if(released)return;stop();released=true;if(music!=null){music.release();music=null;}pool.release();ready.clear();}

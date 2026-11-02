@@ -9,4 +9,4 @@ adb shell am instrument -w com.sunantongsan.ghostmatch3.test/com.sunantongsan.gh
 wait "$record_pid" || true
 adb pull /sdcard/Android/data/com.sunantongsan.ghostmatch3/files/screenshots screenshots || true
 adb pull /sdcard/serjoy-animation.mp4 serjoy-animation.mp4 || true
-grep 'PASS: quiz screens' smoke-result.txt
+grep 'PASS: randomized music and reactions' smoke-result.txt

@@ -20,10 +20,11 @@ jobs:
       - name: Test game rules
         run: |
           python3 tests/check-content.py
-          javac -d /tmp/joy-tests app/src/main/java/com/sunantongsan/ghostmatch3/{AdventureEngine,QuizProgress,CharacterAnimation}.java tests/{AdventureEngineTest,QuizProgressTest,BreakBoardTest}.java
+          javac -d /tmp/joy-tests app/src/main/java/com/sunantongsan/ghostmatch3/{AdventureEngine,QuizProgress,CharacterAnimation,AudioShuffle}.java tests/{AdventureEngineTest,QuizProgressTest,BreakBoardTest,AudioShuffleTest}.java
           java -cp /tmp/joy-tests com.sunantongsan.ghostmatch3.AdventureEngineTest
           java -cp /tmp/joy-tests com.sunantongsan.ghostmatch3.QuizProgressTest
           java -cp /tmp/joy-tests com.sunantongsan.ghostmatch3.BreakBoardTest
+          java -cp /tmp/joy-tests com.sunantongsan.ghostmatch3.AudioShuffleTest
       - name: Build and lint
         run: gradle :app:assembleStoryPreview :app:assembleDebug :app:assembleDebugAndroidTest :app:lintDebug :app:bundleRelease :app:lintRelease --stacktrace
       - name: Enable KVM
@@ -42,14 +43,14 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: SerJoy-0.51.0-release
+          name: SerJoy-0.52.0-release
           path: |
             app/build/outputs/bundle/release/app-release.aab
             smoke-result.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: SerJoy-0.51.0-review
+          name: SerJoy-0.52.0-review
           path: |
             screenshots/audit-before-31.png
             screenshots/audit-before-32.png
@@ -61,7 +62,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: SerJoy-0.51.0-test
+          name: SerJoy-0.52.0-test
           path: |
             app/build/outputs/apk/storyPreview/app-storyPreview.apk
             app/build/outputs/apk/debug/app-debug.apk

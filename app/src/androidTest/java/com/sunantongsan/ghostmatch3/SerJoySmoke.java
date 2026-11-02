@@ -60,6 +60,40 @@ public class SerJoySmoke extends Instrumentation {
   runOnMainSync(()->callActivityOnResume(host));waitForIdleSync();
   check(closed[0]==1&&view.progress.phase==QuizProgress.Phase.AD_REQUIRED,"unearned dismissal keeps reward gate");checkSceneDraws();
  }
+ void audioRegression()throws Exception{
+  GameAudio audio=(GameAudio)field(host,"gameAudio");
+  if(!audio.isEnabled())runOnMainSync(audio::toggle);
+  long deadline=SystemClock.elapsedRealtime()+10000;
+  java.util.Set<?> ready=(java.util.Set<?>)field(audio,"ready");
+  int[] laughs=(int[])field(audio,"laughs"),cheers=(int[])field(audio,"celebrations");
+  boolean loaded=false;
+  while(SystemClock.elapsedRealtime()<deadline){
+   synchronized(audio){loaded=true;for(int id:laughs)loaded&=ready.contains(id);for(int id:cheers)loaded&=ready.contains(id);}
+   if(loaded)break;SystemClock.sleep(100);
+  }
+  check(loaded,"all user laugh and cheer clips decode");
+  for(int kind:new int[]{GameAudio.GHOST,GameAudio.WIN}){
+   SystemClock.sleep(150);runOnMainSync(()->audio.play(kind));
+   check(!((java.util.Set<?>)field(audio,"streams")).isEmpty(),"random reaction starts");
+   runOnMainSync(()->audio.setActive(false));
+   check(((java.util.Set<?>)field(audio,"streams")).isEmpty(),"ad/background stops effects");
+   check(!((android.media.MediaPlayer)field(audio,"music")).isPlaying(),"ad/background pauses music");
+   runOnMainSync(()->audio.setActive(true));
+  }
+  android.media.MediaPlayer current=(android.media.MediaPlayer)field(audio,"music");
+  int resource=(Integer)field(audio,"musicResource");
+  check(current.isPlaying(),"music resumes after ad");
+  runOnMainSync(()->current.seekTo(Math.max(0,current.getDuration()-150)));
+  deadline=SystemClock.elapsedRealtime()+6000;
+  while((Integer)field(audio,"musicResource")==resource&&SystemClock.elapsedRealtime()<deadline)SystemClock.sleep(100);
+  check((Integer)field(audio,"musicResource")!=resource,"finished music advances to a different track");
+  runOnMainSync(audio::toggle);
+  check(!((android.media.MediaPlayer)field(audio,"music")).isPlaying(),"mute stops music");
+  runOnMainSync(()->audio.play(GameAudio.GHOST));
+  check(((java.util.Set<?>)field(audio,"streams")).isEmpty(),"mute blocks effects");
+  runOnMainSync(audio::toggle);
+  check(((android.media.MediaPlayer)field(audio,"music")).isPlaying(),"unmute resumes music");
+ }
  public void onStart(){Bundle result=new Bundle();try{
   getTargetContext().getSharedPreferences("ad_age",0).edit().putString("band","teen").commit();
   getTargetContext().getSharedPreferences("ser_joy_v1",0).edit().clear().commit();
@@ -84,6 +118,7 @@ public class SerJoySmoke extends Instrumentation {
    check(surface.getMeasuredHeight()==probe.getMeasuredHeight(),"unconstrained pass does not leave stage zero-sized");
    probe.measure(View.MeasureSpec.makeMeasureSpec(pw,View.MeasureSpec.EXACTLY),View.MeasureSpec.makeMeasureSpec(ph,View.MeasureSpec.EXACTLY));probe.layout(0,0,pw,ph);
   });checkSceneDraws();
+  audioRegression();
   adReturnRegression();
   // Every question must instantiate the scene renderer with three usable nonoverlapping objects.
   for(int i=0;i<host.content.jokes.length();i++){
@@ -140,6 +175,6 @@ public class SerJoySmoke extends Instrumentation {
   getTargetContext().getSharedPreferences("ser_joy_v1",0).edit().putInt("curatedContentVersion",5).putInt("index",50).putString("phase","CORRECT").commit();
   launch();check(view.progress.index==50&&view.progress.phase==QuizProgress.Phase.QUESTION,"replacement question clears old result");
   check(host.content.jokes.getJSONObject(50).getString("id").equals("joke-51"),"replacement keeps stable ID");
-  result.putString("stream","PASS: quiz screens, all 156 illustrated scenes, touch targets, ad resume drawing and retry gates, door fire cutscene, saved progress and match-three\n");finish(Activity.RESULT_OK,result);
+  result.putString("stream","PASS: randomized music and reactions, mute and ad audio lifecycle; quiz screens, all 156 illustrated scenes, touch targets, ad resume drawing and retry gates, door fire cutscene, saved progress and match-three\n");finish(Activity.RESULT_OK,result);
  }catch(Throwable t){result.putString("stream","FAIL: "+android.util.Log.getStackTraceString(t));finish(Activity.RESULT_CANCELED,result);}}
 }
