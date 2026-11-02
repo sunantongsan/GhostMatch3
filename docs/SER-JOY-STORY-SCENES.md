@@ -1,6 +1,6 @@
 # Ser Joy 0.48.0: illustrated story stages
 
-All 156 questions now use the same interactive scene renderer, with individually assigned environment, subject, three illustrated objects and resolution action in `app/src/main/assets/story/scenes.json`. The first 22 questions retain their text; the supplied 20 occupy 23–42; the previous 100 follow at 57–156. Door choices are hammer, bomb, fire. Historical content files remain available for reproducibility.
+All 156 questions now use the same interactive scene renderer, with individually assigned environment, subject, three illustrated objects and resolution action in `app/src/main/assets/story/scenes.json`. The first 22 questions retain their text; the first supplied 20 occupy 23–42, the next approved 14 occupy 43–56, and the previous 100 follow at 57–156. Door choices are hammer, bomb, fire. Historical content files remain available for reproducibility.
 
 The old quiz cards are replaced by objects placed within the picture. Abstract answers (weekdays, numbers, song names) retain short inscriptions on their props. Native hit targets have accessible spoken labels. Long press reads an object label. Wrong answers animate laughter/head shake without exposing the punchline. Existing rewarded-ad and three-miss match-three gates remain, but completion returns to the same unsolved question. Only a correct answer followed by Next advances.
 
@@ -16,7 +16,7 @@ Prompt set: modern colorful Thai comedic adventure backgrounds (hallway, home, m
 
 ## Delivery and compatibility
 
-Content v4 is a schema-1 data patch compatible with app 43+ (156 entries, checksum verified), so the revised joke order can reach existing clients. The new renderer, artwork, Thai speech and retry semantics require installation of app 48 through the normal Android/Google Play update path. They cannot be installed through the old text-only patch loader. App 48 bundles v4 for offline use. Future patches adding new scene IDs must also provide compatible app artwork/scene data; do not publish unsupported counts to this renderer.
+Content v4 was a schema-1 data patch compatible with app 43+ (142 entries, checksum verified), so the revised joke order can reach existing clients. The new renderer, artwork, Thai speech and retry semantics require installation of app 48 through the normal Android/Google Play update path. They cannot be installed through the old text-only patch loader. App 48 bundles v4 for offline use. Future patches adding new scene IDs must also provide compatible app artwork/scene data; do not publish unsupported counts to this renderer.
 
 Validation includes full content/art reference coverage, preserved old tail, Java state-machine tests, Android builds/lint, all 156 scene instantiations and hit rectangles, real touch selection of all door choices, restart gates, pause/resume, sample cutscene screenshots, and match-three returning to the unsolved question. Live rewarded ad delivery and availability/quality of device Thai voices are not simulated by the device test.
 
