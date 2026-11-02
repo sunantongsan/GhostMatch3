@@ -67,7 +67,15 @@ public class SerJoySmoke extends Instrumentation {
   check(JokePatch.verified(bundled,JokePatch.sha(bundled),5,142).jokes.length()==156,"expanded patch compatible");
   boolean rejected=false;try{JokePatch.verified(bundled,"bad",5,156);}catch(Exception expected){rejected=true;}check(rejected,"checksum rejection");
   File cache=new File(getTargetContext().getFilesDir(),"ser-joy-content.json");cache.delete();
+  Intent market=MainActivity.storeUpdateIntent(true),web=MainActivity.storeUpdateIntent(false);
+  check("com.android.vending".equals(market.getPackage())&&market.getDataString().equals("market://details?id=com.sunantongsan.ghostmatch3"),"store link opens exact game");
+  check(web.getDataString().equals("https://play.google.com/store/apps/details?id=com.sunantongsan.ghostmatch3"),"browser fallback opens exact game");
   launch();check(view.progress.index==0,"initial question");shot("01-ant-story");
+  runOnMainSync(()->host.showStoreUpdate(true));check(host.updateAvailable,"store availability updates UI state");
+  View update=(View)field(host,"updateGame");check(update.getVisibility()==View.VISIBLE,"update button shown for available update");
+  IntentFilter storeFilter=new IntentFilter(Intent.ACTION_VIEW);storeFilter.addDataScheme("market");ActivityMonitor storeMonitor=addMonitor(storeFilter,null,true);
+  runOnMainSync(update::performClick);check(storeMonitor.getHits()==1,"update tap launches store intent");removeMonitor(storeMonitor);
+  runOnMainSync(()->host.showStoreUpdate(false));check(update.getVisibility()==View.GONE,"no update prompt when current");
   // Regression: repeated unconstrained/constrained measurements used when ScrollView replaces a scene.
   StorySceneView probe=scene();int pw=probe.getWidth(),ph=probe.getHeight();
   runOnMainSync(()->{
@@ -80,12 +88,16 @@ public class SerJoySmoke extends Instrumentation {
   // Every question must instantiate the scene renderer with three usable nonoverlapping objects.
   for(int i=0;i<156;i++){
    selectQuestion(i);StorySceneView story=scene();check(story!=null,"story exists "+i);
+   String[] captions=(String[])field(story,"tags");check(captions.length==3,"three visible captions");
+   for(String caption:captions)check(!caption.trim().isEmpty(),"caption always available");
+   if(i==26)check(captions[2].equals("ไฟแช็ก"),"naga object label has no punchline");
+   if(i==27)check(captions[0].equals("เงินบาท"),"currency label does not reveal wordplay");
    for(int a=0;a<3;a++){View v=story.choiceView(a);check(v.isClickable()&&v.getContentDescription().length()>0,"accessible object "+i);Rect ar=new Rect();v.getHitRect(ar);
     check(ar.left>=0&&ar.right<=story.getWidth()&&ar.top>=0&&ar.bottom<=story.getHeight(),"object within screen "+i);
     for(int b=a+1;b<3;b++){Rect br=new Rect();story.choiceView(b).getHitRect(br);check(!Rect.intersects(ar,br),"separate choices "+i);}
    }
    if(i>=42&&i<56){checkSceneDraws();runOnMainSync(story::showFinal);checkSceneDraws();}
-   if(i==22||i==30||i==31||i==38||i==40||i==155||i==42||i==45||i==52||i==55)shot("scene-"+(i+1));
+   if(i==26||i==27||i==47||i==22||i==30||i==31||i==38||i==40||i==155||i==42||i==45||i==52||i==55)shot("scene-"+(i+1));
   }
   selectQuestion(23);shot("02-door-choices");tap(scene().choiceView(0));
   check(view.progress.phase==QuizProgress.Phase.AD_REQUIRED&&view.progress.index==23,"hammer wrong stays at door");shot("03-door-laugh");

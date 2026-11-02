@@ -33,17 +33,18 @@ final class StorySceneView extends FrameLayout {
         stage=new Stage();addView(stage,new FrameLayout.LayoutParams(-1,-1));
         JSONArray list=joke.optJSONArray("choices");
         for(int n=0;n<3;n++){
-            final int choice=n;objects[n]=scene.optJSONArray("objects").optInt(n);tags[n]=scene.optJSONArray("tags").optString(n);
-            View hit=new View(host);hit.setBackgroundColor(Color.TRANSPARENT);hit.setContentDescription(list.optJSONObject(n).optString("label"));hit.setFocusable(true);hit.setClickable(true);
+            final int choice=n;objects[n]=scene.optJSONArray("objects").optInt(n);tags[n]=scene.optJSONArray("labels").optString(n);
+            View hit=new View(host);hit.setBackgroundColor(Color.TRANSPARENT);hit.setContentDescription(tags[n]);hit.setFocusable(true);hit.setClickable(true);
             hit.setOnClickListener(v->{if(mode==0&&active&&!released){setChoicesEnabled(false);listener.choose(choice);}});
-            hit.setOnLongClickListener(v->{host.sayStory(list.optJSONObject(choice).optString("label"));return true;});
+            hit.setOnLongClickListener(v->{host.sayStory(tags[choice]);return true;});
             choices[n]=hit;addView(hit,new FrameLayout.LayoutParams(1,1));
         }
-        setContentDescription("ฉากเรื่องที่ "+questionNumber+" "+joke.optString("question"));
+        setContentDescription("ฉากเรื่องที่ "+questionNumber+" "+questionText());
     }
+    String questionText(){return scene.optString("prompt",joke.optString("question"));}
     private void setChoicesEnabled(boolean value){for(View v:choices){v.setEnabled(value);v.setVisibility(value?VISIBLE:INVISIBLE);}}
     private float ox(int i){return new float[][]{{.16f,.51f,.84f},{.20f,.80f,.50f},{.82f,.18f,.50f},{.50f,.84f,.16f},{.16f,.84f,.50f}}[layout%5][i];}
-    private float oy(int i){return new float[][]{{.91f,.85f,.93f},{.84f,.87f,.96f},{.85f,.92f,.96f},{.85f,.93f,.91f},{.88f,.88f,.97f}}[layout%5][i];}
+    private float oy(int i){return new float[][]{{.91f,.85f,.93f},{.84f,.87f,.96f},{.85f,.92f,.96f},{.85f,.93f,.91f},{.88f,.88f,.97f}}[layout%5][i]-.07f;}
     // A single MATCH_PARENT child can retain a zero measurement after ScrollView's
     // unconstrained pass. Always measure and lay out the drawing surface explicitly.
     @Override protected void onMeasure(int widthSpec,int heightSpec){
@@ -51,13 +52,13 @@ final class StorySceneView extends FrameLayout {
         int w=getMeasuredWidth(),h=getMeasuredHeight();
         stage.measure(MeasureSpec.makeMeasureSpec(w,MeasureSpec.EXACTLY),MeasureSpec.makeMeasureSpec(h,MeasureSpec.EXACTLY));
         int size=Math.round(w*.27f),spec=MeasureSpec.makeMeasureSpec(size,MeasureSpec.EXACTLY);
-        for(View choice:choices)choice.measure(spec,spec);
+        for(View choice:choices)choice.measure(spec,MeasureSpec.makeMeasureSpec(size+Math.round(h*.07f),MeasureSpec.EXACTLY));
     }
     @Override protected void onLayout(boolean changed,int l,int t,int r,int b){
         int w=r-l,h=b-t;stage.layout(0,0,w,h);
         for(int i=0;i<3;i++){
             int size=choices[i].getMeasuredWidth(),x=Math.round(w*ox(i)-size/2f),y=Math.round(h*oy(i)-size);
-            choices[i].layout(x,y,x+size,y+size);
+            choices[i].layout(x,y,x+size,y+choices[i].getMeasuredHeight());
         }
     }
     void showWrong(int choice){chosen=choice;mode=1;transition=elapsed;callbackSent=false;setChoicesEnabled(false);stage.invalidate();}
@@ -140,13 +141,16 @@ final class StorySceneView extends FrameLayout {
                     if(scene.has("tints")&&scene.optJSONArray("tints").optInt(i)!=0)p.setColorFilter(new PorterDuffColorFilter(scene.optJSONArray("tints").optInt(i),PorterDuff.Mode.SRC_ATOP));
                     prop(c,objects[i],x,y,w*.25f*(scene.has("sizes")?(float)scene.optJSONArray("sizes").optDouble(i,1):1));p.setColorFilter(null);
                     if(!tags[i].isEmpty()){
-                        p.setColor(0xF2FFF1CB);c.drawRoundRect(x-w*.135f,y-h*.018f,x+w*.135f,y+h*.028f,w*.012f,w*.012f,p);
-                        label(c,tags[i],x,y-h*.014f,w*.26f,w*.026f,0xFF302A35);p.setColor(Color.WHITE);
+                        float font=w*.032f;StaticLayout caption;
+                        do{text.setTextSize(font);text.setTypeface(Typeface.create("sans-serif",Typeface.BOLD));caption=StaticLayout.Builder.obtain(tags[i],0,tags[i].length(),text,Math.max(1,(int)(w*.25f))).setAlignment(Layout.Alignment.ALIGN_CENTER).setIncludePad(false).build();if(caption.getHeight()<=h*.057f||font<=w*.023f)break;font-=w*.001f;}while(true);
+                        float top=y+h*.005f,bottom=top+caption.getHeight()+h*.009f;
+                        p.setColor(0xF5FFF5DD);c.drawRoundRect(x-w*.135f,top,x+w*.135f,bottom,w*.014f,w*.014f,p);
+                        text.setColor(0xFF302A35);c.save();c.translate(x-w*.125f,top+h*.004f);caption.draw(c);c.restore();p.setColor(Color.WHITE);
                     }
                     if(mode==1&&i==chosen)c.restore();
                 }
             }
-            String speech=mode==1?"ฮ่า ๆ! ยังไม่ใช่ ลองอีกที!":mode==3?joke.optString("punchline"):joke.optString("question");
+            String speech=mode==1?"ฮ่า ๆ! ยังไม่ใช่ ลองอีกที!":mode==3?joke.optString("punchline"):questionText();
             float bubbleTop=h*.105f,bubbleW=w*.89f;
             text.setTextSize(w*.047f);text.setTypeface(Typeface.create("sans-serif",Typeface.BOLD));
             StaticLayout measure=StaticLayout.Builder.obtain(speech,0,speech.length(),text,(int)(bubbleW-w*.06f)).setIncludePad(false).build();

@@ -44,7 +44,28 @@ public class MainActivity extends Activity {
 
     JokePatch.Content content;
     private Thread patchWorker;
-    private android.widget.Button enterGame;
+    private android.widget.Button enterGame,updateGame;
+    boolean updateAvailable=false;
+    private long lastUpdateCheck=-60000;
+    static Intent storeUpdateIntent(boolean playStore){
+        String id="com.sunantongsan.ghostmatch3";
+        Intent intent=new Intent(Intent.ACTION_VIEW,android.net.Uri.parse(playStore?"market://details?id="+id:"https://play.google.com/store/apps/details?id="+id));
+        if(playStore)intent.setPackage("com.android.vending");return intent;
+    }
+    void openStoreUpdate(){
+        try{startActivity(storeUpdateIntent(true));}
+        catch(ActivityNotFoundException e){try{startActivity(storeUpdateIntent(false));}catch(ActivityNotFoundException missing){android.widget.Toast.makeText(this,"ไม่พบ Google Play หรือเบราว์เซอร์บนเครื่อง",android.widget.Toast.LENGTH_LONG).show();}}
+    }
+    void showStoreUpdate(boolean available){
+        if(isDestroyed()||isFinishing())return;updateAvailable=available;
+        if(updateGame!=null)updateGame.setVisibility(available?View.VISIBLE:View.GONE);
+    }
+    private void checkStoreUpdate(){
+        long now=android.os.SystemClock.elapsedRealtime();if(now-lastUpdateCheck<60000)return;lastUpdateCheck=now;
+        com.google.android.play.core.appupdate.AppUpdateManagerFactory.create(this).getAppUpdateInfo()
+            .addOnSuccessListener(info->showStoreUpdate(info.updateAvailability()==com.google.android.play.core.install.model.UpdateAvailability.UPDATE_AVAILABLE))
+            .addOnFailureListener(error->{/* Offline or sideloaded: keep playing; store link remains in menu. */});
+    }
     private void showWelcome(){
         android.widget.LinearLayout welcome=new android.widget.LinearLayout(this);
         welcome.setOrientation(android.widget.LinearLayout.VERTICAL);welcome.setGravity(Gravity.CENTER);welcome.setPadding(32,40,32,40);welcome.setBackgroundColor(0xFFFFFBF0);
@@ -62,7 +83,9 @@ public class MainActivity extends Activity {
         android.widget.TextView status=new android.widget.TextView(this);status.setText("เตรียมเสียงหัวเราะ…");status.setTextSize(16);status.setBackgroundColor(0xDFFFF8E8);status.setGravity(Gravity.CENTER);status.setPadding(0,24,0,24);welcome.addView(status);
         enterGame=new android.widget.Button(this);enterGame.setText("กำลังเตรียมเกม…");enterGame.setEnabled(false);welcome.addView(enterGame,new android.widget.LinearLayout.LayoutParams(-1,-2));
         enterGame.setOnClickListener(v->{if(content!=null&&gameView==null)startGame();});
-        setContentView(welcome);
+        updateGame=new android.widget.Button(this);updateGame.setText("เวอร์ชันใหม่ • อัปเดต");updateGame.setAllCaps(false);updateGame.setVisibility(View.GONE);updateGame.setOnClickListener(v->openStoreUpdate());
+        welcome.addView(updateGame,welcome.indexOfChild(enterGame),new android.widget.LinearLayout.LayoutParams(-1,-2));
+        android.widget.ScrollView welcomeScroll=new android.widget.ScrollView(this);welcomeScroll.setFillViewport(true);welcomeScroll.addView(welcome);setContentView(welcomeScroll);
         patchWorker=new Thread(()->{
             try{
                 JokePatch.Content loaded=JokePatch.check(getApplicationContext(),(message,percent)->runOnUiThread(()->{if(isDestroyed()||isFinishing())return;status.setText(message);bar.setProgress(percent);}));
@@ -202,7 +225,7 @@ public class MainActivity extends Activity {
 
     private int dp(float value){return Math.round(value*getResources().getDisplayMetrics().density);}
 
-    @Override protected void onResume(){super.onResume();activityResumed=true;if(storySpeech!=null)storySpeech.setActive(true);if(gameAudio!=null)gameAudio.setActive(true);if(gameView!=null)gameView.setActive(true);flushQuizAdResult();}
+    @Override protected void onResume(){super.onResume();activityResumed=true;checkStoreUpdate();if(storySpeech!=null)storySpeech.setActive(true);if(gameAudio!=null)gameAudio.setActive(true);if(gameView!=null)gameView.setActive(true);flushQuizAdResult();}
     @Override protected void onPause(){activityResumed=false;if(storySpeech!=null)storySpeech.setActive(false);if(gameView!=null)gameView.setActive(false);if(gameAudio!=null)gameAudio.setActive(false);super.onPause();}
     @Override protected void onDestroy(){pendingQuizAdResult=null;if(storySpeech!=null)storySpeech.release();if(gameView!=null)gameView.release();if(gameAudio!=null)gameAudio.release();super.onDestroy();}
 

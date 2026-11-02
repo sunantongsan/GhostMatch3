@@ -6,12 +6,13 @@ import java.io.*;
 
 /** Shared atlases are decoded once per activity, not once per question. */
 final class StoryArt {
-    final Bitmap special,hero,motion;
+    final Bitmap special,hero,motion,lighter;
     final Bitmap[] rooms=new Bitmap[4];
     final JSONObject bounds;
     final Bitmap[] objects=new Bitmap[9];
     final JSONObject[] scenes;
     StoryArt(Context c)throws Exception{
+        lighter=load(c,"story/lighter.webp");
         motion=load(c,"story/motion.webp");
         for(int i=0;i<rooms.length;i++)rooms[i]=load(c,"story/rooms-"+i+".webp");
         try(InputStream in=c.getAssets().open("story/bounds.json")){bounds=new JSONObject(new String(JokePatch.read(in),"UTF-8"));}
@@ -33,6 +34,7 @@ final class StoryArt {
         c.drawBitmap(b,src,new RectF((width-w)/2,(height-h)/2,(width+w)/2,(height+h)/2),p);
     }
     void sprite(Canvas c,int id,float x,float y,float width,float height,Paint p){
+        if(id==-17){float scale=Math.min(width/lighter.getWidth(),height/lighter.getHeight()),w=lighter.getWidth()*scale,h=lighter.getHeight()*scale;c.drawBitmap(lighter,null,new RectF(x-w/2,y-h,x+w/2,y),p);return;}
         Bitmap b=id<0?special:objects[id/32];int cell=id<0?-id-1:id%32;
         Rect src=bounds(id<0?"special.webp":"objects-"+(id/32)+".webp",cell);
         float scale=Math.min(width/src.width(),height/src.height()),w=src.width()*scale,h=src.height()*scale;

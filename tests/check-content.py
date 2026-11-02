@@ -24,7 +24,7 @@ scenes=json.loads((p/'app/src/main/assets/story/scenes.json').read_text())['scen
 assert len(scenes)==len(jokes)
 for i,s in enumerate(scenes):
  assert s['id']==jokes[i]['id'] and 0<=s['room']<16 and len(s['objects'])==3 and len(s['tags'])==3
- for obj in [s['target']]+s['objects']:assert -16<=obj<288 and not 218<=obj<224
+ for obj in [s['target']]+s['objects']:assert -17<=obj<288 and not 218<=obj<224
 for n in ['special','motion']+[f'rooms-{i}' for i in range(4)]+[f'objects-{i}' for i in range(9)]:assert (p/f'app/src/main/assets/story/{n}.webp').stat().st_size>1000
 assert [c['label'] for c in jokes[23]['choices']]==['ค้อน','ระเบิด','ไฟ'] and jokes[23]['answer']==2
 print('PASS: all 156 story scenes, old tail preserved, art references and door choices')
@@ -38,3 +38,7 @@ print('PASS: bounded sprite crops and HD background atlases')
 assert len(jokes[42:56])==14
 for j in jokes[42:56]:
  assert not any(t in j["question"]+j["punchline"] for t in ["ขุนแผน","นัท","นกถูกเหยียบ","เย็นที่สุด","กทม."])
+
+assert all(len(s["labels"])==3 and all(s["labels"]) for s in scenes)
+assert scenes[26]["labels"][2]=="ไฟแช็ก" and scenes[26]["objects"][2]==-17
+assert scenes[27]["labels"][0]=="เงินบาท"

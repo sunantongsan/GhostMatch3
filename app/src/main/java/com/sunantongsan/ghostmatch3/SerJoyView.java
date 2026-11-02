@@ -120,7 +120,7 @@ final class SerJoyView extends ScrollView {
         FrameLayout.LayoutParams ml=new FrameLayout.LayoutParams(dp(56),dp(48),Gravity.TOP|Gravity.RIGHT);frame.addView(menu,ml);
         if(progress.phase==QuizProgress.Phase.CORRECT){story.showResolution(joke().optInt("answer"));}
         else if(progress.phase!=QuizProgress.Phase.QUESTION){story.showGate();showStoryGate(frame);}
-        else if(spokenIndex!=progress.index){spokenIndex=progress.index;host.sayStory(joke().optString("question"));}
+        else if(spokenIndex!=progress.index){spokenIndex=progress.index;host.sayStory(story.questionText());}
         post(()->{if(getHeight()>0){frame.getLayoutParams().height=getHeight()-getPaddingTop()-getPaddingBottom();frame.requestLayout();}scrollTo(0,0);});
     }
     private Button storyButton(FrameLayout frame,String label,Runnable action){
@@ -153,8 +153,8 @@ final class SerJoyView extends ScrollView {
                 .setNegativeButton("รอก่อน",null).show();
         });
     }
-    private void settings(){ArrayList<String> items=new ArrayList<>();items.add(host.soundEnabled()?"ปิดเสียง":"เปิดเสียง");items.add("นโยบายความเป็นส่วนตัว");if(host.getPackageName().endsWith(".storypreview"))items.add("ทดลองเลือกฉาก");if(host.needsPrivacyOptions())items.add("จัดการความยินยอมโฆษณา");
-        new android.app.AlertDialog.Builder(host).setTitle("ตั้งค่า").setItems(items.toArray(new String[0]),(d,n)->{if(n==0)host.toggleSound();else if(n==1)host.openPrivacyPolicy();else if(n==2&&host.getPackageName().endsWith(".storypreview")){
+    private void settings(){ArrayList<String> items=new ArrayList<>();items.add(host.soundEnabled()?"ปิดเสียง":"เปิดเสียง");items.add("นโยบายความเป็นส่วนตัว");if(host.getPackageName().endsWith(".storypreview"))items.add("ทดลองเลือกฉาก");if(host.needsPrivacyOptions())items.add("จัดการความยินยอมโฆษณา");items.add(host.updateAvailable?"เวอร์ชันใหม่ • อัปเดต":"อัปเดตใน Google Play");
+        new android.app.AlertDialog.Builder(host).setTitle("ตั้งค่า").setItems(items.toArray(new String[0]),(d,n)->{if(n==items.size()-1)host.openStoreUpdate();else if(n==0)host.toggleSound();else if(n==1)host.openPrivacyPolicy();else if(n==2&&host.getPackageName().endsWith(".storypreview")){
             String[] names=new String[jokes.length()];for(int i=0;i<names.length;i++)names[i]=(i+1)+". "+jokes.optJSONObject(i).optString("question");
             new android.app.AlertDialog.Builder(host).setTitle("ทดลองฉากทั้งหมด").setItems(names,(dialog,index)->{progress.index=index;progress.streak=0;progress.phase=QuizProgress.Phase.QUESTION;breakOpen=false;board=null;save();render();}).setNegativeButton("กลับ",null).show();
         }else host.openPrivacyOptions();}).setNegativeButton("กลับ",null).show();}

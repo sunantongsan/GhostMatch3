@@ -11,8 +11,8 @@ android {
         minSdk = 24
         targetSdk = 36
         manifestPlaceholders["appLabel"] = "ท่านเซ่อจ่อย"
-        versionCode = 49
-        versionName = "0.49.0"
+        versionCode = 50
+        versionName = "0.50.0"
         testInstrumentationRunner = "com.sunantongsan.ghostmatch3.SerJoySmoke"
     }
 
@@ -39,6 +39,7 @@ android {
 
 // Test-only AdMob integration. Replace sample identifiers only after privacy review.
 dependencies {
+    implementation("com.google.android.play:app-update:2.1.0")
     implementation("com.google.android.gms:play-services-ads:25.4.0")
     implementation("com.google.android.ump:user-messaging-platform:4.0.0")
 }
