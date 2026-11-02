@@ -64,8 +64,8 @@ public class SerJoySmoke extends Instrumentation {
   getTargetContext().getSharedPreferences("ad_age",0).edit().putString("band","teen").commit();
   getTargetContext().getSharedPreferences("ser_joy_v1",0).edit().clear().commit();
   byte[] bundled;try(InputStream in=getTargetContext().getAssets().open("ser-joy-content.json")){bundled=JokePatch.read(in);}
-  check(JokePatch.verified(bundled,JokePatch.sha(bundled),5,142).jokes.length()==156,"expanded patch compatible");
-  boolean rejected=false;try{JokePatch.verified(bundled,"bad",5,156);}catch(Exception expected){rejected=true;}check(rejected,"checksum rejection");
+  check(JokePatch.verified(bundled,JokePatch.sha(bundled),6,142).jokes.length()==156,"expanded patch compatible");
+  boolean rejected=false;try{JokePatch.verified(bundled,"bad",6,156);}catch(Exception expected){rejected=true;}check(rejected,"checksum rejection");
   File cache=new File(getTargetContext().getFilesDir(),"ser-joy-content.json");cache.delete();
   Intent market=MainActivity.storeUpdateIntent(true),web=MainActivity.storeUpdateIntent(false);
   check("com.android.vending".equals(market.getPackage())&&market.getDataString().equals("market://details?id=com.sunantongsan.ghostmatch3"),"store link opens exact game");
@@ -90,15 +90,23 @@ public class SerJoySmoke extends Instrumentation {
    selectQuestion(i);StorySceneView story=scene();check(story!=null,"story exists "+i);
    String[] captions=(String[])field(story,"tags");check(captions.length==3,"three visible captions");
    for(String caption:captions)check(!caption.trim().isEmpty(),"caption always available");
+   check(story.questionText().equals(host.content.jokes.getJSONObject(i).getString("question")),"original question shown");
+   if(i==30){check(captions[0].equals("หนอน")&&captions[1].equals("งู")&&captions[2].equals("ปลวก"),"library animals");check(!story.showsSetupSubject(),"no answer preview in library");}
    if(i==26)check(captions[2].equals("ไฟแช็ก"),"naga object label has no punchline");
    if(i==27)check(captions[0].equals("เงินบาท"),"currency label does not reveal wordplay");
    for(int a=0;a<3;a++){View v=story.choiceView(a);check(v.isClickable()&&v.getContentDescription().length()>0,"accessible object "+i);Rect ar=new Rect();v.getHitRect(ar);
     check(ar.left>=0&&ar.right<=story.getWidth()&&ar.top>=0&&ar.bottom<=story.getHeight(),"object within screen "+i);
     for(int b=a+1;b<3;b++){Rect br=new Rect();story.choiceView(b).getHitRect(br);check(!Rect.intersects(ar,br),"separate choices "+i);}
    }
+   shot("audit-before-"+(i+1));
    if(i>=42&&i<56){checkSceneDraws();runOnMainSync(story::showFinal);checkSceneDraws();}
    if(i==26||i==27||i==47||i==22||i==30||i==31||i==38||i==40||i==155||i==42||i==45||i==52||i==55)shot("scene-"+(i+1));
   }
+  selectQuestion(30);tap(scene().choiceView(0));
+  check(view.progress.phase==QuizProgress.Phase.CORRECT,"plain worm is accepted");
+  SystemClock.sleep(5400);check(scene().mode()==3,"bookworm explanation follows resolution");shot("library-explanation");
+  selectQuestion(34);StorySceneView toyota=scene();runOnMainSync(toyota::showFinal);shot("toyota-explanation");
+  selectQuestion(31);StorySceneView basket=scene();runOnMainSync(basket::showFinal);shot("basket-explanation");
   selectQuestion(23);shot("02-door-choices");tap(scene().choiceView(0));
   check(view.progress.phase==QuizProgress.Phase.AD_REQUIRED&&view.progress.index==23,"hammer wrong stays at door");shot("03-door-laugh");
   SystemClock.sleep(1700);check(scene().mode()==1,"no punchline on wrong");

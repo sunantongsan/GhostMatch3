@@ -41,7 +41,9 @@ final class StorySceneView extends FrameLayout {
         }
         setContentDescription("ฉากเรื่องที่ "+questionNumber+" "+questionText());
     }
-    String questionText(){return scene.optString("prompt",joke.optString("question"));}
+    String questionText(){return joke.optString("question");}
+    // Setup subjects must be explicitly reviewed. Never preview the resolution by default.
+    boolean showsSetupSubject(){return scene.optBoolean("showTargetBeforeAnswer",false);}
     private void setChoicesEnabled(boolean value){for(View v:choices){v.setEnabled(value);v.setVisibility(value?VISIBLE:INVISIBLE);}}
     private float ox(int i){return new float[][]{{.16f,.51f,.84f},{.20f,.80f,.50f},{.82f,.18f,.50f},{.50f,.84f,.16f},{.16f,.84f,.50f}}[layout%5][i];}
     private float oy(int i){return new float[][]{{.91f,.85f,.93f},{.84f,.87f,.96f},{.85f,.92f,.96f},{.85f,.93f,.91f},{.88f,.88f,.97f}}[layout%5][i]-.07f;}
@@ -124,7 +126,7 @@ final class StorySceneView extends FrameLayout {
                 else if(effect("weight|balance|seat|stuck|stand")){dy=h*.05f*act;rotation=(float)Math.sin(act*10)*5*(1-act);}
                 c.translate(dx,dy);c.rotate(rotation,tx,ty-ts*.5f);c.scale(sx,sy,tx,ty);p.setAlpha(alpha);
             }
-            prop(c,drawnTarget,tx,ty,ts);p.setAlpha(255);c.restore();
+            if(mode>=2||showsSetupSubject())prop(c,drawnTarget,tx,ty,ts);p.setAlpha(255);c.restore();
             if(mode>=2){
                 float pickup=ease(a/.18f),carry=ease((a-.18f)/.23f);
                 float cx=ox(chosen)*w+(hx+w*.13f-ox(chosen)*w)*pickup;
@@ -140,6 +142,12 @@ final class StorySceneView extends FrameLayout {
                     if(mode==1&&i==chosen){c.save();c.rotate((float)Math.sin(cut*19)*8,x,y);}
                     if(scene.has("tints")&&scene.optJSONArray("tints").optInt(i)!=0)p.setColorFilter(new PorterDuffColorFilter(scene.optJSONArray("tints").optInt(i),PorterDuff.Mode.SRC_ATOP));
                     prop(c,objects[i],x,y,w*.25f*(scene.has("sizes")?(float)scene.optJSONArray("sizes").optDouble(i,1):1));p.setColorFilter(null);
+                    JSONArray inscriptions=scene.optJSONArray("inscriptions");
+                    if(inscriptions!=null&&!inscriptions.optString(i).isEmpty()){
+                        String value=inscriptions.optString(i);
+                        p.setColor(0xF9FFF5DD);c.drawRoundRect(x-w*.12f,y-w*.17f,x+w*.12f,y-w*.075f,w*.012f,w*.012f,p);
+                        label(c,value,x,y-w*.16f,w*.23f,w*.028f,0xFF302A35);p.setColor(Color.WHITE);
+                    }
                     if(!tags[i].isEmpty()){
                         float font=w*.032f;StaticLayout caption;
                         do{text.setTextSize(font);text.setTypeface(Typeface.create("sans-serif",Typeface.BOLD));caption=StaticLayout.Builder.obtain(tags[i],0,tags[i].length(),text,Math.max(1,(int)(w*.25f))).setAlignment(Layout.Alignment.ALIGN_CENTER).setIncludePad(false).build();if(caption.getHeight()<=h*.057f||font<=w*.023f)break;font-=w*.001f;}while(true);
@@ -167,7 +175,10 @@ final class StorySceneView extends FrameLayout {
         private void resolvedEffects(Canvas c,float t,float w,float h,float x,float y,float size,int selected){
             if(t<=0)return;
             float pulse=(float)Math.sin(t*22);
-            if(action.equals("cliffstep")){
+            if(action.equals("bookworm")){
+                // The book association is revealed only after the player picks the plain worm.
+                if(t>.5f)art.sprite(c,111,x,y,size,size,p);
+            }else if(action.equals("cliffstep")){
                 float step=ease(t);art.sprite(c,224,x-size*.2f+step*size*.75f,y-size*.75f+step*step*h*.35f,size*.4f,size*.4f,p);
             }else if(action.equals("motherwash")){
                 art.sprite(c,-13,x-size*.55f,y,size*.65f,size*.8f,p);
