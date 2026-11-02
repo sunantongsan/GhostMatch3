@@ -33,6 +33,15 @@ final class SerJoyView extends ScrollView {
         try(java.io.InputStream in=host.getAssets().open("ser-joy-neighborhood.webp")){scenery=BitmapFactory.decodeStream(in);}
         catch(Exception e){throw new IllegalStateException("Missing scenery",e);}
         ghosts=BitmapFactory.decodeResource(getResources(),R.drawable.ghost_sprites);
+        // Content v3 replaces the rejected tail. Migrate once, preserving the first 22.
+        if (host.content.version >= 3 && prefs.getInt("curatedContentVersion", 0) < 3) {
+            SharedPreferences.Editor migration = prefs.edit().putInt("curatedContentVersion", 3);
+            if (prefs.getInt("index", 0) >= 22) {
+                migration.putInt("index", 22).putInt("streak", 0)
+                    .putString("phase", "QUESTION").remove("board");
+            }
+            migration.commit();
+        }
         progress=new QuizProgress(jokes.length(),prefs.getInt("index",0),prefs.getInt("streak",0),prefs.getString("phase","QUESTION"));
         setFillViewport(true);setBackground(new android.graphics.drawable.Drawable(){
             final Paint brush=new Paint(3);

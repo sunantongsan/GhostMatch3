@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "version": 2,
-  "minAppVersion": 43,
-  "file": "ser-joy-v2.json",
-  "sha256": "901ee0fd452c6cba15987e54d08f4f10898b649730ce91987d1528e6841a048f"
+  "version": 3,
+  "minAppVersion": 47,
+  "file": "ser-joy-v3.json",
+  "sha256": "fb0c22986e0769476eccee2cffabd101ab477ead15d9a3435037eb423cc0f932"
 }

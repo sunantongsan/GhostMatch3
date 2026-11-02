@@ -1,7 +1,7 @@
 name: Ser Joy build and device checks
 on:
   push:
-    branches: [feature/ser-joy-quiz, feature/serjoy-swipe-audio, fix/serjoy-real-match3, feature/serjoy-comedy-polish]
+    branches: [main, feature/ser-joy-quiz, feature/serjoy-swipe-audio, fix/serjoy-real-match3, feature/serjoy-comedy-polish]
   workflow_dispatch:
 permissions:
   contents: read
@@ -42,7 +42,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: SerJoy-0.46.0-test
+          name: SerJoy-0.47.0-test
           path: |
             app/build/outputs/apk/debug/app-debug.apk
             app/build/outputs/bundle/release/app-release.aab

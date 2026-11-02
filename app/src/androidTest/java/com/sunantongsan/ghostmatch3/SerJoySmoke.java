@@ -24,18 +24,18 @@ public class SerJoySmoke extends Instrumentation {
  public void onStart(){Bundle result=new Bundle();try{
   getTargetContext().getSharedPreferences("ad_age",0).edit().putString("band","teen").commit();getTargetContext().getSharedPreferences("ser_joy_v1",0).edit().clear().commit();
   byte[] bundled;try(InputStream in=getTargetContext().getAssets().open("ser-joy-content.json")){bundled=JokePatch.read(in);}
-  check(JokePatch.verified(bundled,JokePatch.sha(bundled),2,122).jokes.length()==122,"valid patch");
-  boolean rejected=false;try{JokePatch.verified(bundled,"bad",2,122);}catch(Exception expected){rejected=true;}check(rejected,"checksum rejection");
-  rejected=false;try{JokePatch.verified(bundled,JokePatch.sha(bundled),3,122);}catch(Exception expected){rejected=true;}check(rejected,"version rejection");
+  check(JokePatch.verified(bundled,JokePatch.sha(bundled),3,42).jokes.length()==42,"valid patch");
+  boolean rejected=false;try{JokePatch.verified(bundled,"bad",3,42);}catch(Exception expected){rejected=true;}check(rejected,"checksum rejection");
+  rejected=false;try{JokePatch.verified(bundled,JokePatch.sha(bundled),4,42);}catch(Exception expected){rejected=true;}check(rejected,"version rejection");
   org.json.JSONObject invalid=new org.json.JSONObject(new String(bundled,"UTF-8"));invalid.getJSONArray("jokes").getJSONObject(0).put("answer",9);
   rejected=false;try{JokePatch.validate(invalid.toString().getBytes("UTF-8"));}catch(Exception expected){rejected=true;}check(rejected,"invalid answer rejection");
   File cache=new File(getTargetContext().getFilesDir(),"ser-joy-content.json");try(FileOutputStream out=new FileOutputStream(cache)){out.write("broken".getBytes("UTF-8"));}
-  check(JokePatch.local(getTargetContext()).jokes.length()==122,"corrupt cache fallback");cache.delete();
-  org.json.JSONObject updated=new org.json.JSONObject(new String(bundled,"UTF-8"));updated.put("version",3);byte[] patch=updated.toString().getBytes("UTF-8");
-  JokePatch.install(getTargetContext(),patch,JokePatch.sha(patch),3,122);
-  check(JokePatch.local(getTargetContext()).version==3,"downloaded content persists for offline launch");
-  try{JokePatch.install(getTargetContext(),bundled,"bad",4,122);}catch(Exception expected){}
-  check(JokePatch.local(getTargetContext()).version==3,"bad update preserves last good cache");cache.delete();
+  check(JokePatch.local(getTargetContext()).jokes.length()==42,"corrupt cache fallback");cache.delete();
+  org.json.JSONObject updated=new org.json.JSONObject(new String(bundled,"UTF-8"));updated.put("version",4);byte[] patch=updated.toString().getBytes("UTF-8");
+  JokePatch.install(getTargetContext(),patch,JokePatch.sha(patch),4,42);
+  check(JokePatch.local(getTargetContext()).version==4,"downloaded content persists for offline launch");
+  try{JokePatch.install(getTargetContext(),bundled,"bad",4,42);}catch(Exception expected){}
+  check(JokePatch.local(getTargetContext()).version==4,"bad update preserves last good cache");cache.delete();
   getTargetContext().getSharedPreferences("game_audio",0).edit().putBoolean("enabled",true).commit();
   launch();check(view.progress.index==0,"initial question");
   GameAudio sounds=(GameAudio)field(host,"gameAudio");android.media.MediaPlayer music=(android.media.MediaPlayer)field(sounds,"music");
@@ -69,6 +69,20 @@ public class SerJoySmoke extends Instrumentation {
   int[] tap=board.hint();runOnMainSync(()->{float tapSide=restored.getWidth()/8f;long t=SystemClock.uptimeMillis();for(int cell:tap)for(int action:new int[]{MotionEvent.ACTION_DOWN,MotionEvent.ACTION_UP}){MotionEvent e=MotionEvent.obtain(t,t,action,(cell%8+.5f)*tapSide,(cell/8+.5f)*tapSide,0);restored.dispatchTouchEvent(e);e.recycle();}});
   check(board.moves==remaining-1,"tap-to-swap still works");
   final AdventureEngine end=board;runOnMainSync(()->{while(end.moves>0&&!end.won){int[] h=end.hint();end.move(h[0],h[1]);}});invoke("render",new Class[]{});shot("06-break-complete");
+  // Upgrading old saves replaces only the discarded tail, once.
+  for(int oldIndex:new int[]{21,22,80,122}) {
+   runOnMainSync(()->host.finish());waitForIdleSync();
+   getTargetContext().getSharedPreferences("ser_joy_v1",0).edit().clear()
+    .putInt("index",oldIndex).putInt("streak",1).putString("phase","AD_REQUIRED")
+    .putString("board","old-board").commit();
+   launch();
+   check(view.progress.index==Math.min(oldIndex,22),"curated tail starts at question 23");
+   check(view.progress.phase==(oldIndex<22?QuizProgress.Phase.AD_REQUIRED:QuizProgress.Phase.QUESTION),"first 22 gates preserved");
+   if(oldIndex>=22)check(!getTargetContext().getSharedPreferences("ser_joy_v1",0).contains("board"),"discard obsolete break board");
+  }
+  runOnMainSync(()->{view.progress.answer(true);view.progress.next();});invoke("save",new Class[]{});
+  runOnMainSync(()->host.finish());waitForIdleSync();launch();
+  check(view.progress.index==23,"migration does not replay on restart");
   result.putString("stream","PASS: quiz screens, reactions, restart gates, real board touch and persisted break\n");finish(Activity.RESULT_OK,result);
  }catch(Throwable t){result.putString("stream","FAIL: "+android.util.Log.getStackTraceString(t));finish(Activity.RESULT_CANCELED,result);}}
 }
