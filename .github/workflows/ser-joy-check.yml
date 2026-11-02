@@ -40,6 +40,25 @@ jobs:
           disable-animations: true
           script: bash tests/run-device.sh
       - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: SerJoy-0.51.0-release
+          path: |
+            app/build/outputs/bundle/release/app-release.aab
+            smoke-result.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: SerJoy-0.51.0-review
+          path: |
+            screenshots/audit-before-31.png
+            screenshots/audit-before-32.png
+            screenshots/audit-before-35.png
+            screenshots/audit-before-51.png
+            screenshots/library-explanation.png
+            screenshots/toyota-explanation.png
+            screenshots/basket-explanation.png
+      - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: SerJoy-0.51.0-test
