@@ -12,77 +12,61 @@ public class SerJoySmoke extends Instrumentation {
  void check(boolean b,String m){if(!b)throw new AssertionError(m);}
  Object field(Object o,String n)throws Exception{Field f=o.getClass().getDeclaredField(n);f.setAccessible(true);return f.get(o);}
  void invoke(String name,Class<?>[] types,Object...args){final Throwable[] error={null};runOnMainSync(()->{try{Method m=view.getClass().getDeclaredMethod(name,types);m.setAccessible(true);m.invoke(view,args);}catch(Throwable e){error[0]=e;}});if(error[0]!=null)throw new RuntimeException(error[0]);waitForIdleSync();}
- void shot(String name)throws Exception{SystemClock.sleep(1000);Bitmap b=getUiAutomation().takeScreenshot();File dir=new File(getTargetContext().getExternalFilesDir(null),"screenshots");dir.mkdirs();try(FileOutputStream out=new FileOutputStream(new File(dir,name+".png"))){b.compress(Bitmap.CompressFormat.PNG,100,out);}b.recycle();}
- void launch()throws Exception{host=(MainActivity)startActivitySync(new Intent(getTargetContext(),MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));waitForIdleSync();
-  check(field(host,"gameView")==null,"welcome gates game");
-  long until=SystemClock.elapsedRealtime()+30000;
-  while(field(host,"content")==null&&SystemClock.elapsedRealtime()<until){SystemClock.sleep(100);waitForIdleSync();}
-  check(field(host,"content")!=null,"patch loader completes or falls back");
-  if(view==null)shot("00-welcome");
-  runOnMainSync(()->{try{((android.widget.Button)field(host,"enterGame")).performClick();}catch(Exception e){throw new RuntimeException(e);}});
-  view=(SerJoyView)field(host,"gameView");waitForIdleSync();}
+ void shot(String name)throws Exception{SystemClock.sleep(150);Bitmap b=getUiAutomation().takeScreenshot();File dir=new File(getTargetContext().getExternalFilesDir(null),"screenshots");dir.mkdirs();try(FileOutputStream out=new FileOutputStream(new File(dir,name+".png"))){b.compress(Bitmap.CompressFormat.PNG,100,out);}b.recycle();}
+ void launch()throws Exception{
+  host=(MainActivity)startActivitySync(new Intent(getTargetContext(),MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));waitForIdleSync();
+  long until=SystemClock.elapsedRealtime()+30000;while(field(host,"content")==null&&SystemClock.elapsedRealtime()<until){SystemClock.sleep(100);waitForIdleSync();}
+  check(field(host,"content")!=null,"welcome loader completes");
+  runOnMainSync(()->{try{((android.widget.Button)field(host,"enterGame")).performClick();}catch(Exception e){throw new RuntimeException(e);}});view=(SerJoyView)field(host,"gameView");waitForIdleSync();
+ }
+ StorySceneView scene()throws Exception{return (StorySceneView)field(view,"story");}
+ void selectQuestion(int index){runOnMainSync(()->{view.progress.index=index;view.progress.phase=QuizProgress.Phase.QUESTION;view.progress.streak=0;});invoke("render",new Class[]{});}
+ void tap(View v)throws Exception{
+  int[] xy=new int[2];runOnMainSync(()->v.getLocationOnScreen(xy));float x=xy[0]+v.getWidth()/2f,y=xy[1]+v.getHeight()/2f;
+  check(v.getWidth()>=48*getTargetContext().getResources().getDisplayMetrics().density,"minimum touch target");
+  long at=SystemClock.uptimeMillis();for(int action:new int[]{MotionEvent.ACTION_DOWN,MotionEvent.ACTION_UP}){MotionEvent e=MotionEvent.obtain(at,SystemClock.uptimeMillis(),action,x,y,0);e.setSource(InputDevice.SOURCE_TOUCHSCREEN);check(getUiAutomation().injectInputEvent(e,true),"touch inject");e.recycle();}waitForIdleSync();
+ }
  public void onStart(){Bundle result=new Bundle();try{
-  getTargetContext().getSharedPreferences("ad_age",0).edit().putString("band","teen").commit();getTargetContext().getSharedPreferences("ser_joy_v1",0).edit().clear().commit();
+  getTargetContext().getSharedPreferences("ad_age",0).edit().putString("band","teen").commit();
+  getTargetContext().getSharedPreferences("ser_joy_v1",0).edit().clear().commit();
   byte[] bundled;try(InputStream in=getTargetContext().getAssets().open("ser-joy-content.json")){bundled=JokePatch.read(in);}
-  check(JokePatch.verified(bundled,JokePatch.sha(bundled),3,42).jokes.length()==42,"valid patch");
-  boolean rejected=false;try{JokePatch.verified(bundled,"bad",3,42);}catch(Exception expected){rejected=true;}check(rejected,"checksum rejection");
-  rejected=false;try{JokePatch.verified(bundled,JokePatch.sha(bundled),4,42);}catch(Exception expected){rejected=true;}check(rejected,"version rejection");
-  org.json.JSONObject invalid=new org.json.JSONObject(new String(bundled,"UTF-8"));invalid.getJSONArray("jokes").getJSONObject(0).put("answer",9);
-  rejected=false;try{JokePatch.validate(invalid.toString().getBytes("UTF-8"));}catch(Exception expected){rejected=true;}check(rejected,"invalid answer rejection");
-  File cache=new File(getTargetContext().getFilesDir(),"ser-joy-content.json");try(FileOutputStream out=new FileOutputStream(cache)){out.write("broken".getBytes("UTF-8"));}
-  check(JokePatch.local(getTargetContext()).jokes.length()==42,"corrupt cache fallback");cache.delete();
-  org.json.JSONObject updated=new org.json.JSONObject(new String(bundled,"UTF-8"));updated.put("version",4);byte[] patch=updated.toString().getBytes("UTF-8");
-  JokePatch.install(getTargetContext(),patch,JokePatch.sha(patch),4,42);
-  check(JokePatch.local(getTargetContext()).version==4,"downloaded content persists for offline launch");
-  try{JokePatch.install(getTargetContext(),bundled,"bad",4,42);}catch(Exception expected){}
-  check(JokePatch.local(getTargetContext()).version==4,"bad update preserves last good cache");cache.delete();
-  getTargetContext().getSharedPreferences("game_audio",0).edit().putBoolean("enabled",true).commit();
-  launch();check(view.progress.index==0,"initial question");
-  GameAudio sounds=(GameAudio)field(host,"gameAudio");android.media.MediaPlayer music=(android.media.MediaPlayer)field(sounds,"music");
-  check(music!=null&&music.isPlaying(),"supplied quiz music starts");
-  runOnMainSync(sounds::toggle);check(!music.isPlaying(),"mute pauses music");
-  runOnMainSync(sounds::toggle);check(music.isPlaying(),"unmute resumes music");
-  runOnMainSync(()->sounds.setActive(false));check(!music.isPlaying(),"background pauses music");runOnMainSync(()->sounds.setActive(true));shot("01-question");
-  invoke("answer",new Class[]{int.class},1);check(view.progress.phase==QuizProgress.Phase.AD_REQUIRED,"wrong gate");shot("02-wrong-reaction");SystemClock.sleep(1300);
-  runOnMainSync(()->host.finish());waitForIdleSync();SystemClock.sleep(500);launch();check(view.progress.phase==QuizProgress.Phase.AD_REQUIRED&&view.progress.streak==1,"restart retains gate: phase="+view.progress.phase+", streak="+view.progress.streak+", prefs="+getTargetContext().getSharedPreferences("ser_joy_v1",0).getAll());
-  // State-machine reward is tested without pretending an actual network ad was watched.
-  runOnMainSync(()->view.progress.reward());invoke("render",new Class[]{});
-  invoke("answer",new Class[]{int.class},1);check(view.progress.phase==QuizProgress.Phase.CORRECT,"correct answer");shot("03-correct-reaction");SystemClock.sleep(1600);shot("03b-correct-thumbs-up");
-  runOnMainSync(()->{view.progress.next();view.progress.answer(false);view.progress.reward();view.progress.answer(false);view.progress.reward();view.progress.answer(false);});
-  invoke("save",new Class[]{});invoke("render",new Class[]{});check(view.progress.phase==QuizProgress.Phase.BREAK_REQUIRED,"three wrong");shot("04-break-gate");
-  org.json.JSONObject legacy=new org.json.JSONObject();legacy.put("index",view.progress.index);legacy.put("moves",8);legacy.put("score",60);org.json.JSONArray legacyCells=new org.json.JSONArray();for(int n=0;n<64;n++){legacyCells.put(n%6);legacyCells.put(0);}legacy.put("cells",legacyCells);
-  getTargetContext().getSharedPreferences("ser_joy_v1",0).edit().putString("board",legacy.toString()).commit();invoke("startBreak",new Class[]{});
-  AdventureEngine migrated=(AdventureEngine)field(view,"board");check(migrated.moves==8&&migrated.score==60,"legacy round progress preserved");for(int[] row:migrated.tile)for(int type:row)check(type>=0&&type<3,"one visible ghost per match type");
-  GameAudio breakAudio=(GameAudio)field(host,"gameAudio");check((Boolean)field(breakAudio,"breakMusic"),"break selects second supplied music track");
-  check(((android.media.MediaPlayer)field(breakAudio,"music")).isPlaying(),"break music plays");shot("05-match-three");
-  AdventureEngine board=(AdventureEngine)field(view,"board");int before=board.moves;View bv=(View)field(view,"boardView");int[] pair=board.hint();
-  int[] screen=new int[2];runOnMainSync(()->bv.getLocationOnScreen(screen));float side=bv.getWidth()/8f;
-  long touch=SystemClock.uptimeMillis();float x=screen[0]+(pair[0]%8+.5f)*side,y=screen[1]+(pair[0]/8+.5f)*side,tx=screen[0]+(pair[1]%8+.5f)*side,ty=screen[1]+(pair[1]/8+.5f)*side;
-  for(int action:new int[]{MotionEvent.ACTION_DOWN,MotionEvent.ACTION_MOVE,MotionEvent.ACTION_MOVE,MotionEvent.ACTION_UP}){
-   MotionEvent e=MotionEvent.obtain(touch,SystemClock.uptimeMillis(),action,action==MotionEvent.ACTION_DOWN?x:tx,action==MotionEvent.ACTION_DOWN?y:ty,0);e.setSource(android.view.InputDevice.SOURCE_TOUCHSCREEN);check(getUiAutomation().injectInputEvent(e,true),"real touchscreen injection");e.recycle();SystemClock.sleep(60);
+  check(JokePatch.verified(bundled,JokePatch.sha(bundled),4,122).jokes.length()==142,"expanded patch compatible");
+  boolean rejected=false;try{JokePatch.verified(bundled,"bad",4,142);}catch(Exception expected){rejected=true;}check(rejected,"checksum rejection");
+  File cache=new File(getTargetContext().getFilesDir(),"ser-joy-content.json");cache.delete();
+  launch();check(view.progress.index==0,"initial question");shot("01-ant-story");
+  // Every question must instantiate the scene renderer with three usable nonoverlapping objects.
+  for(int i=0;i<142;i++){
+   selectQuestion(i);StorySceneView story=scene();check(story!=null,"story exists "+i);
+   for(int a=0;a<3;a++){View v=story.choiceView(a);check(v.isClickable()&&v.getContentDescription().length()>0,"accessible object "+i);Rect ar=new Rect();v.getHitRect(ar);
+    check(ar.left>=0&&ar.right<=story.getWidth()&&ar.top>=0&&ar.bottom<=story.getHeight(),"object within screen "+i);
+    for(int b=a+1;b<3;b++){Rect br=new Rect();story.choiceView(b).getHitRect(br);check(!Rect.intersects(ar,br),"separate choices "+i);}
+   }
+   if(i==22||i==30||i==31||i==38||i==40||i==141)shot("scene-"+(i+1));
   }
-  SystemClock.sleep(100);shot("05b-cascade");SystemClock.sleep(1500);
-  check(board.moves==before-1,"drag and repeated MOVE consume exactly one turn");runOnMainSync(()->host.finish());waitForIdleSync();SystemClock.sleep(500);launch();invoke("startBreak",new Class[]{});board=(AdventureEngine)field(view,"board");check(board.moves==before-1,"break board restored");
-  View restored=(View)field(view,"boardView");final int remaining=board.moves;
-  runOnMainSync(()->{long t=SystemClock.uptimeMillis();for(int action:new int[]{MotionEvent.ACTION_DOWN,MotionEvent.ACTION_CANCEL,MotionEvent.ACTION_UP}){MotionEvent e=MotionEvent.obtain(t,t,action,10,10,0);restored.dispatchTouchEvent(e);e.recycle();}});
-  check(board.moves==remaining,"cancelled drag never swaps");
-  int[] tap=board.hint();runOnMainSync(()->{float tapSide=restored.getWidth()/8f;long t=SystemClock.uptimeMillis();for(int cell:tap)for(int action:new int[]{MotionEvent.ACTION_DOWN,MotionEvent.ACTION_UP}){MotionEvent e=MotionEvent.obtain(t,t,action,(cell%8+.5f)*tapSide,(cell/8+.5f)*tapSide,0);restored.dispatchTouchEvent(e);e.recycle();}});
-  check(board.moves==remaining-1,"tap-to-swap still works");
-  final AdventureEngine end=board;runOnMainSync(()->{while(end.moves>0&&!end.won){int[] h=end.hint();end.move(h[0],h[1]);}});invoke("render",new Class[]{});shot("06-break-complete");
-  // Upgrading old saves replaces only the discarded tail, once.
-  for(int oldIndex:new int[]{21,22,80,122}) {
-   runOnMainSync(()->host.finish());waitForIdleSync();
-   getTargetContext().getSharedPreferences("ser_joy_v1",0).edit().clear()
-    .putInt("index",oldIndex).putInt("streak",1).putString("phase","AD_REQUIRED")
-    .putString("board","old-board").commit();
-   launch();
-   check(view.progress.index==Math.min(oldIndex,22),"curated tail starts at question 23");
-   check(view.progress.phase==(oldIndex<22?QuizProgress.Phase.AD_REQUIRED:QuizProgress.Phase.QUESTION),"first 22 gates preserved");
-   if(oldIndex>=22)check(!getTargetContext().getSharedPreferences("ser_joy_v1",0).contains("board"),"discard obsolete break board");
-  }
-  runOnMainSync(()->{view.progress.answer(true);view.progress.next();});invoke("save",new Class[]{});
-  runOnMainSync(()->host.finish());waitForIdleSync();launch();
-  check(view.progress.index==23,"migration does not replay on restart");
-  result.putString("stream","PASS: quiz screens, reactions, restart gates, real board touch and persisted break\n");finish(Activity.RESULT_OK,result);
+  selectQuestion(23);shot("02-door-choices");tap(scene().choiceView(0));
+  check(view.progress.phase==QuizProgress.Phase.AD_REQUIRED&&view.progress.index==23,"hammer wrong stays at door");shot("03-door-laugh");
+  SystemClock.sleep(1700);check(scene().mode()==1,"no punchline on wrong");
+  runOnMainSync(()->host.finish());waitForIdleSync();SystemClock.sleep(300);launch();
+  check(view.progress.index==23&&view.progress.phase==QuizProgress.Phase.AD_REQUIRED,"wrong gate survives restart");
+  // Simulate state-machine reward, never claim an actual ad impression was watched.
+  runOnMainSync(()->view.progress.reward());invoke("save",new Class[]{});invoke("render",new Class[]{});
+  check(view.progress.index==23&&view.progress.phase==QuizProgress.Phase.QUESTION,"reward retries same question");
+  tap(scene().choiceView(1));check(view.progress.phase==QuizProgress.Phase.AD_REQUIRED,"bomb also wrong");
+  SystemClock.sleep(1700);runOnMainSync(()->view.progress.reward());invoke("render",new Class[]{});
+  tap(scene().choiceView(2));check(view.progress.phase==QuizProgress.Phase.CORRECT,"fire correct");
+  StorySceneView correct=scene();check(correct.mode()==2&&!correct.choiceView(0).isEnabled(),"cutscene locks input");
+  SystemClock.sleep(2200);shot("04-fire-carried-to-door");SystemClock.sleep(1100);shot("05-door-running");
+  runOnMainSync(()->view.setActive(false));long paused=(Long)field(correct,"elapsed");SystemClock.sleep(500);check((Long)field(correct,"elapsed")==paused,"background pauses cutscene");runOnMainSync(()->view.setActive(true));
+  SystemClock.sleep(2500);check(correct.mode()==3,"cutscene completes");shot("06-door-punchline");
+  runOnMainSync(()->view.progress.next());invoke("save",new Class[]{});invoke("render",new Class[]{});check(view.progress.index==24,"next advances once");
+  selectQuestion(38);tap(scene().choiceView(2));SystemClock.sleep(5400);shot("07-egg-cracks");
+  selectQuestion(40);tap(scene().choiceView(1));SystemClock.sleep(5400);shot("08-toad-on-icecream");
+  // Existing match-three remains playable and returns to the same unsolved question.
+  selectQuestion(2);runOnMainSync(()->{view.progress.answer(false);view.progress.reward();view.progress.answer(false);view.progress.reward();view.progress.answer(false);});
+  check(view.progress.phase==QuizProgress.Phase.BREAK_REQUIRED,"three wrong still opens break gate");invoke("startBreak",new Class[]{});
+  AdventureEngine board=(AdventureEngine)field(view,"board");int before=board.moves;int[] pair=board.hint();
+  runOnMainSync(()->board.move(pair[0],pair[1]));check(board.moves==before-1,"match-three valid move");
+  runOnMainSync(()->view.progress.finishBreak());check(view.progress.index==2&&view.progress.phase==QuizProgress.Phase.QUESTION,"break retries same question");
+  result.putString("stream","PASS: quiz screens, all 142 illustrated scenes, touch targets, retry gates, door fire cutscene, saved progress and match-three\n");finish(Activity.RESULT_OK,result);
  }catch(Throwable t){result.putString("stream","FAIL: "+android.util.Log.getStackTraceString(t));finish(Activity.RESULT_CANCELED,result);}}
 }

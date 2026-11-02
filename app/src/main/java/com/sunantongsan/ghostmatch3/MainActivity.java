@@ -24,6 +24,7 @@ public class MainActivity extends Activity {
     private static final String TEST_REWARDED_ID="ca-app-pub-3940256099942544/5224354917";
     private SerJoyView gameView;
     private GameAudio gameAudio;
+    private StorySpeech storySpeech;
     private ConsentInformation consentInformation;
     private RewardedAd rewardedAd;
     private boolean adsInitialized=false, rewardLoading=false, privacyOptionsRequired=false;
@@ -72,6 +73,7 @@ public class MainActivity extends Activity {
     private void startGame(){
         gameAudio=new GameAudio(this);
         gameAudio.setActive(activityResumed);
+        storySpeech=new StorySpeech(this);
         gameView=new SerJoyView(this);
         gameView.setActive(activityResumed);
         rootLayout=new android.widget.FrameLayout(this);
@@ -190,16 +192,18 @@ public class MainActivity extends Activity {
         new android.app.AlertDialog.Builder(this).setTitle("ความเป็นส่วนตัว").setView(scroll).setPositiveButton("ปิด",null).show();
     }
 
+    void sayStory(String text){if(storySpeech!=null)storySpeech.say(text);}
+    void stopStorySpeech(){if(storySpeech!=null)storySpeech.stop();}
     void setBreakMusic(boolean value){if(gameAudio!=null)gameAudio.setBreakMusic(value);}
     void playSound(int kind){if(gameAudio!=null)gameAudio.play(kind);}
     boolean soundEnabled(){return gameAudio!=null&&gameAudio.isEnabled();}
-    void toggleSound(){if(gameAudio!=null){gameAudio.toggle();gameAudio.play(GameAudio.GHOST);}}
+    void toggleSound(){if(gameAudio!=null){gameAudio.toggle();if(!gameAudio.isEnabled())stopStorySpeech();gameAudio.play(GameAudio.GHOST);}}
 
     private int dp(float value){return Math.round(value*getResources().getDisplayMetrics().density);}
 
-    @Override protected void onResume(){super.onResume();activityResumed=true;if(gameAudio!=null)gameAudio.setActive(true);if(gameView!=null)gameView.setActive(true);}
-    @Override protected void onPause(){activityResumed=false;if(gameView!=null)gameView.setActive(false);if(gameAudio!=null)gameAudio.setActive(false);super.onPause();}
-    @Override protected void onDestroy(){if(gameView!=null)gameView.release();if(gameAudio!=null)gameAudio.release();super.onDestroy();}
+    @Override protected void onResume(){super.onResume();activityResumed=true;if(storySpeech!=null)storySpeech.setActive(true);if(gameAudio!=null)gameAudio.setActive(true);if(gameView!=null)gameView.setActive(true);}
+    @Override protected void onPause(){activityResumed=false;if(storySpeech!=null)storySpeech.setActive(false);if(gameView!=null)gameView.setActive(false);if(gameAudio!=null)gameAudio.setActive(false);super.onPause();}
+    @Override protected void onDestroy(){if(storySpeech!=null)storySpeech.release();if(gameView!=null)gameView.release();if(gameAudio!=null)gameAudio.release();super.onDestroy();}
 
     private boolean canRequestAds(){return TEST_ADS||(consentInformation!=null&&consentInformation.canRequestAds());}
 

@@ -19,7 +19,7 @@ final class QuizProgress {
         return true;
     }
     boolean next(){if(phase!=Phase.CORRECT)return false;advance();return true;}
-    boolean reward(){if(phase!=Phase.AD_REQUIRED)return false;advance();return true;}
-    boolean finishBreak(){if(phase!=Phase.BREAK_REQUIRED)return false;streak=0;advance();return true;}
+    boolean reward(){if(phase!=Phase.AD_REQUIRED)return false;phase=Phase.QUESTION;return true;}
+    boolean finishBreak(){if(phase!=Phase.BREAK_REQUIRED)return false;streak=0;phase=Phase.QUESTION;return true;}
     private void advance(){index++;phase=index>=total?Phase.COMPLETE:Phase.QUESTION;}
 }

@@ -11,12 +11,18 @@ android {
         minSdk = 24
         targetSdk = 36
         manifestPlaceholders["appLabel"] = "ท่านเซ่อจ่อย"
-        versionCode = 47
-        versionName = "0.47.0"
+        versionCode = 48
+        versionName = "0.48.0"
         testInstrumentationRunner = "com.sunantongsan.ghostmatch3.SerJoySmoke"
     }
 
     buildTypes {
+        create("storyPreview") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".storypreview"
+            manifestPlaceholders["appLabel"] = "เซ่อจ่อย • ฉากใหม่"
+            matchingFallbacks += listOf("debug")
+        }
         release {
             isMinifyEnabled = false
             // Artwork is already compressed; avoid AAPT2 re-crunching sprite sheets.

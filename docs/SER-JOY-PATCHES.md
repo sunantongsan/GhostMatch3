@@ -19,3 +19,6 @@ App 47 ignores older cached v2 in favor of bundled v3. On first entry it preserv
 saves within the first 22 questions, and resets later saves to question 23 with
 obsolete reward/break state cleared. A persistent marker prevents repeated resets.
 Future online updates still enforce the no-shrinking rule.
+
+## v4 / app 48
+Supersedes the v3 tail removal: restore the previous 100 after the supplied 20. Content v4 has 142 jokes and minAppVersion 43. Illustrated scenes and retry behavior require app 48; see SER-JOY-STORY-SCENES.md.

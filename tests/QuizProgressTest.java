@@ -3,8 +3,8 @@ public class QuizProgressTest {
  static void check(boolean b,String m){if(!b)throw new AssertionError(m);}
  public static void main(String[] args){
   QuizProgress q=new QuizProgress(22,0,0,"QUESTION");
-  for(int i=0;i<2;i++){check(q.answer(false),"accept wrong");check(!q.answer(false),"double tap ignored");check(!q.next(),"wrong cannot bypass ad");q=new QuizProgress(22,q.index,q.streak,q.phase.name());check(q.phase==QuizProgress.Phase.AD_REQUIRED,"restore gate");check(q.reward(),"earned reward advances");check(!q.reward(),"reward once");check(q.streak==i+1,"streak survives ads");}
-  q.answer(false);check(q.phase==QuizProgress.Phase.BREAK_REQUIRED,"third wrong break");check(!q.reward(),"ad cannot bypass break");q.finishBreak();check(q.index==3&&q.streak==0,"break advances once and resets");check(!q.finishBreak(),"break cannot advance twice");
+  for(int i=0;i<2;i++){check(q.answer(false),"accept wrong");check(!q.answer(false),"double tap ignored");check(!q.next(),"wrong cannot bypass ad");q=new QuizProgress(22,q.index,q.streak,q.phase.name());check(q.phase==QuizProgress.Phase.AD_REQUIRED,"restore gate");check(q.reward(),"earned reward permits retry");check(!q.reward(),"reward once");check(q.streak==i+1,"streak survives ads");}
+  q.answer(false);check(q.phase==QuizProgress.Phase.BREAK_REQUIRED,"third wrong break");check(!q.reward(),"ad cannot bypass break");q.finishBreak();check(q.index==0&&q.streak==0,"break returns to same puzzle and resets");check(!q.finishBreak(),"break cannot advance twice");
   q.answer(false);q.reward();q.answer(true);check(q.streak==0,"correct resets");q.next();q.answer(false);check(q.streak==1,"nonconsecutive errors do not accumulate");
   q=new QuizProgress(22,21,0,"QUESTION");q.answer(true);q.next();check(q.phase==QuizProgress.Phase.COMPLETE&&q.index==22,"final question completes");check(!q.answer(true)&&!q.reward()&&!q.next(),"complete locked");
   q=new QuizProgress(122,22,0,"COMPLETE");check(q.index==22&&q.phase==QuizProgress.Phase.QUESTION,"content expansion resumes at first new joke");

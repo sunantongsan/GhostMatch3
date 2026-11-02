@@ -11,7 +11,7 @@ import java.util.*;
 /** Data-only, bounded, checksum-verified updates. Never downloads executable code. */
 final class JokePatch {
     static final String BASE="https://sunantongsan.github.io/GhostMatch3/patches/";
-    static final int BUNDLED_VERSION=3, LIMIT=262144;
+    static final int BUNDLED_VERSION=4, LIMIT=262144;
     interface Status { void update(String text,int percent); }
     static final class Content {
         final int version; final JSONArray jokes;

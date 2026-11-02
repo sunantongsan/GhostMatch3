@@ -18,6 +18,9 @@ final class SerJoyView extends ScrollView {
     private final Bitmap reactions, ghosts, scenery;
     private LinearLayout page;
     private ReactionView actor;
+    private StoryArt storyArt;
+    private StorySceneView story;
+    private int spokenIndex=-1;
     private AdventureEngine board;
     private TextView breakStatus;
     private BoardView boardView;
@@ -33,6 +36,7 @@ final class SerJoyView extends ScrollView {
         try(java.io.InputStream in=host.getAssets().open("ser-joy-neighborhood.webp")){scenery=BitmapFactory.decodeStream(in);}
         catch(Exception e){throw new IllegalStateException("Missing scenery",e);}
         ghosts=BitmapFactory.decodeResource(getResources(),R.drawable.ghost_sprites);
+        try{storyArt=new StoryArt(host);}catch(Exception e){throw new IllegalStateException("Story art missing",e);}
         // Content v3 replaces the rejected tail. Migrate once, preserving the first 22.
         if (host.content.version >= 3 && prefs.getInt("curatedContentVersion", 0) < 3) {
             SharedPreferences.Editor migration = prefs.edit().putInt("curatedContentVersion", 3);
@@ -57,10 +61,12 @@ final class SerJoyView extends ScrollView {
     private void add(View v){LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.bottomMargin=dp(8);page.addView(v,lp);}
     private Button button(String label,Runnable action){Button b=new Button(host);b.setText(label);b.setTextSize(17);b.setTextColor(ink);b.setAllCaps(false);b.setMinHeight(dp(56));b.setPadding(dp(12),dp(10),dp(12),dp(10));b.setBackground(shape(yellow,ink));b.setOnClickListener(v->action.run());add(b);return b;}
     private void save(){prefs.edit().putInt("index",progress.index).putInt("streak",progress.streak).putString("phase",progress.phase.name()).apply();}
-    void setActive(boolean value){active=value;if(actor!=null)actor.setRunning(value);if(value&&boardView!=null)boardView.invalidate();}
-    void release(){active=false;if(actor!=null)actor.setRunning(false);}
+    void setActive(boolean value){active=value;if(story!=null)story.setActive(value);if(actor!=null)actor.setRunning(value);if(value&&boardView!=null)boardView.invalidate();}
+    void release(){active=false;if(story!=null)story.release();if(actor!=null)actor.setRunning(false);}
     private JSONObject joke(){return jokes.optJSONObject(Math.min(progress.index,jokes.length()-1));}
     private void render(){
+        if(story!=null){story.release();story=null;}
+        if(!breakOpen&&progress.phase!=QuizProgress.Phase.COMPLETE){renderStory();return;}
         removeAllViews();page=new LinearLayout(host);page.setOrientation(LinearLayout.VERTICAL);page.setPadding(dp(18),dp(12),dp(18),dp(20));addView(page);
         LinearLayout top=new LinearLayout(host);top.setGravity(Gravity.CENTER_VERTICAL);
         TextView brand=text("ท่านเซ่อจ่อย",24);brand.setTypeface(null,Typeface.BOLD);brand.setBackground(shape(0xEFFFF9E9,0x00FFFFFF));top.addView(brand,new LinearLayout.LayoutParams(0,-2,1));
@@ -89,23 +95,60 @@ final class SerJoyView extends ScrollView {
             TextView punch=text(joke().optString("punchline"),22);punch.setBackground(shape(0xFFFFEBA8,ink));add(punch);
             if(correct)button("เรื่องต่อไป  →",()->{if(progress.next()){if(progress.phase==QuizProgress.Phase.COMPLETE)host.playSound(GameAudio.FINALE);save();render();}});
             else if(progress.phase==QuizProgress.Phase.BREAK_REQUIRED){add(text("ผิดครบ 3 ครั้งแล้ว พักจับคู่ผีกัน!\nเล่นจบ 1 ตา ก็ไปเรื่องต่อไปได้",15));button("พักจับคู่ผี  👻",this::startBreak);}
-            else {Button watch=button("ดูโฆษณาเพื่อไปเรื่องต่อไป  ▶",this::watchAd);watch.setEnabled(!adBusy);add(text("โฆษณาทดสอบ • ดูจบจึงไปต่อ",13));}
+            else {Button watch=button("ดูโฆษณาเพื่อลองตอบอีกครั้ง  ▶",this::watchAd);watch.setEnabled(!adBusy);add(text("โฆษณาทดสอบ • ดูจบจึงไปต่อ",13));}
         }
         post(()->smoothScrollTo(0,0));
     }
-    private void answer(int choice){if(!progress.answer(choice==joke().optInt("answer")))return;save();host.playSound(progress.phase==QuizProgress.Phase.CORRECT?GameAudio.WIN:GameAudio.GHOST);render();}
+    private void renderStory(){
+        removeAllViews();host.setBreakMusic(false);
+        FrameLayout frame=new FrameLayout(host);
+        int available=getResources().getDisplayMetrics().heightPixels-dp(36);
+        addView(frame,new ScrollView.LayoutParams(-1,Math.max(dp(540),available)));
+        StorySceneView created=new StorySceneView(host,storyArt,storyArt.scenes[progress.index],joke(),progress.index,progress.total,new StorySceneView.Listener(){
+            public void choose(int choice){answer(choice);}
+            public void wrongFinished(){showStoryGate(frame);}
+            public void revealFinished(){host.sayStory(joke().optString("punchline"));showStoryNext(frame);}
+        });
+        story=created;frame.addView(story,new FrameLayout.LayoutParams(-1,-1));story.setActive(active);
+        Button menu=new Button(host);menu.setText("☰");menu.setContentDescription("ตั้งค่าเสียงและความเป็นส่วนตัว");menu.setTextColor(Color.WHITE);menu.setBackgroundColor(Color.TRANSPARENT);menu.setOnClickListener(v->settings());
+        FrameLayout.LayoutParams ml=new FrameLayout.LayoutParams(dp(56),dp(48),Gravity.TOP|Gravity.RIGHT);frame.addView(menu,ml);
+        if(progress.phase==QuizProgress.Phase.CORRECT){story.showResolution(joke().optInt("answer"));}
+        else if(progress.phase!=QuizProgress.Phase.QUESTION){story.showGate();showStoryGate(frame);}
+        else if(spokenIndex!=progress.index){spokenIndex=progress.index;host.sayStory(joke().optString("question"));}
+        post(()->{if(getHeight()>0){frame.getLayoutParams().height=getHeight()-getPaddingTop()-getPaddingBottom();frame.requestLayout();}scrollTo(0,0);});
+    }
+    private Button storyButton(FrameLayout frame,String label,Runnable action){
+        Button b=new Button(host);b.setText(label);b.setTextColor(ink);b.setTextSize(17);b.setAllCaps(false);b.setBackground(shape(yellow,ink));b.setOnClickListener(v->action.run());
+        FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(-1,dp(60),Gravity.BOTTOM);lp.setMargins(dp(22),0,dp(22),dp(22));frame.addView(b,lp);return b;
+    }
+    private void showStoryNext(FrameLayout frame){
+        storyButton(frame,"เรื่องต่อไป  →",()->{if(progress.next()){save();render();}});
+    }
+    private void showStoryGate(FrameLayout frame){
+        if(progress.phase==QuizProgress.Phase.BREAK_REQUIRED)storyButton(frame,"พักจับคู่ผี แล้วกลับมาตอบ  👻",this::startBreak);
+        else if(progress.phase==QuizProgress.Phase.AD_REQUIRED){Button watch=storyButton(frame,"ดูโฆษณา แล้วลองเลือกใหม่  ▶",this::watchAd);watch.setEnabled(!adBusy);}
+    }
+    private void answer(int choice){
+        if(choice<0||choice>2||!progress.answer(choice==joke().optInt("answer")))return;
+        save();host.stopStorySpeech();host.playSound(progress.phase==QuizProgress.Phase.CORRECT?GameAudio.WIN:GameAudio.GHOST);
+        if(story!=null){if(progress.phase==QuizProgress.Phase.CORRECT)story.showResolution(choice);else story.showWrong(choice);}
+        else render();
+    }
     private void watchAd(){
         if(adBusy||progress.phase!=QuizProgress.Phase.AD_REQUIRED)return;adBusy=true;render();
-        host.showQuizReward(()->{adBusy=false;if(progress.reward())save();render();},()->{adBusy=false;render();Toast.makeText(host,"ยังดูไม่จบ ลองอีกครั้งเพื่อไปต่อ",Toast.LENGTH_LONG).show();},()->{
+        host.showQuizReward(()->{adBusy=false;if(progress.reward())save();render();},()->{adBusy=false;render();Toast.makeText(host,"ยังดูไม่จบ ลองอีกครั้งเพื่อลองตอบอีกครั้ง",Toast.LENGTH_LONG).show();},()->{
             adBusy=false;render();new android.app.AlertDialog.Builder(host).setTitle("โฆษณายังไม่พร้อม")
-                .setMessage("ลองโหลดอีกครั้ง หรือเล่นจับคู่ผี 1 ตาเพื่อไปต่อได้")
+                .setMessage("ลองโหลดอีกครั้ง หรือเล่นจับคู่ผี 1 ตาเพื่อลองตอบอีกครั้งได้")
                 .setPositiveButton("ลองอีกครั้ง",(d,w)->watchAd())
                 .setNeutralButton("จับคู่ผีแทน",(d,w)->{progress.phase=QuizProgress.Phase.BREAK_REQUIRED;save();startBreak();})
                 .setNegativeButton("รอก่อน",null).show();
         });
     }
-    private void settings(){ArrayList<String> items=new ArrayList<>();items.add(host.soundEnabled()?"ปิดเสียง":"เปิดเสียง");items.add("นโยบายความเป็นส่วนตัว");if(host.needsPrivacyOptions())items.add("จัดการความยินยอมโฆษณา");
-        new android.app.AlertDialog.Builder(host).setTitle("ตั้งค่า").setItems(items.toArray(new String[0]),(d,n)->{if(n==0)host.toggleSound();else if(n==1)host.openPrivacyPolicy();else host.openPrivacyOptions();}).setNegativeButton("กลับ",null).show();}
+    private void settings(){ArrayList<String> items=new ArrayList<>();items.add(host.soundEnabled()?"ปิดเสียง":"เปิดเสียง");items.add("นโยบายความเป็นส่วนตัว");if(host.getPackageName().endsWith(".storypreview"))items.add("ทดลองเลือกฉาก");if(host.needsPrivacyOptions())items.add("จัดการความยินยอมโฆษณา");
+        new android.app.AlertDialog.Builder(host).setTitle("ตั้งค่า").setItems(items.toArray(new String[0]),(d,n)->{if(n==0)host.toggleSound();else if(n==1)host.openPrivacyPolicy();else if(n==2&&host.getPackageName().endsWith(".storypreview")){
+            String[] names=new String[jokes.length()];for(int i=0;i<names.length;i++)names[i]=(i+1)+". "+jokes.optJSONObject(i).optString("question");
+            new android.app.AlertDialog.Builder(host).setTitle("ทดลองฉากทั้งหมด").setItems(names,(dialog,index)->{progress.index=index;progress.streak=0;progress.phase=QuizProgress.Phase.QUESTION;breakOpen=false;board=null;save();render();}).setNegativeButton("กลับ",null).show();
+        }else host.openPrivacyOptions();}).setNegativeButton("กลับ",null).show();}
     private void startBreak(){breakOpen=true;selected=-1;if(board==null){board=new AdventureEngine(1,113L+progress.index,new int[]{10,500,0},3);for(int r=0;r<8;r++)for(int c=0;c<8;c++)board.hp[r][c]=0;board.remaining=0;board.refillFresh();board.ensureMove();restoreBoard();board.recordAnimation=true;}render();}
     private void renderBreak(){
         TextView title=text("พักสมอง จับคู่ผี",21);title.setTypeface(null,Typeface.BOLD);title.setBackground(shape(0xF4FFF7DE,ink));add(title);
@@ -113,7 +156,7 @@ final class SerJoyView extends ScrollView {
         breakStatus=text("เหลือ "+board.moves+" ตา  •  คะแนน "+board.score,18);breakStatus.setTypeface(null,Typeface.BOLD);breakStatus.setBackground(shape(0xF4FFF7DE,ink));add(breakStatus);
         boardView=new BoardView();page.addView(boardView,new LinearLayout.LayoutParams(-1,dp(360)));
         Button hint=button("ใบ้คู่ที่สลับได้",()->{int[] pair=board.hint();if(pair!=null){if(!boardView.animating()){boardView.hint=pair;boardView.invalidate();}}});
-        if(board.moves<=0||board.won||board.lost){hint.setVisibility(GONE);button("สบายใจแล้ว ไปเรื่องต่อไป  →",()->{if(progress.finishBreak()){board=null;breakOpen=false;prefs.edit().remove("board").apply();save();render();}});}
+        if(board.moves<=0||board.won||board.lost){hint.setVisibility(GONE);button("สบายใจแล้ว กลับไปตอบ  →",()->{if(progress.finishBreak()){board=null;breakOpen=false;prefs.edit().remove("board").apply();save();render();}});}
     }
     private void saveBoard(){if(board==null)return;try{JSONObject b=new JSONObject();b.put("schema",2);b.put("index",progress.index);b.put("moves",board.moves);b.put("score",board.score);JSONArray cells=new JSONArray();for(int r=0;r<8;r++)for(int c=0;c<8;c++){cells.put(board.tile[r][c]);cells.put(board.power[r][c]);}b.put("cells",cells);prefs.edit().putString("board",b.toString()).apply();}catch(JSONException ignored){}}
     private void restoreBoard(){try{JSONObject b=new JSONObject(prefs.getString("board","{}"));if(b.optInt("index",-1)!=progress.index)return;JSONArray cells=b.getJSONArray("cells");if(cells.length()!=128)return;for(int n=0;n<128;n+=2){if(cells.getInt(n)<0||cells.getInt(n)>(b.optInt("schema",0)==2?2:5)||cells.getInt(n+1)<0||cells.getInt(n+1)>4)return;}board.moves=Math.max(0,Math.min(10,b.getInt("moves")));board.score=b.getInt("score");if(b.optInt("schema",0)==2){for(int i=0;i<64;i++){board.tile[i/8][i%8]=cells.getInt(i*2);board.power[i/8][i%8]=cells.getInt(i*2+1);}}board.lost=board.moves==0;board.ensureMove();}catch(JSONException ignored){}}

@@ -1,7 +1,7 @@
 name: Ser Joy build and device checks
 on:
   push:
-    branches: [main, feature/ser-joy-quiz, feature/serjoy-swipe-audio, fix/serjoy-real-match3, feature/serjoy-comedy-polish]
+    branches: [feature/serjoy-story-scenes, main, feature/ser-joy-quiz, feature/serjoy-swipe-audio, fix/serjoy-real-match3, feature/serjoy-comedy-polish]
   workflow_dispatch:
 permissions:
   contents: read
@@ -25,7 +25,7 @@ jobs:
           java -cp /tmp/joy-tests com.sunantongsan.ghostmatch3.QuizProgressTest
           java -cp /tmp/joy-tests com.sunantongsan.ghostmatch3.BreakBoardTest
       - name: Build and lint
-        run: gradle :app:assembleDebug :app:assembleDebugAndroidTest :app:lintDebug :app:bundleRelease :app:lintRelease --stacktrace
+        run: gradle :app:assembleStoryPreview :app:assembleDebug :app:assembleDebugAndroidTest :app:lintDebug :app:bundleRelease :app:lintRelease --stacktrace
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -42,8 +42,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: SerJoy-0.47.0-test
+          name: SerJoy-0.48.0-test
           path: |
+            app/build/outputs/apk/storyPreview/app-storyPreview.apk
             app/build/outputs/apk/debug/app-debug.apk
             app/build/outputs/bundle/release/app-release.aab
             screenshots/
