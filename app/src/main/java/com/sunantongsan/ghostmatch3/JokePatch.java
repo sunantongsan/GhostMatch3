@@ -26,7 +26,7 @@ final class JokePatch {
         for(int i=0;i<jokes.length();i++){
             JSONObject j=jokes.getJSONObject(i);
             String id=j.getString("id");
-            if(!id.equals("joke-"+(i+1))||!ids.add(id))throw new IOException("stable order");
+            if(!id.equals("joke-"+(i+1+(doc.getInt("version")>=6 && i>=50 ? 1 : 0)))||!ids.add(id))throw new IOException("stable order");
             bounded(j,"question",300);bounded(j,"punchline",500);
             JSONArray c=j.getJSONArray("choices");
             if(c.length()!=3||j.getInt("answer")<0||j.getInt("answer")>2)throw new IOException("choices");
@@ -39,7 +39,7 @@ final class JokePatch {
     }
     static Content verified(byte[] data,String hash,int version,int previousCount)throws Exception{
         if(!sha(data).equals(hash))throw new IOException("checksum");
-        Content next=validate(data);if(next.version!=version||next.jokes.length()<previousCount)throw new IOException("version/count");
+        Content next=validate(data);if(next.version!=version||(next.jokes.length()<previousCount && !(version==6 && previousCount==156 && next.jokes.length()==155)))throw new IOException("version/count");
         return next;
     }
     static Content install(Context c,byte[] data,String hash,int version,int previousCount)throws Exception{

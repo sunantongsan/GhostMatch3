@@ -64,7 +64,7 @@ public class SerJoySmoke extends Instrumentation {
   getTargetContext().getSharedPreferences("ad_age",0).edit().putString("band","teen").commit();
   getTargetContext().getSharedPreferences("ser_joy_v1",0).edit().clear().commit();
   byte[] bundled;try(InputStream in=getTargetContext().getAssets().open("ser-joy-content.json")){bundled=JokePatch.read(in);}
-  check(JokePatch.verified(bundled,JokePatch.sha(bundled),6,142).jokes.length()==156,"expanded patch compatible");
+  check(JokePatch.verified(bundled,JokePatch.sha(bundled),6,142).jokes.length()==155,"expanded patch compatible");
   boolean rejected=false;try{JokePatch.verified(bundled,"bad",6,156);}catch(Exception expected){rejected=true;}check(rejected,"checksum rejection");
   File cache=new File(getTargetContext().getFilesDir(),"ser-joy-content.json");cache.delete();
   Intent market=MainActivity.storeUpdateIntent(true),web=MainActivity.storeUpdateIntent(false);
@@ -86,7 +86,7 @@ public class SerJoySmoke extends Instrumentation {
   });checkSceneDraws();
   adReturnRegression();
   // Every question must instantiate the scene renderer with three usable nonoverlapping objects.
-  for(int i=0;i<156;i++){
+  for(int i=0;i<host.content.jokes.length();i++){
    selectQuestion(i);StorySceneView story=scene();check(story!=null,"story exists "+i);
    String[] captions=(String[])field(story,"tags");check(captions.length==3,"three visible captions");
    for(String caption:captions)check(!caption.trim().isEmpty(),"caption always available");
@@ -99,8 +99,8 @@ public class SerJoySmoke extends Instrumentation {
     for(int b=a+1;b<3;b++){Rect br=new Rect();story.choiceView(b).getHitRect(br);check(!Rect.intersects(ar,br),"separate choices "+i);}
    }
    shot("audit-before-"+(i+1));
-   if(i>=42&&i<56){checkSceneDraws();runOnMainSync(story::showFinal);checkSceneDraws();}
-   if(i==26||i==27||i==47||i==22||i==30||i==31||i==38||i==40||i==155||i==42||i==45||i==52||i==55)shot("scene-"+(i+1));
+   if(i>=42&&i<55){checkSceneDraws();runOnMainSync(story::showFinal);checkSceneDraws();}
+   if(i==26||i==27||i==47||i==22||i==30||i==31||i==38||i==40||i==154||i==42||i==45||i==52||i==55)shot("scene-"+(i+1));
   }
   selectQuestion(30);tap(scene().choiceView(0));
   check(view.progress.phase==QuizProgress.Phase.CORRECT,"plain worm is accepted");
@@ -133,8 +133,12 @@ public class SerJoySmoke extends Instrumentation {
   runOnMainSync(()->view.progress.finishBreak());check(view.progress.index==2&&view.progress.phase==QuizProgress.Phase.QUESTION,"break retries same question");
   runOnMainSync(()->host.finish());waitForIdleSync();
   getTargetContext().getSharedPreferences("ser_joy_v1",0).edit().putInt("curatedContentVersion",4).putInt("index",42).putString("phase","QUESTION").commit();
-  launch();check(view.progress.index==56,"old tail position migrates past inserted fourteen");checkSceneDraws();
-  runOnMainSync(()->host.finish());waitForIdleSync();launch();check(view.progress.index==56,"position migration runs once");
-  result.putString("stream","PASS: quiz screens, all 156 illustrated scenes, touch targets, ad resume drawing and retry gates, door fire cutscene, saved progress and match-three\n");finish(Activity.RESULT_OK,result);
+  launch();check(view.progress.index==55,"old tail position migrates past inserted jokes and removed joke");checkSceneDraws();
+  runOnMainSync(()->host.finish());waitForIdleSync();launch();check(view.progress.index==55,"position migration runs once");
+  runOnMainSync(()->host.finish());waitForIdleSync();
+  getTargetContext().getSharedPreferences("ser_joy_v1",0).edit().putInt("curatedContentVersion",5).putInt("index",50).putString("phase","CORRECT").commit();
+  launch();check(view.progress.index==50&&view.progress.phase==QuizProgress.Phase.QUESTION,"removed question resumes at next unsolved question");
+  check(host.content.jokes.getJSONObject(50).getString("id").equals("joke-52"),"removed ID absent, next ID preserved");
+  result.putString("stream","PASS: quiz screens, all 155 illustrated scenes, touch targets, ad resume drawing and retry gates, door fire cutscene, saved progress and match-three\n");finish(Activity.RESULT_OK,result);
  }catch(Throwable t){result.putString("stream","FAIL: "+android.util.Log.getStackTraceString(t));finish(Activity.RESULT_CANCELED,result);}}
 }

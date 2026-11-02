@@ -20,7 +20,7 @@ final class StoryArt {
         for(int i=0;i<objects.length;i++)objects[i]=load(c,"story/objects-"+i+".webp");
         JSONObject doc;try(InputStream in=c.getAssets().open("story/scenes.json")){doc=new JSONObject(new String(JokePatch.read(in),"UTF-8"));}
         JSONArray all=doc.getJSONArray("scenes");scenes=new JSONObject[all.length()];
-        for(int i=0;i<scenes.length;i++){scenes[i]=all.getJSONObject(i);if(!scenes[i].getString("id").equals("joke-"+(i+1)))throw new IOException("scene order");}
+        for(int i=0;i<scenes.length;i++){scenes[i]=all.getJSONObject(i);if(!scenes[i].getString("id").equals("joke-"+(i+1+(i>=50 ? 1 : 0))))throw new IOException("scene order");}
     }
     private static Bitmap load(Context c,String name)throws Exception{try(InputStream in=c.getAssets().open(name)){Bitmap b=BitmapFactory.decodeStream(in);if(b==null)throw new IOException(name);return b;}}
     private Rect bounds(String name,int cell){
