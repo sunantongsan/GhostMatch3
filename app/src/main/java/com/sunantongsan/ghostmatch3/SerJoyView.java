@@ -134,9 +134,12 @@ final class SerJoyView extends ScrollView {
         if(story!=null){if(progress.phase==QuizProgress.Phase.CORRECT)story.showResolution(choice);else story.showWrong(choice);}
         else render();
     }
+    private void finishRewardAd(){
+        adBusy=false;if(progress.reward())save();render();
+    }
     private void watchAd(){
         if(adBusy||progress.phase!=QuizProgress.Phase.AD_REQUIRED)return;adBusy=true;render();
-        host.showQuizReward(()->{adBusy=false;if(progress.reward())save();render();},()->{adBusy=false;render();Toast.makeText(host,"ยังดูไม่จบ ลองอีกครั้งเพื่อลองตอบอีกครั้ง",Toast.LENGTH_LONG).show();},()->{
+        host.showQuizReward(this::finishRewardAd,()->{adBusy=false;render();Toast.makeText(host,"ยังดูไม่จบ ลองอีกครั้งเพื่อลองตอบอีกครั้ง",Toast.LENGTH_LONG).show();},()->{
             adBusy=false;render();new android.app.AlertDialog.Builder(host).setTitle("โฆษณายังไม่พร้อม")
                 .setMessage("ลองโหลดอีกครั้ง หรือเล่นจับคู่ผี 1 ตาเพื่อลองตอบอีกครั้งได้")
                 .setPositiveButton("ลองอีกครั้ง",(d,w)->watchAd())

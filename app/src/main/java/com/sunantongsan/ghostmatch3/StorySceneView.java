@@ -44,8 +44,21 @@ final class StorySceneView extends FrameLayout {
     private void setChoicesEnabled(boolean value){for(View v:choices){v.setEnabled(value);v.setVisibility(value?VISIBLE:INVISIBLE);}}
     private float ox(int i){return new float[][]{{.16f,.51f,.84f},{.20f,.80f,.50f},{.82f,.18f,.50f},{.50f,.84f,.16f},{.16f,.84f,.50f}}[layout%5][i];}
     private float oy(int i){return new float[][]{{.91f,.85f,.93f},{.84f,.87f,.96f},{.85f,.92f,.96f},{.85f,.93f,.91f},{.88f,.88f,.97f}}[layout%5][i];}
-    @Override protected void onSizeChanged(int w,int h,int oldw,int oldh){super.onSizeChanged(w,h,oldw,oldh);
-        for(int i=0;i<3;i++){int size=Math.round(w*.27f);FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(size,size);lp.leftMargin=Math.round(w*ox(i)-size/2f);lp.topMargin=Math.round(h*oy(i)-size);choices[i].setLayoutParams(lp);}
+    // A single MATCH_PARENT child can retain a zero measurement after ScrollView's
+    // unconstrained pass. Always measure and lay out the drawing surface explicitly.
+    @Override protected void onMeasure(int widthSpec,int heightSpec){
+        super.onMeasure(widthSpec,heightSpec);
+        int w=getMeasuredWidth(),h=getMeasuredHeight();
+        stage.measure(MeasureSpec.makeMeasureSpec(w,MeasureSpec.EXACTLY),MeasureSpec.makeMeasureSpec(h,MeasureSpec.EXACTLY));
+        int size=Math.round(w*.27f),spec=MeasureSpec.makeMeasureSpec(size,MeasureSpec.EXACTLY);
+        for(View choice:choices)choice.measure(spec,spec);
+    }
+    @Override protected void onLayout(boolean changed,int l,int t,int r,int b){
+        int w=r-l,h=b-t;stage.layout(0,0,w,h);
+        for(int i=0;i<3;i++){
+            int size=choices[i].getMeasuredWidth(),x=Math.round(w*ox(i)-size/2f),y=Math.round(h*oy(i)-size);
+            choices[i].layout(x,y,x+size,y+size);
+        }
     }
     void showWrong(int choice){chosen=choice;mode=1;transition=elapsed;callbackSent=false;setChoicesEnabled(false);stage.invalidate();}
     void showResolution(int choice){chosen=choice;mode=2;transition=elapsed;callbackSent=false;setChoicesEnabled(false);host.stopStorySpeech();stage.invalidate();}

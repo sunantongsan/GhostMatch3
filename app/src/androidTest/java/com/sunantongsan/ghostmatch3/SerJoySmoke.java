@@ -26,6 +26,40 @@ public class SerJoySmoke extends Instrumentation {
   check(v.getWidth()>=48*getTargetContext().getResources().getDisplayMetrics().density,"minimum touch target");
   long at=SystemClock.uptimeMillis();for(int action:new int[]{MotionEvent.ACTION_DOWN,MotionEvent.ACTION_UP}){MotionEvent e=MotionEvent.obtain(at,SystemClock.uptimeMillis(),action,x,y,0);e.setSource(InputDevice.SOURCE_TOUCHSCREEN);check(getUiAutomation().injectInputEvent(e,true),"touch inject");e.recycle();}waitForIdleSync();
  }
+ void checkSceneDraws()throws Exception{
+  StorySceneView story=scene();View surface=(View)field(story,"stage");
+  check(story.getWidth()>0&&story.getHeight()>0,"scene has viewport");
+  check(surface.getWidth()==story.getWidth()&&surface.getHeight()==story.getHeight(),"drawing surface fills scene after ad");
+  check(surface.getMeasuredHeight()==story.getHeight(),"drawing surface measured after ad");
+  Bitmap pixels=Bitmap.createBitmap(story.getWidth(),story.getHeight(),Bitmap.Config.ARGB_8888);
+  runOnMainSync(()->story.draw(new Canvas(pixels)));
+  java.util.HashSet<Integer> colors=new java.util.HashSet<>();
+  for(int y=20;y<pixels.getHeight();y+=40)for(int x=20;x<pixels.getWidth();x+=40)colors.add(pixels.getPixel(x,y));
+  pixels.recycle();check(colors.size()>30,"scene renders artwork, not solid dark background");
+ }
+ void adReturnRegression()throws Exception{
+  // Exercise the actual result dispatcher in both lifecycle orders without faking an ad impression.
+  for(int cycle=0;cycle<4;cycle++){
+   selectQuestion(23);runOnMainSync(()->view.progress.answer(false));invoke("render",new Class[]{});
+   runOnMainSync(()->callActivityOnPause(host));
+   final int[] delivered={0};Runnable earned=()->{
+    delivered[0]++;
+    try{Method m=view.getClass().getDeclaredMethod("finishRewardAd");m.setAccessible(true);m.invoke(view);}catch(Exception e){throw new RuntimeException(e);}
+   };
+   if(cycle%2==0){runOnMainSync(()->host.deliverQuizAdResult(earned));waitForIdleSync();check(delivered[0]==0,"ad result waits for resume");runOnMainSync(()->callActivityOnResume(host));}
+   else {runOnMainSync(()->callActivityOnResume(host));runOnMainSync(()->host.deliverQuizAdResult(earned));}
+   waitForIdleSync();SystemClock.sleep(150);check(delivered[0]==1,"ad result consumed once");
+   checkSceneDraws();check(view.progress.index==23&&view.progress.phase==QuizProgress.Phase.QUESTION,"earned ad retries same question");
+   if(cycle==3)shot("09-after-ad-playable");
+   tap(scene().choiceView(2));check(view.progress.phase==QuizProgress.Phase.CORRECT,"answer works after ad dismissal");
+  }
+  // Closed early / show failure must still dispatch on resume, without granting a reward.
+  selectQuestion(23);runOnMainSync(()->view.progress.answer(false));invoke("render",new Class[]{});
+  runOnMainSync(()->callActivityOnPause(host));final int[] closed={0};
+  runOnMainSync(()->host.deliverQuizAdResult(()->{closed[0]++;}));
+  runOnMainSync(()->callActivityOnResume(host));waitForIdleSync();
+  check(closed[0]==1&&view.progress.phase==QuizProgress.Phase.AD_REQUIRED,"unearned dismissal keeps reward gate");checkSceneDraws();
+ }
  public void onStart(){Bundle result=new Bundle();try{
   getTargetContext().getSharedPreferences("ad_age",0).edit().putString("band","teen").commit();
   getTargetContext().getSharedPreferences("ser_joy_v1",0).edit().clear().commit();
@@ -34,6 +68,15 @@ public class SerJoySmoke extends Instrumentation {
   boolean rejected=false;try{JokePatch.verified(bundled,"bad",4,142);}catch(Exception expected){rejected=true;}check(rejected,"checksum rejection");
   File cache=new File(getTargetContext().getFilesDir(),"ser-joy-content.json");cache.delete();
   launch();check(view.progress.index==0,"initial question");shot("01-ant-story");
+  // Regression: repeated unconstrained/constrained measurements used when ScrollView replaces a scene.
+  StorySceneView probe=scene();int pw=probe.getWidth(),ph=probe.getHeight();
+  runOnMainSync(()->{
+   probe.measure(View.MeasureSpec.makeMeasureSpec(pw,View.MeasureSpec.EXACTLY),View.MeasureSpec.makeMeasureSpec(ph,View.MeasureSpec.AT_MOST));
+   View surface;try{surface=(View)field(probe,"stage");}catch(Exception e){throw new RuntimeException(e);}
+   check(surface.getMeasuredHeight()==probe.getMeasuredHeight(),"unconstrained pass does not leave stage zero-sized");
+   probe.measure(View.MeasureSpec.makeMeasureSpec(pw,View.MeasureSpec.EXACTLY),View.MeasureSpec.makeMeasureSpec(ph,View.MeasureSpec.EXACTLY));probe.layout(0,0,pw,ph);
+  });checkSceneDraws();
+  adReturnRegression();
   // Every question must instantiate the scene renderer with three usable nonoverlapping objects.
   for(int i=0;i<142;i++){
    selectQuestion(i);StorySceneView story=scene();check(story!=null,"story exists "+i);
@@ -67,6 +110,6 @@ public class SerJoySmoke extends Instrumentation {
   AdventureEngine board=(AdventureEngine)field(view,"board");int before=board.moves;int[] pair=board.hint();
   runOnMainSync(()->board.move(pair[0],pair[1]));check(board.moves==before-1,"match-three valid move");
   runOnMainSync(()->view.progress.finishBreak());check(view.progress.index==2&&view.progress.phase==QuizProgress.Phase.QUESTION,"break retries same question");
-  result.putString("stream","PASS: quiz screens, all 142 illustrated scenes, touch targets, retry gates, door fire cutscene, saved progress and match-three\n");finish(Activity.RESULT_OK,result);
+  result.putString("stream","PASS: quiz screens, all 142 illustrated scenes, touch targets, ad resume drawing and retry gates, door fire cutscene, saved progress and match-three\n");finish(Activity.RESULT_OK,result);
  }catch(Throwable t){result.putString("stream","FAIL: "+android.util.Log.getStackTraceString(t));finish(Activity.RESULT_CANCELED,result);}}
 }

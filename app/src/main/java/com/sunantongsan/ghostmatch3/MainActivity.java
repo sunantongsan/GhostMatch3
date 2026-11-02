@@ -30,6 +30,7 @@ public class MainActivity extends Activity {
     private boolean adsInitialized=false, rewardLoading=false, privacyOptionsRequired=false;
     private android.widget.FrameLayout rootLayout;
     private boolean activityResumed=false;
+    private Runnable pendingQuizAdResult;
     private boolean underAgeOfConsent=true;
 
     @Override public void onCreate(Bundle state) {
@@ -201,9 +202,9 @@ public class MainActivity extends Activity {
 
     private int dp(float value){return Math.round(value*getResources().getDisplayMetrics().density);}
 
-    @Override protected void onResume(){super.onResume();activityResumed=true;if(storySpeech!=null)storySpeech.setActive(true);if(gameAudio!=null)gameAudio.setActive(true);if(gameView!=null)gameView.setActive(true);}
+    @Override protected void onResume(){super.onResume();activityResumed=true;if(storySpeech!=null)storySpeech.setActive(true);if(gameAudio!=null)gameAudio.setActive(true);if(gameView!=null)gameView.setActive(true);flushQuizAdResult();}
     @Override protected void onPause(){activityResumed=false;if(storySpeech!=null)storySpeech.setActive(false);if(gameView!=null)gameView.setActive(false);if(gameAudio!=null)gameAudio.setActive(false);super.onPause();}
-    @Override protected void onDestroy(){if(storySpeech!=null)storySpeech.release();if(gameView!=null)gameView.release();if(gameAudio!=null)gameAudio.release();super.onDestroy();}
+    @Override protected void onDestroy(){pendingQuizAdResult=null;if(storySpeech!=null)storySpeech.release();if(gameView!=null)gameView.release();if(gameAudio!=null)gameAudio.release();super.onDestroy();}
 
     private boolean canRequestAds(){return TEST_ADS||(consentInformation!=null&&consentInformation.canRequestAds());}
 
@@ -218,9 +219,24 @@ public class MainActivity extends Activity {
             });
     }
 
+    // Full-screen ad dismissal may arrive before or after Activity.onResume.
+    // Consume the result once, on the resumed activity's next UI turn.
+    void deliverQuizAdResult(Runnable result){
+        if(isFinishing()||isDestroyed())return;
+        pendingQuizAdResult=result;flushQuizAdResult();
+    }
+    private void flushQuizAdResult(){
+        if(!activityResumed||pendingQuizAdResult==null)return;
+        getWindow().getDecorView().post(()->{
+            if(!activityResumed||isFinishing()||isDestroyed())return;
+            Runnable result=pendingQuizAdResult;pendingQuizAdResult=null;
+            if(result!=null)result.run();
+        });
+    }
+
     void showQuizReward(Runnable earned,Runnable closed,Runnable unavailable){
         if(rewardedAd==null||!canRequestAds()){
-            loadRewardedAd();unavailable.run();return;
+            loadRewardedAd();deliverQuizAdResult(unavailable);return;
         }
         RewardedAd ad=rewardedAd;rewardedAd=null;
         // Keep the reward token separate from dismissal; do not move screens under the ad.
@@ -229,10 +245,10 @@ public class MainActivity extends Activity {
             private boolean finished=false;
             @Override public void onAdDismissedFullScreenContent(){
                 if(finished)return;finished=true;loadRewardedAd();
-                if(token[0])earned.run();else closed.run();
+                deliverQuizAdResult(token[0]?earned:closed);
             }
             @Override public void onAdFailedToShowFullScreenContent(AdError error){
-                if(finished)return;finished=true;loadRewardedAd();unavailable.run();
+                if(finished)return;finished=true;loadRewardedAd();deliverQuizAdResult(unavailable);
             }
         });
         ad.show(this,rewardItem->token[0]=true);
