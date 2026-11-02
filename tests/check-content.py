@@ -25,6 +25,12 @@ assert len(scenes)==len(jokes)
 for i,s in enumerate(scenes):
  assert s['id']==jokes[i]['id'] and 0<=s['room']<16 and len(s['objects'])==3 and len(s['tags'])==3
  for obj in [s['target']]+s['objects']:assert -16<=obj<256 and not 218<=obj<224
-for n in ['rooms','special','motion']+[f'objects-{i}' for i in range(8)]:assert (p/f'app/src/main/assets/story/{n}.webp').stat().st_size>1000
+for n in ['special','motion']+[f'rooms-{i}' for i in range(4)]+[f'objects-{i}' for i in range(8)]:assert (p/f'app/src/main/assets/story/{n}.webp').stat().st_size>1000
 assert [c['label'] for c in jokes[23]['choices']]==['ค้อน','ระเบิด','ไฟ'] and jokes[23]['answer']==2
 print('PASS: all 142 story scenes, old tail preserved, art references and door choices')
+
+bounds=json.loads((p/'app/src/main/assets/story/bounds.json').read_text())
+for name,rects in bounds.items():
+ assert len(rects)==(16 if name in ['special.webp','motion.webp'] else 32)
+ for x,y,r,b in rects:assert 0<=x<r and 0<=y<b
+print('PASS: bounded sprite crops and HD background atlases')

@@ -62,7 +62,7 @@ final class StorySceneView extends FrameLayout {
         private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG|Paint.FILTER_BITMAP_FLAG);
         private final TextPaint text=new TextPaint(Paint.ANTI_ALIAS_FLAG);
         Stage(){super(host);setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);}
-        private void shadow(Canvas c,float x,float y,float size){p.setColor(0x380B1720);c.drawOval(x-size*.45f,y-size*.06f,x+size*.45f,y+size*.06f,p);p.setColor(Color.WHITE);}
+        private void shadow(Canvas c,float x,float y,float size){int alpha=p.getAlpha();p.setColor(0x380B1720);p.setAlpha(alpha*56/255);c.drawOval(x-size*.45f,y-size*.06f,x+size*.45f,y+size*.06f,p);p.setColor(Color.WHITE);p.setAlpha(alpha);}
         private void prop(Canvas c,int id,float x,float y,float size){shadow(c,x,y,size);art.sprite(c,id,x,y,size,size,p);}
         private void line(Canvas c,float x1,float y1,float x2,float y2,int color,float width){p.setColor(color);p.setStrokeWidth(width);c.drawLine(x1,y1,x2,y2,p);p.setColor(Color.WHITE);}
         private void label(Canvas c,String value,float x,float y,float width,float size,int color){
@@ -73,8 +73,7 @@ final class StorySceneView extends FrameLayout {
         protected void onDraw(Canvas c){
             long now=SystemClock.uptimeMillis();if(active&&!released)elapsed+=Math.min(80,Math.max(0,now-last));last=now;
             float w=getWidth(),h=getHeight();if(w<=0||h<=0)return;
-            int rw=art.rooms.getWidth()/4,rh=art.rooms.getHeight()/4;
-            c.drawBitmap(art.rooms,new Rect(room%4*rw+2,room/4*rh+2,(room%4+1)*rw-2,(room/4+1)*rh-2),new RectF(0,0,w,h),p);
+            art.background(c,room,w,h,p);
             // Soft cinematic shading keeps actors and actual objects legible, without card UI.
             p.setShader(new LinearGradient(0,0,0,h,new int[]{0xA5101929,0x00000000,0x00101A29,0x60101A29},new float[]{0,.3f,.65f,1},Shader.TileMode.CLAMP));c.drawRect(0,0,w,h,p);p.setShader(null);p.setColor(Color.WHITE);
             float seconds=elapsed/1000f,cut=(elapsed-transition)/1000f;
