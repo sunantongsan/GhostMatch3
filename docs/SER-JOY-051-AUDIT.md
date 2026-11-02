@@ -1,4 +1,4 @@
-Release remains paused for the broader content review. At user request, joke-51 is replaced by the supplied snack riddle (Lay’s / Koh-Kae / Hanami), answer Koh-Kae. No other answers changed in this replacement. 156 stages; saved stage positions unchanged.
+Release candidate: canonical answer choices restored to the supplied content; picture captions kept separate. Questions 43, 44 and 53 restored verbatim to user wording. At user request, joke-51 is replaced by the supplied snack riddle (Lay’s / Koh-Kae / Hanami), answer Koh-Kae. No other answers changed in this replacement. 156 stages; saved stage positions unchanged.
 
 # Ser Joy 0.51 choice and spoiler audit
 

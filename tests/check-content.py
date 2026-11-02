@@ -47,9 +47,9 @@ assert scenes[27]["labels"][0]=="เงินบาท"
 prior=json.loads((p/'docs/patches/ser-joy-v5.json').read_text())['jokes']
 assert all('พม่าแหกคุก' not in j['punchline'] for j in jokes)
 for j,prev,s in zip(jokes,prior,scenes):
- assert (j['id']=='joke-51' or j['question']==prev['question']) and 'prompt' not in s
+ assert (j['id'] in ['joke-43','joke-44','joke-51','joke-53'] or j['question']==prev['question']) and 'prompt' not in s
  assert j['answer']==prev['answer'], 'stable scoring index'
- assert s['labels']==[c['label'] for c in j['choices']]
+ if j['id'] not in ['joke-31','joke-51']: assert j['choices']==prev['choices'], 'preserve canonical answers separately from picture captions'
  assert isinstance(s['showTargetBeforeAnswer'],bool)
  if s['showTargetBeforeAnswer']: assert s['target'] not in s['objects'], 'no enlarged choice before answering'
  if len(set(s['objects']))<3: assert len(s.get('inscriptions',[]))==3, 'shared art needs distinct inscriptions'
