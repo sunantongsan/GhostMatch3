@@ -75,7 +75,7 @@ final class SerJoyView extends ScrollView {
     private void add(View v){LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.bottomMargin=dp(8);page.addView(v,lp);}
     private Button button(String label,Runnable action){Button b=new Button(host);b.setText(label);b.setTextSize(17);b.setTextColor(ink);b.setAllCaps(false);b.setMinHeight(dp(56));b.setPadding(dp(12),dp(10),dp(12),dp(10));b.setBackground(shape(yellow,ink));b.setOnClickListener(v->action.run());add(b);return b;}
     private void save(){prefs.edit().putInt("index",progress.index).putInt("streak",progress.streak).putString("phase",progress.phase.name()).apply();}
-    void setActive(boolean value){active=value;if(story!=null)story.setActive(value);if(actor!=null)actor.setRunning(value);if(value&&boardView!=null)boardView.invalidate();}
+    void setActive(boolean value){active=value;if(story!=null)story.setActive(value&&historyDialog==null);if(actor!=null)actor.setRunning(value);if(value&&boardView!=null)boardView.invalidate();}
     void release(){active=false;if(historyDialog!=null)historyDialog.dismiss();if(story!=null)story.release();if(actor!=null)actor.setRunning(false);}
     private JSONObject joke(){return jokes.optJSONObject(Math.min(progress.index,jokes.length()-1));}
     private void render(){
