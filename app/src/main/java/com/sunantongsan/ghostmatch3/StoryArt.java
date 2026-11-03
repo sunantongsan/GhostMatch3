@@ -6,12 +6,13 @@ import java.io.*;
 
 /** Shared atlases are decoded once per activity, not once per question. */
 final class StoryArt {
-    final Bitmap special,hero,motion,lighter,snacks;
+    final Bitmap special,hero,motion,lighter,snacks,laughingAnimals;
     final Bitmap[] rooms=new Bitmap[4];
     final JSONObject bounds;
     final Bitmap[] objects=new Bitmap[11];
     final JSONObject[] scenes;
     StoryArt(Context c)throws Exception{
+        laughingAnimals=load(c,"story/laughing-animals.webp");
         lighter=load(c,"story/lighter.webp");snacks=load(c,"story/snacks.webp");
         motion=load(c,"story/motion.webp");
         for(int i=0;i<rooms.length;i++)rooms[i]=load(c,"story/rooms-"+i+".webp");

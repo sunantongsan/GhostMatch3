@@ -26,6 +26,7 @@ final class SerJoyView extends ScrollView {
     private BoardView boardView;
     private boolean active=true,adBusy=false,breakOpen=false;
     private int selected=-1;
+    private android.app.AlertDialog historyDialog;
     private final int ink=0xFF24212B,yellow=0xFFFFCE3B,paper=0xFFFFFBF0;
 
     SerJoyView(MainActivity activity){
@@ -75,7 +76,7 @@ final class SerJoyView extends ScrollView {
     private Button button(String label,Runnable action){Button b=new Button(host);b.setText(label);b.setTextSize(17);b.setTextColor(ink);b.setAllCaps(false);b.setMinHeight(dp(56));b.setPadding(dp(12),dp(10),dp(12),dp(10));b.setBackground(shape(yellow,ink));b.setOnClickListener(v->action.run());add(b);return b;}
     private void save(){prefs.edit().putInt("index",progress.index).putInt("streak",progress.streak).putString("phase",progress.phase.name()).apply();}
     void setActive(boolean value){active=value;if(story!=null)story.setActive(value);if(actor!=null)actor.setRunning(value);if(value&&boardView!=null)boardView.invalidate();}
-    void release(){active=false;if(story!=null)story.release();if(actor!=null)actor.setRunning(false);}
+    void release(){active=false;if(historyDialog!=null)historyDialog.dismiss();if(story!=null)story.release();if(actor!=null)actor.setRunning(false);}
     private JSONObject joke(){return jokes.optJSONObject(Math.min(progress.index,jokes.length()-1));}
     private void render(){
         if(story!=null){story.release();story=null;}
@@ -92,7 +93,7 @@ final class SerJoyView extends ScrollView {
         TextView question=text(done?"เซ่อจ่อยยอมแล้ว…คุณนี่สุดจริง!":joke().optString("question"),24);question.setTypeface(null,Typeface.BOLD);question.setBackground(shape(Color.WHITE,ink));question.setPadding(dp(16),dp(14),dp(16),dp(14));add(question);
         actor=new ReactionView();int h=Math.min(320,Math.max(230,(int)(getResources().getDisplayMetrics().heightPixels/getResources().getDisplayMetrics().density*.36f)));
         page.addView(actor,new LinearLayout.LayoutParams(-1,dp(h)));
-        if(done){button("เล่นมุกทั้งหมดอีกครั้ง",()->{progress.index=0;progress.streak=0;progress.phase=QuizProgress.Phase.QUESTION;save();render();});return;}
+        if(done){button("↶ ย้อนดูคำถามที่ผ่านมา",this::showHistory);button("เล่นมุกทั้งหมดอีกครั้ง",()->{progress.index=0;progress.streak=0;progress.phase=QuizProgress.Phase.QUESTION;save();render();});return;}
         if(progress.phase==QuizProgress.Phase.QUESTION){
             add(text("เลือกของที่เป็นคำตอบ",16));
             LinearLayout choices=new LinearLayout(host);JSONArray list=joke().optJSONArray("choices");
@@ -123,6 +124,8 @@ final class SerJoyView extends ScrollView {
             public void revealFinished(){host.sayStory(joke().optString("punchline"));showStoryNext(frame);}
         });
         story=created;frame.addView(story,new FrameLayout.LayoutParams(-1,-1));story.setActive(active);
+        Button history=new Button(host);history.setText("↶");history.setTextSize(26);history.setTextColor(Color.WHITE);history.setBackgroundColor(Color.TRANSPARENT);history.setContentDescription("ย้อนดูคำถามที่ผ่านมา");history.setOnClickListener(v->showHistory());
+        frame.addView(history,new FrameLayout.LayoutParams(dp(56),dp(48),Gravity.TOP|Gravity.LEFT));
         Button menu=new Button(host);menu.setText("☰");menu.setContentDescription("ตั้งค่าเสียงและความเป็นส่วนตัว");menu.setTextColor(Color.WHITE);menu.setBackgroundColor(Color.TRANSPARENT);menu.setOnClickListener(v->settings());
         FrameLayout.LayoutParams ml=new FrameLayout.LayoutParams(dp(56),dp(48),Gravity.TOP|Gravity.RIGHT);frame.addView(menu,ml);
         if(progress.phase==QuizProgress.Phase.CORRECT){story.showResolution(joke().optInt("answer"));}
@@ -131,8 +134,45 @@ final class SerJoyView extends ScrollView {
         post(()->{if(getHeight()>0){frame.getLayoutParams().height=getHeight()-getPaddingTop()-getPaddingBottom();frame.requestLayout();}scrollTo(0,0);});
     }
     private Button storyButton(FrameLayout frame,String label,Runnable action){
-        Button b=new Button(host);b.setText(label);b.setTextColor(ink);b.setTextSize(17);b.setAllCaps(false);b.setBackground(shape(yellow,ink));b.setOnClickListener(v->action.run());
+        Button b=polishedButton(label,action);
         FrameLayout.LayoutParams lp=new FrameLayout.LayoutParams(-1,dp(60),Gravity.BOTTOM);lp.setMargins(dp(22),0,dp(22),dp(22));frame.addView(b,lp);return b;
+    }
+    private Button polishedButton(String label,Runnable action){
+        Button b=new Button(host);b.setText(label);b.setTextColor(Color.WHITE);b.setTextSize(16);b.setTypeface(null,Typeface.BOLD);b.setAllCaps(false);b.setMinHeight(dp(52));
+        GradientDrawable bg=new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,new int[]{0xFF9C65EA,0xFF6030AE});bg.setCornerRadius(dp(18));bg.setStroke(dp(2),0xFFCDAAFF);
+        b.setBackground(new android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(0x55FFFFFF),bg,null));b.setElevation(dp(5));b.setOnClickListener(v->action.run());return b;
+    }
+    void showHistory(){
+        if(adBusy||historyDialog!=null)return;
+        int count=QuizHistory.count(progress);
+        if(count==0){Toast.makeText(host,"ผ่านข้อแรกก่อน แล้วกลับมาย้อนดูได้ที่นี่",Toast.LENGTH_LONG).show();return;}
+        host.stopStorySpeech();if(story!=null)story.setActive(false);
+        LinearLayout root=new LinearLayout(host);root.setOrientation(LinearLayout.VERTICAL);root.setPadding(dp(16),dp(12),dp(16),dp(12));root.setBackgroundColor(0xFFF6F0FF);
+        TextView title=text("สมุดมุกที่ผ่านมา",22);title.setTypeface(null,Typeface.BOLD);root.addView(title);
+        TextView help=text("ย้อนอ่านได้ • กลับไปเล่นต่อที่ข้อเดิม",13);root.addView(help);
+        String[] names=new String[count];for(int i=0;i<count;i++)names[i]="✓  "+(i+1)+". "+jokes.optJSONObject(i).optString("question");
+        Spinner picker=new Spinner(host);ArrayAdapter<String> adapter=new ArrayAdapter<>(host,android.R.layout.simple_spinner_item,names);adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);picker.setAdapter(adapter);picker.setContentDescription("เลือกคำถามที่ผ่านมา");root.addView(picker,new LinearLayout.LayoutParams(-1,dp(52)));
+        ScrollView scroll=new ScrollView(host);LinearLayout body=new LinearLayout(host);body.setOrientation(LinearLayout.VERTICAL);scroll.addView(body);
+        root.addView(scroll,new LinearLayout.LayoutParams(-1,Math.min(dp(340),getResources().getDisplayMetrics().heightPixels/2)));
+        LinearLayout nav=new LinearLayout(host);nav.setPadding(0,dp(12),0,dp(8));
+        Button prev=polishedButton("← ข้อก่อน",()->picker.setSelection(Math.max(0,picker.getSelectedItemPosition()-1)));
+        Button next=polishedButton("ข้อถัดไป →",()->picker.setSelection(Math.min(count-1,picker.getSelectedItemPosition()+1)));
+        LinearLayout.LayoutParams half=new LinearLayout.LayoutParams(0,dp(54),1);half.setMargins(dp(4),0,dp(4),0);nav.addView(prev,half);nav.addView(next,new LinearLayout.LayoutParams(half));root.addView(nav);
+        picker.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){
+            public void onNothingSelected(android.widget.AdapterView<?> parent){}
+            public void onItemSelected(android.widget.AdapterView<?> parent,View v,int position,long id){
+                JSONObject q=jokes.optJSONObject(position);body.removeAllViews();
+                TextView question=text(q.optString("question"),20);question.setTypeface(null,Typeface.BOLD);question.setPadding(dp(10),dp(16),dp(10),dp(16));body.addView(question);
+                JSONArray options=q.optJSONArray("choices");
+                for(int i=0;i<3;i++){TextView option=text(new String[]{"ก. ","ข. ","ค. "}[i]+options.optJSONObject(i).optString("label"),16);option.setPadding(dp(12),dp(10),dp(12),dp(10));option.setBackground(shape(Color.WHITE,0xFFDDCEF2));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.bottomMargin=dp(8);body.addView(option,lp);}
+                TextView explanation=text(q.optString("punchline"),17);explanation.setBackground(shape(0xFFFFEBA8,0xFFF1CF6F));explanation.setVisibility(GONE);
+                Button reveal=polishedButton("ดูเฉลย",()->{explanation.setVisibility(VISIBLE);scroll.post(()->scroll.smoothScrollTo(0,body.getHeight()));});body.addView(reveal);body.addView(explanation);
+                prev.setEnabled(position>0);prev.setAlpha(position>0?1:.4f);next.setEnabled(position<count-1);next.setAlpha(position<count-1?1:.4f);scroll.scrollTo(0,0);
+            }
+        });
+        picker.setSelection(count-1);
+        historyDialog=new android.app.AlertDialog.Builder(host).setView(root).setPositiveButton("กลับไปเล่นต่อ",null).create();
+        historyDialog.setOnDismissListener(d->{historyDialog=null;if(story!=null)story.setActive(active);});historyDialog.show();
     }
     private void showStoryNext(FrameLayout frame){
         storyButton(frame,"เรื่องต่อไป  →",()->{if(progress.next()){save();render();}});
