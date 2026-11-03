@@ -96,7 +96,7 @@ public class MainActivity extends Activity {
         enterGame.setOnClickListener(v->{if(content!=null&&gameAssets!=null&&gameView==null){enterGame.setEnabled(false);enterGame.setText("ไปสนุกกันเลย!");enterGame.postOnAnimation(()->enterGame.post(this::startGame));}});
         updateGame=new android.widget.Button(this);updateGame.setText("มีเวอร์ชันใหม่ • อัปเดต");updateGame.setAllCaps(false);updateGame.setTextColor(0xFF623997);updateGame.setVisibility(View.GONE);updateGame.setOnClickListener(v->openStoreUpdate());card.addView(updateGame);
         android.widget.TextView footer=new android.widget.TextView(this);footer.setText("เล่นต่อได้จากข้อเดิมทุกครั้ง");footer.setTextColor(0xFFDFCCF3);footer.setTextSize(12);footer.setGravity(Gravity.CENTER);footer.setPadding(0,dp(18),0,0);welcome.addView(footer);
-        android.widget.ScrollView scroll=new android.widget.ScrollView(this);scroll.setFillViewport(true);scroll.addView(welcome);stage.addView(scroll,new android.widget.FrameLayout.LayoutParams(-1,-1));setContentView(stage);
+        android.widget.ScrollView scroll=new android.widget.ScrollView(this);scroll.setFillViewport(true);scroll.setOnApplyWindowInsetsListener((v,i)->{v.setPadding(i.getSystemWindowInsetLeft(),i.getSystemWindowInsetTop(),i.getSystemWindowInsetRight(),i.getSystemWindowInsetBottom());return i;});scroll.addView(welcome);stage.addView(scroll,new android.widget.FrameLayout.LayoutParams(-1,-1));setContentView(stage);
         patchWorker=new Thread(()->{
             GameAudio preparedAudio=null;
             try{
