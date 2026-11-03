@@ -18,7 +18,15 @@ public class SerJoySmoke extends Instrumentation {
   host=(MainActivity)startActivitySync(new Intent(getTargetContext(),MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));waitForIdleSync();
   long until=SystemClock.elapsedRealtime()+30000;while(field(host,"content")==null&&SystemClock.elapsedRealtime()<until){SystemClock.sleep(100);waitForIdleSync();}
   check(field(host,"content")!=null,"welcome loader completes");
-  runOnMainSync(()->{try{((android.widget.Button)field(host,"enterGame")).performClick();}catch(Exception e){throw new RuntimeException(e);}});view=(SerJoyView)field(host,"gameView");waitForIdleSync();
+  check(host.gameAssets!=null,"art prepared before play is enabled");
+  shot("00-welcome-ready");
+  long started=SystemClock.elapsedRealtime();
+  runOnMainSync(()->{try{((android.widget.Button)field(host,"enterGame")).performClick();}catch(Exception e){throw new RuntimeException(e);}});
+  until=SystemClock.elapsedRealtime()+10000;
+  while(field(host,"gameView")==null&&SystemClock.elapsedRealtime()<until){SystemClock.sleep(20);waitForIdleSync();}
+  view=(SerJoyView)field(host,"gameView");check(view!=null,"play opens game");waitForIdleSync();
+  checkpoint("play transition ms="+(SystemClock.elapsedRealtime()-started));
+  check(field(view,"storyArt")==host.gameAssets.story,"play reuses prepared atlases");
  }
  StorySceneView scene()throws Exception{return (StorySceneView)field(view,"story");}
  void selectQuestion(int index){runOnMainSync(()->{view.progress.index=index;view.progress.phase=QuizProgress.Phase.QUESTION;view.progress.streak=0;});invoke("render",new Class[]{});}

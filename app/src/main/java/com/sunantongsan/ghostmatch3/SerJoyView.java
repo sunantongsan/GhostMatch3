@@ -32,12 +32,9 @@ final class SerJoyView extends ScrollView {
     SerJoyView(MainActivity activity){
         super(activity);host=activity;prefs=host.getSharedPreferences("ser_joy_v1",Context.MODE_PRIVATE);
         jokes=host.content.jokes;
-        try(java.io.InputStream in=host.getAssets().open("ser-joy-fullbody.webp")){reactions=BitmapFactory.decodeStream(in);}
-        catch(Exception e){throw new IllegalStateException("Missing reaction artwork",e);}
-        try(java.io.InputStream in=host.getAssets().open("ser-joy-neighborhood.webp")){scenery=BitmapFactory.decodeStream(in);}
-        catch(Exception e){throw new IllegalStateException("Missing scenery",e);}
-        ghosts=BitmapFactory.decodeResource(getResources(),R.drawable.ghost_sprites);
-        try{storyArt=new StoryArt(host);}catch(Exception e){throw new IllegalStateException("Story art missing",e);}
+        GameAssets assets=host.gameAssets;
+        if(assets==null)throw new IllegalStateException("Game artwork not ready");
+        storyArt=assets.story;reactions=storyArt.hero;scenery=assets.scenery;ghosts=assets.ghosts;
         // Content v3 replaces the rejected tail. Migrate once, preserving the first 22.
         if (host.content.version >= 3 && prefs.getInt("curatedContentVersion", 0) < 3) {
             SharedPreferences.Editor migration = prefs.edit().putInt("curatedContentVersion", 3);
