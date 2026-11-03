@@ -8,7 +8,7 @@ Android joke-choice game in the existing `com.sunantongsan.ghostmatch3` applicat
 - Wrong 3: 10 valid match-three moves, then next question; no extra ad. No win requirement.
 - Ad unavailable: retry, stay, or complete one match-three round as an offline alternative.
 - Quiz phase/streak and break board persist across lifecycle/process recreation. Legacy campaign progress is untouched in its separate preference file.
-- Uses the original Google TEST rewarded ad ID and existing age/privacy flow. Official demo ad mode bypasses publisher UMP configuration; the UMP flow remains for a future production configuration. No production ads.
+- Release 0.54.0 uses the Ghost/SerJoy AdMob app and rewarded unit, gated by the existing age/UMP consent flow. Debug and storyPreview use official Google demo identifiers. Production serving still requires Google account/app approval; unavailable ads retain the match-three alternative.
 
 ## Artwork
 `app/src/main/assets/ser-joy-animation.webp`: generated from the owner's yellow-shirt character and exaggerated-expression reference. Prompt: twelve 4x3 sequential waist-up animation keyframes: arm lift and blink / pointing and open-close laughter / scratching, realization, pointing and thumbs up, white background, bold Thai gag-cartoon outlines, no text. Built-in image generation; frames selected with per-action timing at runtime, with the animation clock paused in background. The original ghost sprite art, match-three engine, and audio are reused.

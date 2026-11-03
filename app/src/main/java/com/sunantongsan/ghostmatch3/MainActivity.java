@@ -19,9 +19,9 @@ import com.google.android.ump.ConsentRequestParameters;
 import com.google.android.ump.UserMessagingPlatform;
 
 public class MainActivity extends Activity {
-    // Google's official SAMPLE identifiers: test impressions never earn money.
-    private static final boolean TEST_ADS=true;
-    private static final String TEST_REWARDED_ID="ca-app-pub-3940256099942544/5224354917";
+    // Build variants keep development traffic on official Google sample units.
+    private static final boolean TEST_ADS=BuildConfig.TEST_ADS;
+    private static final String REWARDED_ID=BuildConfig.REWARDED_AD_ID;
     private SerJoyView gameView;
     private GameAudio gameAudio;
     private StorySpeech storySpeech;
@@ -235,7 +235,7 @@ public class MainActivity extends Activity {
         if(!adsInitialized||!canRequestAds()
             ||rewardLoading||rewardedAd!=null)return;
         rewardLoading=true;
-        RewardedAd.load(this,TEST_REWARDED_ID,new AdRequest.Builder().build(),
+        RewardedAd.load(this,REWARDED_ID,new AdRequest.Builder().build(),
             new RewardedAdLoadCallback(){
                 @Override public void onAdLoaded(RewardedAd ad){rewardLoading=false;rewardedAd=ad;}
                 @Override public void onAdFailedToLoad(LoadAdError error){rewardLoading=false;rewardedAd=null;}
