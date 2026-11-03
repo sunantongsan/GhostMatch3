@@ -9,6 +9,7 @@ import java.lang.reflect.*;
 public class SerJoySmoke extends Instrumentation {
  MainActivity host;SerJoyView view;
  public void onCreate(Bundle b){super.onCreate(b);start();}
+ void checkpoint(String message){Bundle b=new Bundle();b.putString("stream","CHECKPOINT: "+message+"\n");sendStatus(0,b);}
  void check(boolean b,String m){if(!b)throw new AssertionError(m);}
  Object field(Object o,String n)throws Exception{Field f=o.getClass().getDeclaredField(n);f.setAccessible(true);return f.get(o);}
  void invoke(String name,Class<?>[] types,Object...args){final Throwable[] error={null};runOnMainSync(()->{try{Method m=view.getClass().getDeclaredMethod(name,types);m.setAccessible(true);m.invoke(view,args);}catch(Throwable e){error[0]=e;}});if(error[0]!=null)throw new RuntimeException(error[0]);waitForIdleSync();}
@@ -17,7 +18,15 @@ public class SerJoySmoke extends Instrumentation {
   host=(MainActivity)startActivitySync(new Intent(getTargetContext(),MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));waitForIdleSync();
   long until=SystemClock.elapsedRealtime()+30000;while(field(host,"content")==null&&SystemClock.elapsedRealtime()<until){SystemClock.sleep(100);waitForIdleSync();}
   check(field(host,"content")!=null,"welcome loader completes");
-  runOnMainSync(()->{try{((android.widget.Button)field(host,"enterGame")).performClick();}catch(Exception e){throw new RuntimeException(e);}});view=(SerJoyView)field(host,"gameView");waitForIdleSync();
+  check(host.gameAssets!=null,"art prepared before play is enabled");
+  shot("00-welcome-ready");
+  long started=SystemClock.elapsedRealtime();
+  runOnMainSync(()->{try{((android.widget.Button)field(host,"enterGame")).performClick();}catch(Exception e){throw new RuntimeException(e);}});
+  until=SystemClock.elapsedRealtime()+10000;
+  while(field(host,"gameView")==null&&SystemClock.elapsedRealtime()<until){SystemClock.sleep(20);waitForIdleSync();}
+  view=(SerJoyView)field(host,"gameView");check(view!=null,"play opens game");waitForIdleSync();
+  checkpoint("play transition ms="+(SystemClock.elapsedRealtime()-started));
+  check(field(view,"storyArt")==host.gameAssets.story,"play reuses prepared atlases");
  }
  StorySceneView scene()throws Exception{return (StorySceneView)field(view,"story");}
  void selectQuestion(int index){runOnMainSync(()->{view.progress.index=index;view.progress.phase=QuizProgress.Phase.QUESTION;view.progress.streak=0;});invoke("render",new Class[]{});}
@@ -98,13 +107,13 @@ public class SerJoySmoke extends Instrumentation {
   getTargetContext().getSharedPreferences("ad_age",0).edit().putString("band","teen").commit();
   getTargetContext().getSharedPreferences("ser_joy_v1",0).edit().clear().commit();
   byte[] bundled;try(InputStream in=getTargetContext().getAssets().open("ser-joy-content.json")){bundled=JokePatch.read(in);}
-  check(JokePatch.verified(bundled,JokePatch.sha(bundled),7,156).jokes.length()==156,"expanded patch compatible");
-  boolean rejected=false;try{JokePatch.verified(bundled,"bad",7,156);}catch(Exception expected){rejected=true;}check(rejected,"checksum rejection");
+  check(JokePatch.verified(bundled,JokePatch.sha(bundled),8,156).jokes.length()==156,"expanded patch compatible");
+  boolean rejected=false;try{JokePatch.verified(bundled,"bad",8,156);}catch(Exception expected){rejected=true;}check(rejected,"checksum rejection");
   File cache=new File(getTargetContext().getFilesDir(),"ser-joy-content.json");cache.delete();
   Intent market=MainActivity.storeUpdateIntent(true),web=MainActivity.storeUpdateIntent(false);
   check("com.android.vending".equals(market.getPackage())&&market.getDataString().equals("market://details?id=com.sunantongsan.ghostmatch3"),"store link opens exact game");
   check(web.getDataString().equals("https://play.google.com/store/apps/details?id=com.sunantongsan.ghostmatch3"),"browser fallback opens exact game");
-  launch();check(view.progress.index==0,"initial question");shot("01-ant-story");
+  launch();checkpoint("launched");check(view.progress.index==0,"initial question");shot("01-ant-story");
   View update=(View)field(host,"updateGame");
   runOnMainSync(()->{host.showStoreUpdate(true);check(host.updateAvailable,"store availability updates UI state");check(update.getVisibility()==View.VISIBLE,"update button shown for available update");});
   IntentFilter storeFilter=new IntentFilter(Intent.ACTION_VIEW);storeFilter.addDataScheme("market");ActivityMonitor storeMonitor=addMonitor(storeFilter,null,true);
@@ -118,8 +127,17 @@ public class SerJoySmoke extends Instrumentation {
    check(surface.getMeasuredHeight()==probe.getMeasuredHeight(),"unconstrained pass does not leave stage zero-sized");
    probe.measure(View.MeasureSpec.makeMeasureSpec(pw,View.MeasureSpec.EXACTLY),View.MeasureSpec.makeMeasureSpec(ph,View.MeasureSpec.EXACTLY));probe.layout(0,0,pw,ph);
   });checkSceneDraws();
-  audioRegression();
-  adReturnRegression();
+  checkpoint("viewport checked");audioRegression();checkpoint("audio checked");
+  adReturnRegression();checkpoint("ad lifecycle checked");
+  // History must not reveal the locked current question or reset its ad gate.
+  selectQuestion(73);runOnMainSync(()->view.progress.answer(false));invoke("save",new Class[]{});
+  runOnMainSync(view::showHistory);waitForIdleSync();
+  AlertDialog history=(AlertDialog)field(view,"historyDialog");check(history!=null&&history.isShowing(),"history opens");
+  check(QuizHistory.count(view.progress)==73,"history excludes locked current question");shot("history-review");
+  runOnMainSync(history::dismiss);check(view.progress.index==73&&view.progress.phase==QuizProgress.Phase.AD_REQUIRED&&view.progress.streak==1,"history preserves gate and streak");
+  selectQuestion(73);StorySceneView fxScene=scene();tap(fxScene.choiceView(host.content.jokes.getJSONObject(73).getInt("answer")));SystemClock.sleep(600);shot("celebration-fireworks");
+  selectQuestion(73);int wrong=(host.content.jokes.getJSONObject(73).getInt("answer")+1)%3;tap(scene().choiceView(wrong));SystemClock.sleep(600);shot("animal-laughter-555");
+  checkpoint("history and reaction screenshots captured");
   // Every question must instantiate the scene renderer with three usable nonoverlapping objects.
   for(int i=0;i<host.content.jokes.length();i++){
    selectQuestion(i);StorySceneView story=scene();check(story!=null,"story exists "+i);
@@ -146,7 +164,8 @@ public class SerJoySmoke extends Instrumentation {
     runOnMainSync(story::showFinal);checkSceneDraws();
     if(i==56||i==59||i==88||i==125||i==155)shot("sourced-answer-"+(i+1));
    }
-   shot("audit-before-"+(i+1));
+   if(i==30||i==31||i==34||i==50)shot("audit-before-"+(i+1));
+   if(i%20==0)checkpoint("rendered question "+(i+1));
    if(i>=42&&i<56){checkSceneDraws();runOnMainSync(story::showFinal);checkSceneDraws();}
    if(i==26||i==27||i==47||i==22||i==30||i==31||i==38||i==40||i==155||i==42||i==45||i==52||i==55)shot("scene-"+(i+1));
   }
@@ -157,14 +176,14 @@ public class SerJoySmoke extends Instrumentation {
   selectQuestion(31);StorySceneView basket=scene();runOnMainSync(basket::showFinal);shot("basket-explanation");
   selectQuestion(23);shot("02-door-choices");tap(scene().choiceView(0));
   check(view.progress.phase==QuizProgress.Phase.AD_REQUIRED&&view.progress.index==23,"hammer wrong stays at door");shot("03-door-laugh");
-  SystemClock.sleep(1700);check(scene().mode()==1,"no punchline on wrong");
+  SystemClock.sleep(3000);check(scene().mode()==1,"no punchline on wrong");
   runOnMainSync(()->host.finish());waitForIdleSync();SystemClock.sleep(300);launch();
   check(view.progress.index==23&&view.progress.phase==QuizProgress.Phase.AD_REQUIRED,"wrong gate survives restart");
   // Simulate state-machine reward, never claim an actual ad impression was watched.
   runOnMainSync(()->view.progress.reward());invoke("save",new Class[]{});invoke("render",new Class[]{});
   check(view.progress.index==23&&view.progress.phase==QuizProgress.Phase.QUESTION,"reward retries same question");
   tap(scene().choiceView(1));check(view.progress.phase==QuizProgress.Phase.AD_REQUIRED,"bomb also wrong");
-  SystemClock.sleep(1700);runOnMainSync(()->view.progress.reward());invoke("render",new Class[]{});
+  SystemClock.sleep(3000);runOnMainSync(()->view.progress.reward());invoke("render",new Class[]{});
   tap(scene().choiceView(2));check(view.progress.phase==QuizProgress.Phase.CORRECT,"fire correct");
   StorySceneView correct=scene();check(correct.mode()==2&&!correct.choiceView(0).isEnabled(),"cutscene locks input");
   SystemClock.sleep(2200);shot("04-fire-carried-to-door");SystemClock.sleep(1100);shot("05-door-running");

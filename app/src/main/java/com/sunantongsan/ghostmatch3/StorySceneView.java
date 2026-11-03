@@ -15,6 +15,7 @@ final class StorySceneView extends FrameLayout {
     private final JSONObject scene,joke;
     private final Listener listener;
     private final Stage stage;
+    private final QuizReactionEffects reaction;
     private final View[] choices=new View[3];
     private final int[] objects=new int[3];
     private final String[] tags=new String[3];
@@ -26,9 +27,10 @@ final class StorySceneView extends FrameLayout {
     private boolean active=true,released,callbackSent;
     private int mode=0,chosen=-1; // intro/choose, wrong, resolution, final
     private long transition;
-    static final long WRONG_MS=1500,REVEAL_MS=5200;
+    static final long WRONG_MS=2800,REVEAL_MS=5200;
     StorySceneView(MainActivity host,StoryArt art,JSONObject scene,JSONObject joke,int index,int total,Listener listener){
         super(host);this.host=host;this.art=art;this.scene=scene;this.joke=joke;this.listener=listener;this.questionNumber=index+1;this.total=total;
+        reaction=new QuizReactionEffects(art.laughingAnimals);
         answerCards="answer-cards".equals(joke.optString("presentation"));
         room=scene.optInt("room");target=scene.optInt("target");action=scene.optString("action");layout=scene.optInt("layout");
         setClipChildren(true);setBackgroundColor(0xFF152A36);
@@ -36,7 +38,7 @@ final class StorySceneView extends FrameLayout {
         JSONArray list=joke.optJSONArray("choices");
         for(int n=0;n<3;n++){
             final int choice=n;objects[n]=scene.optJSONArray("objects").optInt(n);tags[n]=answerCards?list.optJSONObject(n).optString("label"):scene.optJSONArray("labels").optString(n);
-            View hit=new View(host);hit.setBackgroundColor(Color.TRANSPARENT);hit.setContentDescription(tags[n]);hit.setFocusable(true);hit.setClickable(true);
+            View hit=new View(host);android.graphics.drawable.GradientDrawable mask=new android.graphics.drawable.GradientDrawable();mask.setColor(Color.WHITE);mask.setCornerRadius(20);hit.setBackground(new android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(0x55B38AFF),null,mask));hit.setContentDescription(tags[n]);hit.setFocusable(true);hit.setClickable(true);
             hit.setOnClickListener(v->{if(mode==0&&active&&!released){setChoicesEnabled(false);listener.choose(choice);}});
             hit.setOnLongClickListener(v->{host.sayStory(tags[choice]);return true;});
             choices[n]=hit;addView(hit,new FrameLayout.LayoutParams(1,1));
@@ -90,11 +92,15 @@ final class StorySceneView extends FrameLayout {
         }
         private void answerCard(Canvas c,int index,float x,float y,float w,float h,boolean resolved){
             float left=x-w*.145f,top=y-h*.18f;
-            p.setColor(resolved?0xFFF8CF58:0xFFFDF4DC);
+            p.setColor(0x88401B65);
+            c.drawRoundRect(left,top+h*.009f,x+w*.145f,y+h*.049f,w*.025f,w*.025f,p);
+            p.setShader(new LinearGradient(0,top,0,y+h*.04f,resolved?0xFFFFF2A9:0xFFFFFFFF,resolved?0xFFFFCC45:0xFFE7DCFF,Shader.TileMode.CLAMP));
             c.drawRoundRect(left,top,x+w*.145f,y+h*.04f,w*.025f,w*.025f,p);
-            p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(w*.006f);p.setColor(0xFF765433);
+            p.setShader(null);
+            p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(w*.006f);p.setColor(resolved?0xFFE3A329:0xFFB795E9);
             c.drawRoundRect(left,top,x+w*.145f,y+h*.04f,w*.025f,w*.025f,p);p.setStyle(Paint.Style.FILL);
-            label(c,joke.optJSONArray("choices").optJSONObject(index).optString("icon"),x,top+h*.012f,w*.26f,w*.095f,0xFF302A35);
+            p.setColor(resolved?0xFF22866C:0xFF7349BB);c.drawCircle(x,top+h*.038f,w*.038f,p);
+            label(c,resolved?"✓":new String[]{"ก","ข","ค"}[index],x,top+h*.019f,w*.12f,w*.044f,Color.WHITE);
             float font=w*.039f;StaticLayout lines;
             do {
                 text.setTextSize(font);text.setTypeface(Typeface.create("sans-serif",Typeface.BOLD));text.setColor(0xFF302A35);
@@ -159,6 +165,7 @@ final class StorySceneView extends FrameLayout {
                 for(int i=0;i<3;i++){
                     float x=ox(i)*w,y=oy(i)*h;
                     if(answerCards){answerCard(c,i,x,y,w,h,false);continue;}
+                    p.setColor(0x88472B69);c.drawRoundRect(x-w*.135f,y-w*.26f,x+w*.135f,y+h*.068f,w*.025f,w*.025f,p);p.setColor(Color.WHITE);
                     if(mode==1&&i==chosen){c.save();c.rotate((float)Math.sin(cut*19)*8,x,y);}
                     if(scene.has("tints")&&scene.optJSONArray("tints").optInt(i)!=0)p.setColorFilter(new PorterDuffColorFilter(scene.optJSONArray("tints").optInt(i),PorterDuff.Mode.SRC_ATOP));
                     prop(c,objects[i],x,y,w*.25f*(scene.has("sizes")?(float)scene.optJSONArray("sizes").optDouble(i,1):1));p.setColorFilter(null);
@@ -178,6 +185,7 @@ final class StorySceneView extends FrameLayout {
                     if(mode==1&&i==chosen)c.restore();
                 }
             }
+            if((mode==1&&!callbackSent)||mode==2)reaction.draw(c,mode==2,cut,w,h);
             String speech=mode==1?"ฮ่า ๆ! ยังไม่ใช่ ลองอีกที!":mode==3?joke.optString("punchline"):questionText();
             float bubbleTop=h*.105f,bubbleW=w*.89f;
             text.setTextSize(w*.047f);text.setTypeface(Typeface.create("sans-serif",Typeface.BOLD));
@@ -186,7 +194,7 @@ final class StorySceneView extends FrameLayout {
             p.setColor(0xF9FFF9ED);c.drawRoundRect(w*.055f,bubbleTop,w*.945f,bubbleTop+bubbleH,w*.035f,w*.035f,p);
             Path tail=new Path();tail.moveTo(w*.20f,bubbleTop+bubbleH-1);tail.lineTo(w*.25f,bubbleTop+bubbleH+h*.025f);tail.lineTo(w*.32f,bubbleTop+bubbleH-1);c.drawPath(tail,p);
             label(c,speech,w*.5f,bubbleTop+h*.013f,bubbleW-w*.06f,w*.047f,0xFF27283C);
-            label(c,"ท่านเซ่อจ่อย  •  "+questionNumber+" / "+total,w*.39f,h*.025f,w*.72f,w*.032f,Color.WHITE);
+            label(c,"ท่านเซ่อจ่อย  •  "+questionNumber+" / "+total,w*.5f,h*.025f,w*.65f,w*.032f,Color.WHITE);
             if(mode==0)label(c,answerCards?"แตะคำตอบที่ตรงกับมุก":"แตะของในฉากเพื่อตอบ",w*.5f,h*.975f,w*.8f,w*.028f,Color.WHITE);
             if(!callbackSent&&mode==1&&elapsed-transition>=WRONG_MS){callbackSent=true;post(()->{if(!released)listener.wrongFinished();});}
             if(!callbackSent&&mode==2&&elapsed-transition>=REVEAL_MS){callbackSent=true;mode=3;post(()->{if(!released)listener.revealFinished();});}

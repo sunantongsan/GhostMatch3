@@ -10,7 +10,7 @@ for n,j in enumerate(jokes,1):
  assert 0<len(j['question'])<=300 and 0<len(j['punchline'])<=500
  for c in j['choices']:assert 0<len(c['icon'])<=24 and 0<len(c['label'])<=100
 m=json.loads((p/'docs/patches/ser-joy-manifest.json').read_text())
-assert m['version']==doc['version']==7 and m['sha256']==hashlib.sha256(raw).hexdigest()
+assert m['version']==doc['version']==8 and m['sha256']==hashlib.sha256(raw).hexdigest()
 assert (p/'docs/patches'/m['file']).read_bytes()==raw and len(raw)<262144
 print('PASS: 156 unique questions, stable old IDs, three choices, patch checksum and size')
 
@@ -19,7 +19,7 @@ assert json.loads((p/'app/src/main/assets/ser-joy-jokes.json').read_text())==jok
 
 previous=json.loads((p/'docs/patches/ser-joy-v6.json').read_text())['jokes']
 assert jokes[:56]==previous[:56], 'preserve all existing first 56 questions exactly'
-audit=json.loads((p/'docs/serjoy-v7-sources.json').read_text())
+audit=json.loads((p/'docs/serjoy-v8-sources.json').read_text())
 assert len(audit)==100
 for j,old,row in zip(jokes[56:],previous[56:],audit):
  assert j['id']==row['id'] and j['question']!=old['question']
@@ -30,6 +30,13 @@ for j,old,row in zip(jokes[56:],previous[56:],audit):
  assert all(len(c['label'])<=32 for c in j['choices']), 'mobile answer width'
  assert 'เซ่อจ่อย' not in j['question'], 'remove invented character scenarios'
 print('PASS: 100 sourced replacements, canonical answers, stable first 56 and mobile labels')
+v7=json.loads((p/'docs/patches/ser-joy-v7.json').read_text())['jokes']
+assert jokes[:69]==v7[:69], 'v8 repairs start at level 70'
+assert [j['answer'] for j in jokes]==[j['answer'] for j in v7], 'preserve scoring positions'
+assert 'in sea' in jokes[81]['punchline'] and 'ผมไปหยิกเขา' in jokes[108]['punchline']
+assert 'ฉกอะไร' not in jokes[121]['question'], 'dirty-snake punchline answers condition, not an object'
+assert 'เม็ดงา' not in jokes[154]['question'], 'do not give away sesame/tusk wordplay'
+print('PASS: v8 scope, stable answer positions and reported ambiguous wordplay regressions')
 scenes=json.loads((p/'app/src/main/assets/story/scenes.json').read_text())['scenes']
 assert len(scenes)==len(jokes)
 for i,s in enumerate(scenes):

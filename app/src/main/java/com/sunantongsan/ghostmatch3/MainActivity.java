@@ -43,6 +43,7 @@ public class MainActivity extends Activity {
     }
 
     JokePatch.Content content;
+    GameAssets gameAssets;
     private Thread patchWorker;
     private android.widget.Button enterGame,updateGame;
     boolean updateAvailable=false;
@@ -66,36 +67,51 @@ public class MainActivity extends Activity {
             .addOnSuccessListener(info->showStoreUpdate(info.updateAvailability()==com.google.android.play.core.install.model.UpdateAvailability.UPDATE_AVAILABLE))
             .addOnFailureListener(error->{/* Offline or sideloaded: keep playing; store link remains in menu. */});
     }
+    private android.graphics.drawable.GradientDrawable welcomeShape(int top,int bottom,int radius){
+        android.graphics.drawable.GradientDrawable d=new android.graphics.drawable.GradientDrawable(
+            android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,new int[]{top,bottom});
+        d.setCornerRadius(dp(radius));return d;
+    }
     private void showWelcome(){
+        android.widget.FrameLayout stage=new android.widget.FrameLayout(this);
+        stage.setBackground(welcomeShape(0xFF291448,0xFF7840B4,0));
+        WelcomeArtView hero=new WelcomeArtView(this);
+        stage.addView(hero,new android.widget.FrameLayout.LayoutParams(-1,-1));
         android.widget.LinearLayout welcome=new android.widget.LinearLayout(this);
-        welcome.setOrientation(android.widget.LinearLayout.VERTICAL);welcome.setGravity(Gravity.CENTER);welcome.setPadding(32,40,32,40);welcome.setBackgroundColor(0xFFFFFBF0);
-        android.widget.ImageView hero=new android.widget.ImageView(this);hero.setAdjustViewBounds(true);hero.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
-        try(java.io.InputStream scene=getAssets().open("ser-joy-neighborhood.webp");java.io.InputStream actor=getAssets().open("ser-joy-fullbody.webp")){
-            android.graphics.Bitmap bg=android.graphics.BitmapFactory.decodeStream(scene),sheet=android.graphics.BitmapFactory.decodeStream(actor);
-            android.graphics.drawable.BitmapDrawable backdrop=new android.graphics.drawable.BitmapDrawable(getResources(),bg);backdrop.setGravity(Gravity.FILL);welcome.setBackground(backdrop);
-            hero.setImageBitmap(android.graphics.Bitmap.createBitmap(sheet,0,0,sheet.getWidth()/4,420));sheet.recycle();
-        }catch(java.io.IOException e){hero.setImageResource(R.drawable.app_icon);}
-        int heroSize=Math.round(210*getResources().getDisplayMetrics().density);
-        welcome.addView(hero,new android.widget.LinearLayout.LayoutParams(heroSize,Math.round(heroSize*1.33f)));
-        android.widget.TextView title=new android.widget.TextView(this);title.setText("ท่านเซ่อจ่อย");title.setTextSize(34);title.setBackgroundColor(0xDFFFF8E8);title.setTextColor(0xFF24212B);title.setGravity(Gravity.CENTER);title.setTypeface(null,Typeface.BOLD);welcome.addView(title);
-        android.widget.TextView sub=new android.widget.TextView(this);sub.setText("พักเรื่องเครียด…แล้วมาโดนมุกหลอกกัน!");sub.setTextSize(17);sub.setBackgroundColor(0xDFFFF8E8);sub.setGravity(Gravity.CENTER);sub.setPadding(0,20,0,30);welcome.addView(sub);
-        android.widget.ProgressBar bar=new android.widget.ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);bar.setMax(100);welcome.addView(bar,new android.widget.LinearLayout.LayoutParams(-1,20));
-        android.widget.TextView status=new android.widget.TextView(this);status.setText("เตรียมเสียงหัวเราะ…");status.setTextSize(16);status.setBackgroundColor(0xDFFFF8E8);status.setGravity(Gravity.CENTER);status.setPadding(0,24,0,24);welcome.addView(status);
-        enterGame=new android.widget.Button(this);enterGame.setText("กำลังเตรียมเกม…");enterGame.setEnabled(false);welcome.addView(enterGame,new android.widget.LinearLayout.LayoutParams(-1,-2));
-        enterGame.setOnClickListener(v->{if(content!=null&&gameView==null)startGame();});
-        updateGame=new android.widget.Button(this);updateGame.setText("เวอร์ชันใหม่ • อัปเดต");updateGame.setAllCaps(false);updateGame.setVisibility(View.GONE);updateGame.setOnClickListener(v->openStoreUpdate());
-        welcome.addView(updateGame,welcome.indexOfChild(enterGame),new android.widget.LinearLayout.LayoutParams(-1,-2));
-        android.widget.ScrollView welcomeScroll=new android.widget.ScrollView(this);welcomeScroll.setFillViewport(true);welcomeScroll.addView(welcome);setContentView(welcomeScroll);
+        welcome.setOrientation(android.widget.LinearLayout.VERTICAL);welcome.setGravity(Gravity.CENTER_HORIZONTAL);
+        welcome.setPadding(dp(24),dp(28),dp(24),dp(20));
+        android.widget.TextView eyebrow=new android.widget.TextView(this);eyebrow.setText("ยินดีต้อนรับสู่โลกของมุกกวน");eyebrow.setTextSize(14);eyebrow.setTextColor(0xFFE8D7FF);eyebrow.setGravity(Gravity.CENTER);welcome.addView(eyebrow);
+        android.widget.TextView title=new android.widget.TextView(this);title.setText("Serจ่อย");title.setTextSize(46);title.setTextColor(0xFFFFD65B);title.setGravity(Gravity.CENTER);title.setTypeface(null,Typeface.BOLD);title.setShadowLayer(dp(4),0,dp(3),0xFF281044);welcome.addView(title);
+        android.widget.TextView sub=new android.widget.TextView(this);sub.setText("คิดให้ไว… ระวังโดนจ่อยหลอก!");sub.setTextSize(16);sub.setTextColor(Color.WHITE);sub.setGravity(Gravity.CENTER);welcome.addView(sub);
+        View spacer=new View(this);welcome.addView(spacer,new android.widget.LinearLayout.LayoutParams(1,dp(230),1));
+        android.widget.LinearLayout card=new android.widget.LinearLayout(this);card.setOrientation(android.widget.LinearLayout.VERTICAL);card.setPadding(dp(20),dp(18),dp(20),dp(18));card.setBackground(welcomeShape(0xFFFFFCF5,0xFFF0E5FF,28));card.setElevation(dp(8));
+        welcome.addView(card,new android.widget.LinearLayout.LayoutParams(-1,-2));
+        android.widget.TextView label=new android.widget.TextView(this);label.setText("มุกกวน • ปริศนาหักมุม • เสียงหัวเราะ");label.setTextSize(14);label.setTextColor(0xFF623997);label.setGravity(Gravity.CENTER);card.addView(label);
+        android.widget.TextView status=new android.widget.TextView(this);status.setText("กำลังเตรียมความสนุก…");status.setTextSize(13);status.setTextColor(0xFF665675);status.setGravity(Gravity.CENTER);status.setPadding(0,dp(12),0,dp(8));card.addView(status);
+        android.widget.ProgressBar bar=new android.widget.ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);bar.setMax(100);bar.setProgressTintList(android.content.res.ColorStateList.valueOf(0xFF8D50D8));card.addView(bar,new android.widget.LinearLayout.LayoutParams(-1,dp(4)));
+        enterGame=new android.widget.Button(this);enterGame.setText("กำลังเตรียมเกม…");enterGame.setEnabled(false);enterGame.setAllCaps(false);enterGame.setTextSize(22);enterGame.setTypeface(null,Typeface.BOLD);enterGame.setTextColor(0xFF38204F);enterGame.setMinHeight(dp(62));
+        android.graphics.drawable.GradientDrawable gold=welcomeShape(0xFFFFE582,0xFFFFBE35,22);gold.setStroke(dp(2),0xFFFFEEAC);
+        enterGame.setBackground(new android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(0x55FFFFFF),gold,null));enterGame.setElevation(dp(4));
+        android.widget.LinearLayout.LayoutParams playParams=new android.widget.LinearLayout.LayoutParams(-1,dp(64));playParams.topMargin=dp(16);card.addView(enterGame,playParams);
+        enterGame.setOnClickListener(v->{if(content!=null&&gameAssets!=null&&gameView==null){enterGame.setEnabled(false);enterGame.setText("ไปสนุกกันเลย!");enterGame.postOnAnimation(()->enterGame.post(this::startGame));}});
+        updateGame=new android.widget.Button(this);updateGame.setText("มีเวอร์ชันใหม่ • อัปเดต");updateGame.setAllCaps(false);updateGame.setTextColor(0xFF623997);updateGame.setVisibility(View.GONE);updateGame.setOnClickListener(v->openStoreUpdate());card.addView(updateGame);
+        android.widget.TextView footer=new android.widget.TextView(this);footer.setText("เล่นต่อได้จากข้อเดิมทุกครั้ง");footer.setTextColor(0xFFDFCCF3);footer.setTextSize(12);footer.setGravity(Gravity.CENTER);footer.setPadding(0,dp(18),0,0);welcome.addView(footer);
+        android.widget.ScrollView scroll=new android.widget.ScrollView(this);scroll.setFillViewport(true);scroll.setOnApplyWindowInsetsListener((v,i)->{v.setPadding(i.getSystemWindowInsetLeft(),i.getSystemWindowInsetTop(),i.getSystemWindowInsetRight(),i.getSystemWindowInsetBottom());return i;});scroll.addView(welcome);stage.addView(scroll,new android.widget.FrameLayout.LayoutParams(-1,-1));setContentView(stage);
         patchWorker=new Thread(()->{
+            GameAudio preparedAudio=null;
             try{
+                GameAssets prepared=new GameAssets(getApplicationContext());
+                runOnUiThread(()->{if(!isDestroyed()&&!isFinishing())hero.setArt(prepared.story);});
                 JokePatch.Content loaded=JokePatch.check(getApplicationContext(),(message,percent)->runOnUiThread(()->{if(isDestroyed()||isFinishing())return;status.setText(message);bar.setProgress(percent);}));
-                runOnUiThread(()->{if(isDestroyed()||isFinishing())return;content=loaded;enterGame.setText("เข้าเกม  →");enterGame.setEnabled(true);});
-            }catch(Exception e){runOnUiThread(()->{if(isDestroyed()||isFinishing())return;status.setText("ข้อมูลเกมไม่สมบูรณ์ กรุณาเปิดเกมใหม่");enterGame.setText("ลองอีกครั้ง");enterGame.setEnabled(true);enterGame.setOnClickListener(v->recreate());});}
-        },"ser-joy-patch");patchWorker.start();
+                preparedAudio=new GameAudio(getApplicationContext());
+                GameAudio readyAudio=preparedAudio;
+                runOnUiThread(()->{if(isDestroyed()||isFinishing()){readyAudio.release();return;}gameAssets=prepared;gameAudio=readyAudio;content=loaded;status.setText("พร้อมแล้ว! วันนี้จะรอดกี่มุก?");bar.setVisibility(View.GONE);enterGame.setText("เข้าเกม  ▶");enterGame.setEnabled(true);});
+            }catch(Exception e){if(preparedAudio!=null)preparedAudio.release();runOnUiThread(()->{if(isDestroyed()||isFinishing())return;status.setText("เตรียมเกมไม่สำเร็จ กรุณาลองอีกครั้ง");enterGame.setText("ลองอีกครั้ง");enterGame.setEnabled(true);enterGame.setOnClickListener(v->recreate());});}
+        },"ser-joy-prepare");patchWorker.start();
     }
 
     private void startGame(){
-        gameAudio=new GameAudio(this);
+        if(isDestroyed()||isFinishing()||gameView!=null)return;
         gameAudio.setActive(activityResumed);
         storySpeech=new StorySpeech(this);
         gameView=new SerJoyView(this);
